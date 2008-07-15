@@ -21,8 +21,8 @@ def announce(msg='')
   $stderr.puts msg
 end
 
-desc "Default Task (Build packages)"
-task :default => :package
+desc "Default Task (Test project)"
+task :default => :test
 
 # Determine the current version of the software
 if File.read('ext/curb.h') =~ /\s*CURB_VERSION\s*['"](\d.+)['"]/
@@ -61,7 +61,7 @@ def make(target = '')
 end
 
 # Let make handle dependencies between c/o/so - we'll just run it. 
-file CURB_SO => 'ext/Makefile' do
+file CURB_SO => (['ext/Makefile'] + Dir['ext/*.c'] + Dir['ext/*.h']) do
   m = make
   fail "Make failed (status #{m})" unless m == 0
 end
