@@ -135,33 +135,38 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   end
   
   def test_with_success_cb_with_404
-    c1 = Curl::Easy.new("#{$TEST_URL.gsub(/file:/,'http:')}/not_here")
+    c1 = Curl::Easy.new("#{$TEST_URL.gsub(/file:\/\//,'')}/not_here")
     c2 = Curl::Easy.new($TEST_URL)
     success_called1 = false
     success_called2 = false
     
     c1.on_success do|c|
       success_called1 = true
-      #puts "success called: #{c.body_str.inspect}"
+    #  puts "success 1 called: #{c.body_str.inspect}"
       #assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     end
+
     c1.on_failure do|c|
-      puts "failure called: #{c.body_str.inspect}"
+    #  puts "failure called: #{c.body_str.inspect}"
     end
 
     c2.on_success do|c|
+    #  puts "success 2 called: #{c.body_str.inspect}"
       success_called2 = true
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     end
 
     m = Curl::Multi.new
 
+    #puts "c1: #{c1.url}"
     m.add( c1 )
+    #puts "c2: #{c2.url}"
     m.add( c2 )
 
+    #puts "calling"
     m.perform do
       # idle
-      puts "idling..."
+    #  puts "idling..."
     end
 
     assert success_called2

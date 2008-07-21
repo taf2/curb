@@ -89,9 +89,11 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
   ruby_curl_easy_setup( rbce, &(rbce->bodybuf), &(rbce->headerbuf), &(rbce->curl_headers) );
 
   rbcm->active++;
-  curl_multi_perform(rbcm->handle, &(rbcm->running));
+  if (mcode == CURLM_CALL_MULTI_PERFORM) {
+    curl_multi_perform(rbcm->handle, &(rbcm->running));
+  }
 
-  rb_hash_aset( rbcm->requests, rb_int_new((int)rbce->curl), easy );
+  rb_hash_aset( rbcm->requests, rb_int_new((long)rbce->curl), easy );
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
 
   if (rbcm->active > rbcm->running) {
@@ -130,7 +132,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
  
   rbcm->active--;
-  rb_hash_delete( rbcm->requests, rb_int_new((int)rbce->curl) );
+  rb_hash_delete( rbcm->requests, rb_int_new((long)rbce->curl) );
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
 
   result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
