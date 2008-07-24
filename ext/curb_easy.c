@@ -1309,14 +1309,12 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
   // Sort out the built-in body/header data.
   if (bodybuf != Qnil) {
     rbce->body_data = rb_str_to_str(bodybuf);
-    rbce->bodybuf = Qnil;
   } else {
     rbce->body_data = Qnil;
   }
 
   if (headerbuf != Qnil) {
     rbce->header_data = rb_str_to_str(headerbuf);
-    rbce->headerbuf = Qnil;
   } else {
     rbce->header_data = Qnil;
   }

@@ -4,6 +4,7 @@
  * 
  * $Id$
  */
+#include <st.h>
 #include "curb_easy.h"
 #include "curb_errors.h"
 #include "curb_postfield.h"
@@ -23,8 +24,14 @@ static VALUE ruby_curl_multi_remove(VALUE , VALUE );
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 
+static void rb_curl_multi_mark_all_easy(VALUE key, VALUE rbeasy, ruby_curl_multi *rbcm) {
+  //printf( "mark easy: 0x%X\n", (long)rbeasy );
+  rb_gc_mark(rbeasy);
+}
+
 static void curl_multi_mark(ruby_curl_multi *rbcm) {
   rb_gc_mark(rbcm->requests);
+  rb_hash_foreach( rbcm->requests, (int (*)())rb_curl_multi_mark_all_easy, (VALUE)rbcm );
 }
 
 static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) {
@@ -32,6 +39,7 @@ static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) 
 }
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
+  //printf("hash entries: %d\n", RHASH(rbcm->requests)->tbl->num_entries );
   rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
 
   curl_multi_cleanup(rbcm->handle);
@@ -123,6 +131,7 @@ static VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
 
   rb_curl_multi_remove(rbcm,easy);
+  // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
 
   return self;
 }
@@ -132,8 +141,8 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
  
   rbcm->active--;
-  rb_hash_delete( rbcm->requests, rb_int_new((long)rbce->curl) );
-  // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
+
+  //printf( "calling rb_curl_multi_remove: 0x%X, active: %d\n", (long)easy, rbcm->active );
 
   result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
   if (result != 0) {
@@ -141,6 +150,9 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   }
  
   ruby_curl_easy_cleanup( easy, rbce, rbce->bodybuf, rbce->headerbuf, rbce->curl_headers );
+  rbce->headerbuf = Qnil;
+  rbce->bodybuf = Qnil;
+  rb_hash_delete( rbcm->requests, rb_int_new((long)rbce->curl) );
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
@@ -164,15 +176,17 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
       if (ecode != 0) {
         raise_curl_easy_error_exception(ecode);
       }
+      //printf( "finished: 0x%X\n", (long)rbce->self );
       rb_ary_push(finished, rbce->self);
       //ruby_curl_multi_remove( self, rbce->self );
     }
     else {
-      printf( "missing easy handle\n" );
+      //printf( "missing easy handle\n" );
     }
   }
 
   while (RARRAY(finished)->len > 0) {
+    //printf( "finished handle\n" );
     ruby_curl_multi_remove( self, rb_ary_pop(finished) );
   }
 }
@@ -217,6 +231,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
   struct timeval tv = {0, 0};
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  //rb_gc_mark(self);
 
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
 

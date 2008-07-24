@@ -175,6 +175,49 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m = nil
   end
 
+  class TestForScope
+    attr_reader :buf
+
+    def t_method
+      @buf = ""
+      @m = Curl::Multi.new
+      10.times do
+        c = Curl::Easy.new($TEST_URL)
+        c.on_success{|b| @buf << b.body_str }
+        ObjectSpace.garbage_collect
+        @m.add(c)
+        ObjectSpace.garbage_collect
+      end
+      ObjectSpace.garbage_collect
+    end
+
+    def t_call
+      @m.perform do
+        ObjectSpace.garbage_collect
+      end
+    end
+
+    def self.test
+        ObjectSpace.garbage_collect
+      tfs = TestForScope.new
+        ObjectSpace.garbage_collect
+      tfs.t_method
+      ObjectSpace.garbage_collect
+      tfs.t_call
+      ObjectSpace.garbage_collect
+
+      tfs.buf
+    end
+
+  end
+
+  def test_with_garbage_collect
+    ObjectSpace.garbage_collect
+    buf = TestForScope.test
+    ObjectSpace.garbage_collect
+    assert_match(/^# DO NOT REMOVE THIS COMMENT/, buf)
+  end
+
 =begin
   def test_remote_requests
     responses = {}
