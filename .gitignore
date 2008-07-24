@@ -1,6 +1,7 @@
 ext/Makefile
 ext/curb.o
 ext/curb_core.so
+ext/curb_core.bundle
 ext/curb_easy.o
 ext/curb_errors.o
 ext/curb_multi.o
