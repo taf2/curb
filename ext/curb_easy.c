@@ -1143,27 +1143,27 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
   // body/header procs
   if (rbce->body_proc != Qnil) {      
     *body_buffer = Qnil;      
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &proc_data_handler);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&proc_data_handler);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, rbce->body_proc);
   } else {
     *body_buffer = rb_str_buf_new(32768);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &default_data_handler);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&default_data_handler);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, *body_buffer);
   }
       
   if (rbce->header_proc != Qnil) {
     *header_buffer = Qnil;      
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &proc_data_handler);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&proc_data_handler);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, rbce->header_proc);
   } else {
     *header_buffer = rb_str_buf_new(32768);      
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, &default_data_handler);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&default_data_handler);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, *header_buffer);
   }
 
   // progress and debug procs    
   if (rbce->progress_proc != Qnil) {
-    curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, &proc_progress_handler);
+    curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, (curl_progress_callback)&proc_progress_handler);
     curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, rbce->progress_proc);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
   } else {
@@ -1171,7 +1171,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
   }
   
   if (rbce->debug_proc != Qnil) {
-    curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, &proc_debug_handler);
+    curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, (curl_debug_callback)&proc_debug_handler);
     curl_easy_setopt(curl, CURLOPT_DEBUGDATA, rbce->debug_proc);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
   } else {
@@ -1363,77 +1363,76 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
   ruby_curl_easy_setup(rbce, &bodybuf, &headerbuf, &headers);
 
-  /* NOTE:
-   * We create an Curl multi handle here and use rb_thread_select allowing other ruby threads to 
-   * perform actions... ideally we'd have just 1 shared multi handle per all curl easy handles globally
-   */
-  mcode = curl_multi_add_handle(multi_handle, rbce->curl);
-  if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
-    raise_curl_multi_error_exception(mcode);
-  }
+//  if( rb_thread_alone() ) {
+//    result = curl_easy_perform(rbce->curl);
+//  }
+//  else {
 
-  while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) ) ;
-
-  if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
-    raise_curl_multi_error_exception(mcode);
-  }
-
-  while(still_running) {
-    struct timeval timeout;
-    int rc; /* select() return code */
-    int maxfd;
-
-    fd_set fdread;
-    fd_set fdwrite;
-    fd_set fdexcep;
-
-    FD_ZERO(&fdread);
-    FD_ZERO(&fdwrite);
-    FD_ZERO(&fdexcep);
-
-    /* set a suitable timeout to play around with */
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
-    /* get file descriptors from the transfers */
-    mcode = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
+    /* NOTE:
+     * We create an Curl multi handle here and use rb_thread_select allowing other ruby threads to 
+     * perform actions... ideally we'd have just 1 shared multi handle per all curl easy handles globally
+     */
+    mcode = curl_multi_add_handle(multi_handle, rbce->curl);
     if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
       raise_curl_multi_error_exception(mcode);
     }
 
-    rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &timeout);
-    if (rc < 0) {
-      rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-    }
- 
-    switch(rc) {
-    case 0: /* timeout */
-    default:
-      /* timeout or readable/writable sockets */
-      while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
-    break;
-    }
- 
+    while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) ) ;
+
     if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
       raise_curl_multi_error_exception(mcode);
     }
 
-  }
-  
-  /* check for errors */
-  CURLMsg *msg = curl_multi_info_read(multi_handle, &msgs);
-  if (msg) {
-    result = msg->data.result;
-  }
-  else {
-    long val;
-    curl_easy_getinfo( rbce->curl, CURLINFO_OS_ERRNO, &val );
-    result = val;
-  }
+    while(still_running) {
+      struct timeval timeout;
+      int rc; /* select() return code */
+      int maxfd;
 
-  curl_multi_remove_handle(multi_handle, rbce->curl);
-  curl_multi_cleanup(multi_handle);
+      fd_set fdread;
+      fd_set fdwrite;
+      fd_set fdexcep;
 
-  //result = curl_easy_perform(rbce->curl);
+      FD_ZERO(&fdread);
+      FD_ZERO(&fdwrite);
+      FD_ZERO(&fdexcep);
+
+      /* set a suitable timeout to play around with */
+      timeout.tv_sec = 1;
+      timeout.tv_usec = 0;
+      /* get file descriptors from the transfers */
+      mcode = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
+      if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
+
+      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &timeout);
+      if (rc < 0) {
+        rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+      }
+   
+      switch(rc) {
+      case 0:
+      default:
+        /* timeout or readable/writable sockets */
+        while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
+      break;
+      }
+   
+      if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
+
+    }
+ 
+    /* check for errors */
+    CURLMsg *msg = curl_multi_info_read(multi_handle, &msgs);
+    if (msg && msg->msg == CURLMSG_DONE) {
+      result = msg->data.result;
+    }
+
+    curl_multi_remove_handle(multi_handle, rbce->curl);
+    curl_multi_cleanup(multi_handle);
+//  }
 
   ruby_curl_easy_cleanup(self, rbce, bodybuf, headerbuf, headers);
 
