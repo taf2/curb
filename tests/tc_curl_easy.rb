@@ -86,7 +86,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_get_01   
     c = Curl::Easy.new($TEST_URL)    
-    assert_equal true, c.http_get    
+    assert_equal true, c.http_get
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     assert_equal "", c.header_str
   end    

@@ -269,7 +269,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout * 1000) % 1000000;
 
-    rc = select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+    rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
     if (rc < 0) {
       rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
     }
