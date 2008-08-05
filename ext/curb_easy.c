@@ -1360,8 +1360,11 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
   CURLM *multi_handle = curl_multi_init();
   struct curl_slist *headers = NULL;
   VALUE bodybuf = Qnil, headerbuf = Qnil;
+//  char errors[CURL_ERROR_SIZE*2];
 
   ruby_curl_easy_setup(rbce, &bodybuf, &headerbuf, &headers);
+//  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, errors);
+//  curl_easy_setopt(rbce->curl, CURLOPT_VERBOSE, 1);
 
 //  if( rb_thread_alone() ) {
 //    result = curl_easy_perform(rbce->curl);
@@ -1437,6 +1440,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
   ruby_curl_easy_cleanup(self, rbce, bodybuf, headerbuf, headers);
 
   if (result != 0) {
+//    printf("error: %s\n", errors);
     raise_curl_easy_error_exception(result);
   }
 
@@ -1509,7 +1513,9 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "*", &args_ary);
   
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = rbce->curl;
+  curl = curl_easy_duphandle(rbce->curl);
+  curl_easy_cleanup(rbce->curl);
+  rbce->curl = curl;
   
   if (rbce->multipart_form_post) {
     VALUE ret;
