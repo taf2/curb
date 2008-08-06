@@ -107,7 +107,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     c2 = Curl::Easy.new($TEST_URL)
     success_called1 = false
     success_called2 = false
-    
+ 
     c1.on_success do|c|
       success_called1 = true
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
@@ -142,12 +142,12 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     
     c1.on_success do|c|
       success_called1 = true
-    #  puts "success 1 called: #{c.body_str.inspect}"
+      #puts "success 1 called: #{c.body_str.inspect}"
       #assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     end
 
     c1.on_failure do|c|
-    #  puts "failure called: #{c.body_str.inspect}"
+      #puts "failure called: #{c.body_str.inspect}"
     end
 
     c2.on_success do|c|
@@ -166,11 +166,10 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     #puts "calling"
     m.perform do
       # idle
-    #  puts "idling..."
     end
 
     assert success_called2
-    assert success_called1
+    assert !success_called1
  
     m = nil
   end

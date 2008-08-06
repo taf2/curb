@@ -13,6 +13,7 @@
 #include <errno.h>
 
 extern VALUE mCurl;
+static VALUE idCall;
 
 #ifdef RDOC_NEVER_DEFINED
   mCurl = rb_define_module("Curl");
@@ -126,7 +127,7 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
  * Will raise an exception if the easy handle is not found
  */
 static VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
-  ruby_curl_multi *rbcm;;
+  ruby_curl_multi *rbcm;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
 
@@ -156,12 +157,12 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
-  int msgs_left;
+  int msgs_left, result;
   CURLMsg *msg;
   CURLcode ecode;
   CURL *easy_handle;
   ruby_curl_easy *rbce = NULL;
-  VALUE finished = rb_ary_new();
+//  VALUE finished = rb_ary_new();
 
   /* check for finished easy handles and remove from the multi handle */
   while ((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
@@ -171,24 +172,46 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
     }
 
     easy_handle = msg->easy_handle;
+    result = msg->data.result;
     if (easy_handle) {
       ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &rbce);
       if (ecode != 0) {
         raise_curl_easy_error_exception(ecode);
       }
       //printf( "finished: 0x%X\n", (long)rbce->self );
-      rb_ary_push(finished, rbce->self);
-      //ruby_curl_multi_remove( self, rbce->self );
+      //rb_ary_push(finished, rbce->self);
+      ruby_curl_multi_remove( self, rbce->self );
+      long response_code = -1;
+      curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
+ 
+      if (result != 0) {
+        if (rbce->failure_proc != Qnil) {
+          rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
+        }
+      }
+      else if (rbce->success_proc != Qnil) {
+        /* NOTE: we allow response_code == 0, in the case the file is being read from disk */
+        if ((response_code >= 200 && response_code < 300) || response_code == 0) {
+          rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
+        }
+      }
+      else if (rbce->failure_proc != Qnil) {
+        if (response_code >= 300 && response_code < 600) {
+          rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
+        }
+      }
     }
     else {
       //printf( "missing easy handle\n" );
     }
   }
 
+  /*
   while (RARRAY(finished)->len > 0) {
     //printf( "finished handle\n" );
     ruby_curl_multi_remove( self, rb_ary_pop(finished) );
   }
+   */
 }
 
 /* called within ruby_curl_multi_perform */
@@ -283,6 +306,8 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
 
 /* =================== INIT LIB =====================*/
 void init_curb_multi() {
+  idCall = rb_intern("call");
+
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 
   /* Class methods */
