@@ -35,6 +35,22 @@ static size_t default_data_handler(char *stream,
   return size * nmemb;
 }
 
+static size_t read_data_handler(char *stream,
+                                size_t size, 
+                                size_t nmemb, 
+                                char **buffer) {
+    size_t result = 0;
+
+    if (buffer != NULL && *buffer != NULL) {
+        int len = size * nmemb;
+        char *s1 = strncpy(stream, *buffer, len);
+        result = strlen(s1);
+        *buffer += result;
+    }
+
+    return result;
+}
+
 static size_t proc_data_handler(char *stream, 
                                 size_t size, 
                                 size_t nmemb, 
@@ -1706,16 +1722,51 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.http_delete                                => true
+ * 
+ * Send a DELETE to the currently configured URL using the current 
+ * options set for this Curl::Easy instance. This method always 
+ * returns true, or raises an exception (defined under Curl::Err)
+ * on error.
+ */
+static VALUE ruby_curl_easy_perform_delete(VALUE self) {  
+  ruby_curl_easy *rbce;
+  CURL *curl;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl = rbce->curl;
+
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+  return handle_perform(self, rbce);
+}
+
+/*
+ * call-seq:
  *   easy.http_put(data)                              => true
  * 
  * PUT the supplied data to the currently configured URL using the
  * current options set for this Curl::Easy instance. This method always
  * returns true, or raises an exception (defined under Curl::Err) on error.
- * 
- * TODO Not yet implemented
  */
-static VALUE ruby_curl_easy_perform_put(VALUE self) {  
-  rb_raise(eCurlErrError, "Not yet implemented");
+static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
+  ruby_curl_easy *rbce;
+  CURL *curl;
+  char *buffer;
+  int len;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl = rbce->curl;
+
+  buffer = StringValuePtr(data);
+  len = RSTRING_LEN(data);
+
+  curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+  curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_data_handler);
+  curl_easy_setopt(curl, CURLOPT_READDATA, &buffer);
+  curl_easy_setopt(curl, CURLOPT_INFILESIZE, len);
+
+  return handle_perform(self, rbce);
 }
 
 /* =================== DATA FUNCS =============== */
