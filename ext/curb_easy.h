@@ -35,6 +35,7 @@ typedef struct {
   VALUE cookiejar;      /* filename */
   VALUE success_proc;
   VALUE failure_proc;
+  VALUE complete_proc;
 
   /* Other opts */
   unsigned short local_port;       // 0 is no port

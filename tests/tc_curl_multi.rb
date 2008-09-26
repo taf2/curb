@@ -220,7 +220,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 =begin
   def test_remote_requests
     responses = {}
-    requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
+    requests = ["http://google.co.uk/", "http://ruby-lang.org/"]
     m = Curl::Multi.new
     # add a few easy handles
     requests.each do |url|
@@ -230,6 +230,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
         curl.follow_location = true
         curl.on_header{|data| responses["#{url}-header"] << data; data.size }
         curl.on_body{|data| responses[url] << data; data.size }
+        curl.on_success {
+          puts curl.last_effective_url 
+        }
       end
       m.add(c)
     end

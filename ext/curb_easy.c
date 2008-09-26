@@ -95,6 +95,7 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->cookiejar);
   rb_gc_mark(rbce->success_proc);
   rb_gc_mark(rbce->failure_proc);
+  rb_gc_mark(rbce->complete_proc);
 
   rb_gc_mark(rbce->postdata_buffer);
   rb_gc_mark(rbce->bodybuf);
@@ -150,6 +151,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->cookiejar = Qnil;
   rbce->success_proc = Qnil;
   rbce->failure_proc = Qnil;
+  rbce->complete_proc = Qnil;
   
   /* various-typed opts */
   rbce->local_port = 0;
@@ -982,7 +984,7 @@ static VALUE ruby_curl_easy_on_body_set(int argc, VALUE *argv, VALUE self) {
  * To remove a previously-supplied handler, call this method with no
  * attached block.
  * 
- * The +on_success+ handler is called whe the request is finished with a
+ * The +on_success+ handler is called when the request is finished with a
  * status of 20x
  */
 static VALUE ruby_curl_easy_on_success_set(int argc, VALUE *argv, VALUE self) {
@@ -997,11 +999,25 @@ static VALUE ruby_curl_easy_on_success_set(int argc, VALUE *argv, VALUE self) {
  * To remove a previously-supplied handler, call this method with no
  * attached block.
  * 
- * The +on_failure+ handler is called whe the request is finished with a
- * status of 20x
+ * The +on_failure+ handler is called when the request is finished with a
+ * status of 50x
  */
 static VALUE ruby_curl_easy_on_failure_set(int argc, VALUE *argv, VALUE self) {
   CURB_HANDLER_PROC_SETTER(ruby_curl_easy, failure_proc);
+}
+
+/*
+ * call-seq:
+ *   easy.on_complete { ... }                 => &lt;old handler&gt;
+ * 
+ * Assign or remove the +on_complete+ handler for this Curl::Easy instance.
+ * To remove a previously-supplied handler, call this method with no
+ * attached block.
+ * 
+ * The +on_complete+ handler is called when the request is finished.
+ */
+static VALUE ruby_curl_easy_on_complete_set(int argc, VALUE *argv, VALUE self) {
+  CURB_HANDLER_PROC_SETTER(ruby_curl_easy, complete_proc);
 }
 
 /*
@@ -1420,9 +1436,12 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 //  }
 
   ruby_curl_easy_cleanup(self, rbce, bodybuf, headerbuf, headers);
+  
+  if (rbce->complete_proc != Qnil) {
+    rb_funcall( rbce->complete_proc, idCall, 1, self );
+  }
 
   /* check the request status and determine if on_success or on_failure should be called */
-
   long response_code = -1;
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
   if (result != 0) {
@@ -2369,6 +2388,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_debug", ruby_curl_easy_on_debug_set, -1);
   rb_define_method(cCurlEasy, "on_success", ruby_curl_easy_on_success_set, -1);
   rb_define_method(cCurlEasy, "on_failure", ruby_curl_easy_on_failure_set, -1);
+  rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
 
   rb_define_method(cCurlEasy, "perform", ruby_curl_easy_perform, 0);
   rb_define_method(cCurlEasy, "http_get", ruby_curl_easy_perform_get, 0);

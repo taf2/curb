@@ -181,6 +181,11 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
       //printf( "finished: 0x%X\n", (long)rbce->self );
       //rb_ary_push(finished, rbce->self);
       ruby_curl_multi_remove( self, rbce->self );
+
+      if (rbce->complete_proc != Qnil) {
+        rb_funcall( rbce->complete_proc, idCall, 1, self );
+      }
+
       long response_code = -1;
       curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
  
