@@ -1489,6 +1489,27 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.http_delete
+ *
+ * DELETE the currently configured URL using the current options set for
+ * this Curl::Easy instance. This method always returns true, or raises
+ * an exception (defined under Curl::Err) on error.
+ */
+static VALUE ruby_curl_easy_perform_delete(VALUE self) {
+  ruby_curl_easy *rbce;
+  CURL *curl;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl = rbce->curl;
+  
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+  // curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+
+  return handle_perform(self,rbce);
+}
+
+/*
+ * call-seq:
  *   easy.perform                                     => true
  * 
  * Transfer the currently configured URL using the options set for this
@@ -2273,6 +2294,27 @@ static VALUE ruby_curl_easy_class_perform_get(int argc, VALUE *argv, VALUE klass
 
 /*
  * call-seq:
+ *   Curl::Easy.http_delete(url) { |easy| ... }          => #&lt;Curl::Easy...&gt;
+ *   
+ * Convenience method that creates a new Curl::Easy instance with 
+ * the specified URL and calls +http_delete+, before returning the new instance.
+ * 
+ * If a block is supplied, the new instance will be yielded just prior to
+ * the +http_delete+ call.
+ */
+static VALUE ruby_curl_easy_class_perform_delete(int argc, VALUE *argv, VALUE klass) {
+  VALUE c = ruby_curl_easy_new(argc, argv, klass);  
+  
+  if (rb_block_given_p()) {
+    rb_yield(c);
+  }
+  
+  ruby_curl_easy_perform_delete(c);
+  return c;
+}
+
+/*
+ * call-seq:
  *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data&and=so%20on") => true
  *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data", "and=so%20on", ...) => true
  *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data", Curl::PostField, "and=so%20on", ...) => true
@@ -2317,6 +2359,7 @@ void init_curb_easy() {
   /* Class methods */
   rb_define_singleton_method(cCurlEasy, "new", ruby_curl_easy_new, -1);
   rb_define_singleton_method(cCurlEasy, "perform", ruby_curl_easy_class_perform, -1);
+  rb_define_singleton_method(cCurlEasy, "http_delete", ruby_curl_easy_class_perform_delete, -1);
   rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
   rb_define_singleton_method(cCurlEasy, "http_post", ruby_curl_easy_class_perform_post, -1);
 
@@ -2391,6 +2434,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
 
   rb_define_method(cCurlEasy, "perform", ruby_curl_easy_perform, 0);
+  rb_define_method(cCurlEasy, "http_delete", ruby_curl_easy_perform_delete, 0);
   rb_define_method(cCurlEasy, "http_get", ruby_curl_easy_perform_get, 0);
   rb_define_method(cCurlEasy, "http_post", ruby_curl_easy_perform_post, -1);
   rb_define_method(cCurlEasy, "http_head", ruby_curl_easy_perform_head, 0);
