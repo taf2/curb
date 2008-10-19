@@ -94,6 +94,7 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->headers);
   rb_gc_mark(rbce->cookiejar);
   rb_gc_mark(rbce->cert);
+  rb_gc_mark(rbce->encoding);
   rb_gc_mark(rbce->success_proc);
   rb_gc_mark(rbce->failure_proc);
   rb_gc_mark(rbce->complete_proc);
@@ -151,6 +152,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->headers = rb_hash_new();
   rbce->cookiejar = Qnil;
   rbce->cert = Qnil;
+  rbce->encoding = Qnil;
   rbce->success_proc = Qnil;
   rbce->failure_proc = Qnil;
   rbce->complete_proc = Qnil;
@@ -435,6 +437,27 @@ static VALUE ruby_curl_easy_cert_set(VALUE self, VALUE cert) {
  */ 
 static VALUE ruby_curl_easy_cert_get(VALUE self) {
   CURB_OBJECT_GETTER(ruby_curl_easy, cert);
+}
+
+/*
+ * call-seq:
+ *   easy.encoding=                                     => "string"
+ * 
+ * Set the accepted encoding types, curl will handle all of the decompression
+ * 
+ */ 
+static VALUE ruby_curl_easy_encoding_set(VALUE self, VALUE encoding) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, encoding);
+}
+/*
+ * call-seq:
+ *   easy.encoding                                     => "string"
+ * 
+ * Get the set encoding types
+ * 
+*/ 
+static VALUE ruby_curl_easy_encoding_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, encoding);
 }
 
 /* ================== IMMED ATTRS ==================*/
@@ -1198,6 +1221,11 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
     *header_buffer = rb_str_buf_new(32768);      
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&default_data_handler);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, *header_buffer);
+  }
+
+  /* encoding */
+  if (rbce->encoding != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_ENCODING, StringValuePtr(rbce->encoding)); 
   }
 
   // progress and debug procs    
@@ -2408,6 +2436,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "cookiejar", ruby_curl_easy_cookiejar_get, 0);
   rb_define_method(cCurlEasy, "cert=", ruby_curl_easy_cert_set, 1);
   rb_define_method(cCurlEasy, "cert", ruby_curl_easy_cert_get, 0);
+  rb_define_method(cCurlEasy, "encoding=", ruby_curl_easy_encoding_set, 1);
+  rb_define_method(cCurlEasy, "encoding", ruby_curl_easy_encoding_get, 0);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);
