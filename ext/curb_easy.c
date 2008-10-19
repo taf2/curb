@@ -93,6 +93,7 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->proxypwd);  
   rb_gc_mark(rbce->headers);
   rb_gc_mark(rbce->cookiejar);
+  rb_gc_mark(rbce->cert);
   rb_gc_mark(rbce->success_proc);
   rb_gc_mark(rbce->failure_proc);
   rb_gc_mark(rbce->complete_proc);
@@ -149,6 +150,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->proxypwd = Qnil;
   rbce->headers = rb_hash_new();
   rbce->cookiejar = Qnil;
+  rbce->cert = Qnil;
   rbce->success_proc = Qnil;
   rbce->failure_proc = Qnil;
   rbce->complete_proc = Qnil;
@@ -413,6 +415,27 @@ static VALUE ruby_curl_easy_cookiejar_get(VALUE self) {
   CURB_OBJECT_GETTER(ruby_curl_easy, cookiejar);
 }
 
+/*
+ * call-seq:
+ *   easy.cert = "cert.file"                          => ""
+ * 
+ * Set a cert file to use for this Curl::Easy instance. This file
+ * will be used to validate SSL connections.
+ * 
+ */
+static VALUE ruby_curl_easy_cert_set(VALUE self, VALUE cert) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, cert);
+}
+
+/*
+ * call-seq:
+ *   easy.cert                                        => "cert.file"
+ * 
+ * Obtain the cert file to use for this Curl::Easy instance. 
+ */ 
+static VALUE ruby_curl_easy_cert_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, cert);
+}
 
 /* ================== IMMED ATTRS ==================*/
 
@@ -1281,8 +1304,9 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
 #endif      
   }
   
-  // Set up HTTP cookie handling if necessary
-  // FIXME this may not get disabled if it's enabled, the disabled again from ruby.
+  /* Set up HTTP cookie handling if necessary
+     FIXME this may not get disabled if it's enabled, the disabled again from ruby.
+     */
   if (rbce->enable_cookies) {
     if (rbce->cookiejar != Qnil) {
       curl_easy_setopt(curl, CURLOPT_COOKIEJAR, StringValuePtr(rbce->cookiejar));
@@ -1290,8 +1314,14 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
       curl_easy_setopt(curl, CURLOPT_COOKIEFILE, ""); /* "" = magic to just enable */
     }
   }
+
+  /* Set up HTTPS cert handling if necessary */
+  if (rbce->cert != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_SSLCERT, StringValuePtr(rbce->cert));
+    curl_easy_setopt(curl, CURLOPT_CAINFO, "/usr/local/share/curl/curl-ca-bundle.crt");
+  }
   
-  // Setup HTTP headers if necessary
+  /* Setup HTTP headers if necessary */
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);   // clear
   
   if (rbce->headers != Qnil) {      
@@ -2376,6 +2406,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "proxypwd", ruby_curl_easy_proxypwd_get, 0);
   rb_define_method(cCurlEasy, "cookiejar=", ruby_curl_easy_cookiejar_set, 1);
   rb_define_method(cCurlEasy, "cookiejar", ruby_curl_easy_cookiejar_get, 0);
+  rb_define_method(cCurlEasy, "cert=", ruby_curl_easy_cert_set, 1);
+  rb_define_method(cCurlEasy, "cert", ruby_curl_easy_cert_get, 0);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);
