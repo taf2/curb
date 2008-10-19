@@ -1452,16 +1452,14 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
       raise_curl_easy_error_exception(result);
     }
   }
-  else if (rbce->success_proc != Qnil) {
-    /* NOTE: we allow response_code == 0, in the case the file is being read from disk */
-    if ((response_code >= 200 && response_code < 300) || response_code == 0) {
-      rb_funcall( rbce->success_proc, idCall, 1, self );
-    }
+  else if (rbce->success_proc != Qnil &&
+           /* NOTE: we allow response_code == 0, in the case the file is being read from disk */
+           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
+    rb_funcall( rbce->success_proc, idCall, 1, self );
   }
-  else if (rbce->failure_proc != Qnil) {
-    if (response_code >= 300 && response_code < 600) {
-      rb_funcall( rbce->failure_proc, idCall, 1, self );
-    }
+  else if (rbce->failure_proc != Qnil && 
+           (response_code >= 300 && response_code < 600)) {
+    rb_funcall( rbce->failure_proc, idCall, 1, self );
   }
 
   return Qtrue;

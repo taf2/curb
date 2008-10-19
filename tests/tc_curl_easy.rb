@@ -451,5 +451,17 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.perform
     assert on_success_called, "Success handler not called" 
   end
+
+  def test_on_success_with_on_failure
+    curl = Curl::Easy.new("#{$TEST_URL.gsub(/file:\/\//,'')}/not_here")
+    on_failure_called = false
+    curl.on_success {|c|
+    }
+    curl.on_failure {|c|
+      on_failure_called = true
+    }
+    curl.perform
+    assert on_failure_called, "Failure handler not called" 
+  end
   
 end
