@@ -455,13 +455,70 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_on_success_with_on_failure
     curl = Curl::Easy.new("#{$TEST_URL.gsub(/file:\/\//,'')}/not_here")
     on_failure_called = false
-    curl.on_success {|c|
-    }
-    curl.on_failure {|c|
-      on_failure_called = true
-    }
+    curl.on_success {|c| } # make sure we get the failure call even though this handler is defined
+    curl.on_failure {|c| on_failure_called = true }
     curl.perform
     assert on_failure_called, "Failure handler not called" 
+  end
+  
+  def test_get_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_get
+    assert_equal 'GET', curl.body_str
+  end
+  
+  def test_post_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_post
+    assert_equal 'POST', curl.body_str
+  end
+
+  def test_delete_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_delete
+    assert_equal 'DELETE', curl.body_str
+  end
+  
+  # TODO: Curl::Err::CurlError: Not yet implemented
+#  def test_put_remote
+#    curl = Curl::Easy.new(TestServlet.url)
+#    curl.http_put
+#    assert_equal 'PUT', curl.body_str
+#  end
+
+  def self.locked_file
+    File.join(File.dirname(__FILE__),'server_lock')
+  end
+
+  def setup
+    if @server.nil? and !File.exist?(TestCurbCurlEasy.locked_file)
+      #puts "starting"
+      File.open(TestCurbCurlEasy.locked_file,'w') {|f| f << 'locked' }
+
+      # start up a webrick server for testing delete 
+      @server = WEBrick::HTTPServer.new :Port => 9129, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
+
+      @server.mount(TestServlet.path, TestServlet)
+
+      @test_thread = Thread.new { @server.start }
+
+      exit_code = lambda do
+        begin
+          #puts "stopping"
+          File.unlink TestCurbCurlEasy.locked_file if File.exist?(TestCurbCurlEasy.locked_file)
+          @server.shutdown unless @server.nil?
+        rescue Object => e
+          puts "Error #{__FILE__}:#{__LINE__}\n#{e.message}"
+        end
+      end
+
+      trap("INT"){exit_code.call}
+      at_exit{exit_code.call}
+
+    end
+  end
+
+  def teardown
   end
   
 end
