@@ -486,39 +486,10 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 #    assert_equal 'PUT', curl.body_str
 #  end
 
-  def self.locked_file
-    File.join(File.dirname(__FILE__),'server_lock')
-  end
+  include TestServerMethods 
 
   def setup
-    if @server.nil? and !File.exist?(TestCurbCurlEasy.locked_file)
-      #puts "starting"
-      File.open(TestCurbCurlEasy.locked_file,'w') {|f| f << 'locked' }
-
-      # start up a webrick server for testing delete 
-      @server = WEBrick::HTTPServer.new :Port => 9129, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
-
-      @server.mount(TestServlet.path, TestServlet)
-
-      @test_thread = Thread.new { @server.start }
-
-      exit_code = lambda do
-        begin
-          #puts "stopping"
-          File.unlink TestCurbCurlEasy.locked_file if File.exist?(TestCurbCurlEasy.locked_file)
-          @server.shutdown unless @server.nil?
-        rescue Object => e
-          puts "Error #{__FILE__}:#{__LINE__}\n#{e.message}"
-        end
-      end
-
-      trap("INT"){exit_code.call}
-      at_exit{exit_code.call}
-
-    end
+    server_setup
   end
 
-  def teardown
-  end
-  
 end
