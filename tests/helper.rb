@@ -35,8 +35,12 @@ end
 #
 class TestServlet < WEBrick::HTTPServlet::AbstractServlet
 
+  def self.port=(p)
+    @port = p
+  end
+
   def self.port
-    9129
+    (@port or 9129)
   end
 
   def self.path
@@ -68,4 +72,38 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
     respond_with(:DELETE,req,res)
   end
 
+end
+
+module TestServerMethods
+  def locked_file
+    File.join(File.dirname(__FILE__),"server_lock-#{@__port}")
+  end
+
+  def server_setup(port=9129,servlet=TestServlet)
+    @__port = port
+    if @server.nil? and !File.exist?(locked_file)
+      File.open(locked_file,'w') {|f| f << 'locked' }
+
+      # start up a webrick server for testing delete 
+      @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
+
+      @server.mount(servlet.path, servlet)
+
+      @test_thread = Thread.new { @server.start }
+
+      exit_code = lambda do
+        begin
+          #puts "stopping"
+          File.unlink locked_file if File.exist?(locked_file)
+          @server.shutdown unless @server.nil?
+        rescue Object => e
+          puts "Error #{__FILE__}:#{__LINE__}\n#{e.message}"
+        end
+      end
+
+      trap("INT"){exit_code.call}
+      at_exit{exit_code.call}
+
+    end
+  end
 end

@@ -39,6 +39,8 @@ module Curl
           
           curl.perform
         end        
+
+        return curl
       end
     end
   end
