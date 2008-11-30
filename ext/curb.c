@@ -42,7 +42,7 @@ static VALUE ruby_curl_kerberos4_q(VALUE mod) {
  * For libcurl versions < 7.10, always returns false.
  */
 static VALUE ruby_curl_ssl_q(VALUE mod) {
-#ifdef CURL_VERSION_SSL
+#ifdef HAVE_CURL_VERSION_SSL
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_SSL) ? Qtrue : Qfalse);
 #else
@@ -58,7 +58,7 @@ static VALUE ruby_curl_ssl_q(VALUE mod) {
  * using libz. For libcurl versions < 7.10, always returns false.
  */
 static VALUE ruby_curl_libz_q(VALUE mod) {
-#ifdef CURL_VERSION_LIBZ
+#ifdef HAVE_CURL_VERSION_LIBZ
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_LIBZ) ? Qtrue : Qfalse);
 #else
@@ -74,7 +74,7 @@ static VALUE ruby_curl_libz_q(VALUE mod) {
  * For libcurl versions < 7.10.6, always returns false.
  */
 static VALUE ruby_curl_ntlm_q(VALUE mod) {
-#ifdef CURL_VERSION_NTLM
+#ifdef HAVE_CURL_VERSION_NTLM
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_NTLM) ? Qtrue : Qfalse);
 #else
@@ -90,7 +90,7 @@ static VALUE ruby_curl_ntlm_q(VALUE mod) {
  * For libcurl versions < 7.10.6, always returns false.
  */
 static VALUE ruby_curl_gssnegotiate_q(VALUE mod) {
-#ifdef CURL_VERSION_GSSNEGOTIATE
+#ifdef HAVE_CURL_VERSION_GSSNEGOTIATE
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_GSSNEGOTIATE) ? Qtrue : Qfalse);
 #else
@@ -107,7 +107,7 @@ static VALUE ruby_curl_gssnegotiate_q(VALUE mod) {
  * false.
  */
 static VALUE ruby_curl_debug_q(VALUE mod) {
-#ifdef CURL_VERSION_DEBUG
+#ifdef HAVE_CURL_VERSION_DEBUG
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_DEBUG) ? Qtrue : Qfalse);
 #else
@@ -125,7 +125,7 @@ static VALUE ruby_curl_debug_q(VALUE mod) {
  * For libcurl versions < 7.10.7, always returns false.
  */
 static VALUE ruby_curl_asyncdns_q(VALUE mod) {
-#ifdef CURL_VERSION_ASYNCHDNS
+#ifdef HAVE_CURL_VERSION_ASYNCHDNS
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_ASYNCHDNS) ? Qtrue : Qfalse);
 #else
@@ -142,7 +142,7 @@ static VALUE ruby_curl_asyncdns_q(VALUE mod) {
  * in RFC 2478). For libcurl versions < 7.10.8, always returns false.
  */
 static VALUE ruby_curl_spnego_q(VALUE mod) {
-#ifdef CURL_VERSION_SPNEGO
+#ifdef HAVE_CURL_VERSION_SPNEGO
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_SPNEGO) ? Qtrue : Qfalse);
 #else
@@ -158,7 +158,7 @@ static VALUE ruby_curl_spnego_q(VALUE mod) {
  * files. For libcurl versions < 7.11.1, always returns false.
  */
 static VALUE ruby_curl_largefile_q(VALUE mod) {
-#ifdef CURL_VERSION_LARGEFILE
+#ifdef HAVE_CURL_VERSION_LARGEFILE
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_LARGEFILE) ? Qtrue : Qfalse);
 #else
@@ -175,7 +175,7 @@ static VALUE ruby_curl_largefile_q(VALUE mod) {
  * always returns false.
  */
 static VALUE ruby_curl_idn_q(VALUE mod) {
-#ifdef CURL_VERSION_IDN
+#ifdef HAVE_CURL_VERSION_IDN
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_IDN) ? Qtrue : Qfalse);
 #else
@@ -194,7 +194,7 @@ static VALUE ruby_curl_idn_q(VALUE mod) {
  * For libcurl versions < 7.13.2, always returns false.
  */
 static VALUE ruby_curl_sspi_q(VALUE mod) {
-#ifdef CURL_VERSION_SSPI
+#ifdef HAVE_CURL_VERSION_SSPI
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_SSPI) ? Qtrue : Qfalse);
 #else
@@ -210,7 +210,7 @@ static VALUE ruby_curl_sspi_q(VALUE mod) {
  * conversions. For libcurl versions < 7.15.4, always returns false.
  */
 static VALUE ruby_curl_conv_q(VALUE mod) {
-#ifdef CURL_VERSION_CONV
+#ifdef HAVE_CURL_VERSION_CONV
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);  
   return((ver->features & CURL_VERSION_CONV) ? Qtrue : Qfalse);
 #else
@@ -254,63 +254,63 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURLINFO_DATA_OUT", INT2FIX(CURLINFO_DATA_OUT));
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is an HTTP proxy. (libcurl >= 7.10) */
-#ifdef CURLPROXY_HTTP
+#ifdef HAVE_CURLPROXY_HTTP
   rb_define_const(mCurl, "CURLPROXY_HTTP", INT2FIX(CURLPROXY_HTTP));
 #else
   rb_define_const(mCurl, "CURLPROXY_HTTP", INT2FIX(-1));
 #endif
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS4 proxy. (libcurl >= 7.15.2) */
-#ifdef CURLPROXY_SOCKS4  
+#ifdef HAVE_CURLPROXY_SOCKS4  
   rb_define_const(mCurl, "CURLPROXY_SOCKS4", INT2FIX(CURLPROXY_SOCKS4));
 #else
   rb_define_const(mCurl, "CURLPROXY_SOCKS4", INT2FIX(-2));
 #endif
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS5 proxy. (libcurl >= 7.10) */
-#ifdef CURLPROXY_SOCKS5    
+#ifdef HAVE_CURLPROXY_SOCKS5    
   rb_define_const(mCurl, "CURLPROXY_SOCKS5", INT2FIX(CURLPROXY_SOCKS5));
 #else
   rb_define_const(mCurl, "CURLPROXY_SOCKS5", INT2FIX(-2));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use Basic authentication. */
-#ifdef CURLAUTH_BASIC
+#ifdef HAVE_CURLAUTH_BASIC
   rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(CURLAUTH_BASIC));
 #else
   rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(0);
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use Digest authentication. */
-#ifdef CURLAUTH_DIGEST
+#ifdef HAVE_CURLAUTH_DIGEST
   rb_define_const(mCurl, "CURLAUTH_DIGEST", INT2FIX(CURLAUTH_DIGEST));
 #else
   rb_define_const(mCurl, "CURLAUTH_DIGEST", INT2FIX(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use GSS Negotiate authentication. Requires a suitable GSS-API library. */
-#ifdef CURLAUTH_GSSNEGOTIATE
+#ifdef HAVE_CURLAUTH_GSSNEGOTIATE
   rb_define_const(mCurl, "CURLAUTH_GSSNEGOTIATE", INT2FIX(CURLAUTH_GSSNEGOTIATE));
 #else
   rb_define_const(mCurl, "CURLAUTH_GSSNEGOTIATE", INT2FIX(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use HTTP NTLM authentication. Requires MS Windows or OpenSSL support. */
-#ifdef CURLAUTH_NTLM  
+#ifdef HAVE_CURLAUTH_NTLM  
   rb_define_const(mCurl, "CURLAUTH_NTLM", INT2FIX(CURLAUTH_NTLM));
 #else
   rb_define_const(mCurl, "CURLAUTH_NTLM", INT2FIX(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, allows libcurl to select any suitable authentication method except basic. */
-#ifdef CURLAUTH_ANYSAFE  
+#ifdef HAVE_CURLAUTH_ANYSAFE  
   rb_define_const(mCurl, "CURLAUTH_ANYSAFE", INT2FIX(CURLAUTH_ANYSAFE));
 #else
   rb_define_const(mCurl, "CURLAUTH_ANYSAFE", INT2FIX(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, allows libcurl to select any suitable authentication method. */
-#ifdef CURLAUTH_ANY
+#ifdef HAVE_CURLAUTH_ANY
   rb_define_const(mCurl, "CURLAUTH_ANY", INT2FIX(CURLAUTH_ANY));
 #else
   rb_define_const(mCurl, "CURLAUTH_ANY", INT2FIX(0));

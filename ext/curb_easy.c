@@ -1748,7 +1748,7 @@ static VALUE ruby_curl_easy_response_code_get(VALUE self) {
   long code;
   
   Data_Get_Struct(self, ruby_curl_easy, rbce);  
-#ifdef CURLINFO_RESPONSE_CODE
+#ifdef HAVE_CURLINFO_RESPONSE_CODE
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &code);
 #else
   // old libcurl
@@ -1792,7 +1792,7 @@ static VALUE ruby_curl_easy_http_connect_code_get(VALUE self) {
  * returned.
  */
 static VALUE ruby_curl_easy_file_time_get(VALUE self) {
-#ifdef CURLINFO_FILETIME  
+#ifdef HAVE_CURLINFO_FILETIME
   ruby_curl_easy *rbce;
   long time;
   
@@ -1906,7 +1906,7 @@ static VALUE ruby_curl_easy_start_transfer_time_get(VALUE self) {
  * Requires libcurl 7.9.7 or higher, otherwise -1 is always returned.
  */
 static VALUE ruby_curl_easy_redirect_time_get(VALUE self) {
-#ifdef CURLINFO_REDIRECT_TIME
+#ifdef HAVE_CURLINFO_REDIRECT_TIME
   ruby_curl_easy *rbce;
   double time;
   
@@ -1929,7 +1929,7 @@ static VALUE ruby_curl_easy_redirect_time_get(VALUE self) {
  * Requires libcurl 7.9.7 or higher, otherwise -1 is always returned.
  */
 static VALUE ruby_curl_easy_redirect_count_get(VALUE self) {
-#ifdef CURLINFO_REDIRECT_COUNT
+#ifdef HAVE_CURLINFO_REDIRECT_COUNT
   ruby_curl_easy *rbce;
   long count;
   
@@ -2154,7 +2154,7 @@ Pass a pointer to a long to receive a bitmask indicating the authentication meth
  * libcurl 7.12.2 or higher, otherwise 0 is always returned).
  */
 static VALUE ruby_curl_easy_os_errno_get(VALUE self) {
-#ifdef CURLINFO_OS_ERRNO
+#ifdef HAVE_CURLINFO_OS_ERRNO
   ruby_curl_easy *rbce;
   long result;
   
@@ -2183,7 +2183,7 @@ static VALUE ruby_curl_easy_os_errno_get(VALUE self) {
  * (requires libcurl 7.12.3 or higher, otherwise -1 is always returned).
  */
 static VALUE ruby_curl_easy_num_connects_get(VALUE self) {
-#ifdef CURLINFO_NUM_CONNECTS
+#ifdef HAVE_CURLINFO_NUM_CONNECTS
   ruby_curl_easy *rbce;
   long result;
   
@@ -2224,14 +2224,14 @@ Pass a pointer to a long to receive the last socket used by this curl session. I
  * (requires libcurl 7.15.4 or higher, otherwise +nil+ is always returned).
  */
 static VALUE ruby_curl_easy_ftp_entry_path_get(VALUE self) {
-#ifdef CURLINFO_FTP_ENTRY_PATH
+#ifdef HAVE_CURLINFO_FTP_ENTRY_PATH
   ruby_curl_easy *rbce;
-  char* path;
+  char* path = NULL;
   
   Data_Get_Struct(self, ruby_curl_easy, rbce);  
   curl_easy_getinfo(rbce->curl, CURLINFO_FTP_ENTRY_PATH, &path);
   
-  if (type && type[0]) {    // curl returns NULL or empty string if none
+  if (path && path[0]) {    // curl returns NULL or empty string if none
     return rb_str_new2(path);
   } else {
     return Qnil;
