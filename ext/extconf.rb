@@ -23,7 +23,7 @@ def have_constant(name)
     src = %{
       #include <curl/curl.h>
       int main() {
-        #{name.upcase};
+        int test = (int)#{name.upcase};
         return 0;
       }
     }
