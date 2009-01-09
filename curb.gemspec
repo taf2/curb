@@ -25,4 +25,5 @@ Gem::Specification.new do |s|
                   "tests/unittests.rb",
                   "tests/helper.rb"
                   ]
+  s.extensions << 'ext/extconf.rb'
 end
