@@ -194,16 +194,14 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
           rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
         }
       }
-      else if (rbce->success_proc != Qnil) {
+      else if (rbce->success_proc != Qnil &&
+              ((response_code >= 200 && response_code < 300) || response_code == 0)) {
         /* NOTE: we allow response_code == 0, in the case the file is being read from disk */
-        if ((response_code >= 200 && response_code < 300) || response_code == 0) {
-          rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
-        }
+        rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
       }
-      else if (rbce->failure_proc != Qnil) {
-        if (response_code >= 300 && response_code < 600) {
-          rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
-        }
+      else if (rbce->failure_proc != Qnil &&
+              (response_code >= 300 && response_code < 600)) {
+        rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
       }
     }
     else {

@@ -451,5 +451,45 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.perform
     assert on_success_called, "Success handler not called" 
   end
+
+  def test_on_success_with_on_failure
+    curl = Curl::Easy.new("#{$TEST_URL.gsub(/file:\/\//,'')}/not_here")
+    on_failure_called = false
+    curl.on_success {|c| } # make sure we get the failure call even though this handler is defined
+    curl.on_failure {|c| on_failure_called = true }
+    curl.perform
+    assert on_failure_called, "Failure handler not called" 
+  end
   
+  def test_get_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_get
+    assert_equal 'GET', curl.body_str
+  end
+  
+  def test_post_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_post
+    assert_equal 'POST', curl.body_str
+  end
+
+  def test_delete_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_delete
+    assert_equal 'DELETE', curl.body_str
+  end
+  
+  # TODO: Curl::Err::CurlError: Not yet implemented
+#  def test_put_remote
+#    curl = Curl::Easy.new(TestServlet.url)
+#    curl.http_put
+#    assert_equal 'PUT', curl.body_str
+#  end
+
+  include TestServerMethods 
+
+  def setup
+    server_setup
+  end
+
 end

@@ -320,37 +320,37 @@ void raise_curl_easy_error_exception(CURLcode code) {
       break;      
       
       // recent additions, may not be present in all supported versions
-#ifdef CURLE_TFTP_NOTFOUND
+#ifdef HAVE_CURLE_TFTP_NOTFOUND
     case CURLE_TFTP_NOTFOUND:           /* 68 - file not found on server */
       exclz = eCurlErrTFTPNotFound;
       break;          
 #endif
-#ifdef CURLE_TFTP_PERM      
+#ifdef HAVE_CURLE_TFTP_PERM      
     case CURLE_TFTP_PERM:               /* 69 - permission problem on server */
       exclz = eCurlErrTFTPPermission;
       break;
 #endif
-#ifdef CURLE_TFTP_DISKFULL
+#ifdef HAVE_CURLE_TFTP_DISKFULL
     case CURLE_TFTP_DISKFULL:           /* 70 - out of disk space on server */
       exclz = eCurlErrTFTPDiskFull;
       break;    
 #endif
-#ifdef CURLE_TFTP_ILLEGAL
+#ifdef HAVE_CURLE_TFTP_ILLEGAL
     case CURLE_TFTP_ILLEGAL:            /* 71 - Illegal TFTP operation */
       exclz = eCurlErrTFTPIllegalOperation;
       break;    
 #endif     
-#ifdef CURLE_TFTP_UNKNOWNID
+#ifdef HAVE_CURLE_TFTP_UNKNOWNID
     case CURLE_TFTP_UNKNOWNID:          /* 72 - Unknown transfer ID */
       exclz = eCurlErrTFTPUnknownID;
       break;
 #endif
-#ifdef CURLE_TFTP_EXISTS
+#ifdef HAVE_CURLE_TFTP_EXISTS
     case CURLE_TFTP_EXISTS:             /* 73 - File already exists */
       exclz = eCurlErrTFTPFileExists;
       break;    
 #endif
-#ifdef CURLE_TFTP_NOSUCHUSER
+#ifdef HAVE_CURLE_TFTP_NOSUCHUSER
     case CURLE_TFTP_NOSUCHUSER:         /* 74 - No such user */
       exclz = eCurlErrTFTPNotFound;
       break;
