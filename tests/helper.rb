@@ -57,6 +57,10 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_GET(req,res)
+    if req.path == "/methods/head"
+      res['Location'] = "http://www.redirect.com"
+    end
+    
     respond_with(:GET,req,res)
   end
 

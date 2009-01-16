@@ -110,7 +110,27 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal "", c.body_str
     assert_equal "", c.header_str
   end    
-  
+
+  def test_head_01
+    c = Curl::Easy.new("http://google.com")
+    c.follow_location = true
+    
+    assert_equal true, c.http_head
+    
+    assert_equal '', c.body_str
+    assert_match 'www', c.header_str
+    assert_match 'www', c.last_effective_url
+  end
+
+  def test_head_01
+    c = Curl::Easy.http_head("http://google.com")
+
+    assert_equal true, c.http_head
+
+    assert_equal '', c.body_str
+    assert_match 'http://google.com', c.last_effective_url
+  end
+
   def test_last_effective_url_01
     c = Curl::Easy.new($TEST_URL)
     
@@ -478,6 +498,17 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.http_delete
     assert_equal 'DELETE', curl.body_str
   end
+
+  def test_head_remote
+    curl = Curl::Easy.new(TestServlet.url+"/head")
+    curl.http_head
+
+    redirect = curl.header_str.match(/Location: (.*)/)
+
+    assert_equal '', curl.body_str
+    assert_equal 'http://www.redirect.com', redirect[1].chomp
+  end
+
   
   # TODO: Curl::Err::CurlError: Not yet implemented
 #  def test_put_remote

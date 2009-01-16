@@ -1679,10 +1679,29 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
  * method always returns true, or raises an exception (defined under 
  * Curl::Err) on error.
  * 
- * TODO Not yet implemented
  */
-static VALUE ruby_curl_easy_perform_head(VALUE self) {  
-  rb_raise(eCurlErrError, "Not yet implemented");
+static VALUE ruby_curl_easy_perform_head(VALUE self) {
+  ruby_curl_easy *rbce;
+  CURL *curl;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl = rbce->curl;
+
+ /*
+  * Turns out, doing straight up head requests often breaks (due to
+  * remote server breaking), instead curl will send the request as GET
+  * or POST, but still only reall make a HEAD request because the
+  * CURLOPT_NOBODY flag was set to true which causes cURL to read only
+  * up to the end of the response header.
+  *
+  * .. http://www.yinfor.com/blog/archives/2008/02/solve_the_trouble_with_a_curl.html
+  */
+
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
+  curl_easy_setopt(curl, CURLOPT_HEADER, 1);
+  curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+
+  return handle_perform(self,rbce);
 }
 
 /*
@@ -2387,6 +2406,29 @@ static VALUE ruby_curl_easy_class_perform_delete(int argc, VALUE *argv, VALUE kl
 
 /*
  * call-seq:
+ *   Curl::Easy.http_head(url) { |easy| ... }          => #&lt;Curl::Easy...&gt;
+ *
+ * Convenience method that creates a new Curl::Easy instance with
+ * the specified URL and calls +http_head+, before returning the new instance.
+ *
+ * If a block is supplied, the new instance will be yielded just prior to
+ * the +http_head+ call.
+ */
+static VALUE ruby_curl_easy_class_perform_head(int argc, VALUE *argv, VALUE klass) {
+  VALUE c = ruby_curl_easy_new(argc, argv, klass);
+
+  if (rb_block_given_p()) {
+    rb_yield(c);
+  }
+
+  ruby_curl_easy_perform_head(c);
+  return c;
+}
+
+// TODO: add convenience method for http_post
+
+/*
+ * call-seq:
  *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data&and=so%20on") => true
  *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data", "and=so%20on", ...) => true
  *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data", Curl::PostField, "and=so%20on", ...) => true
@@ -2434,6 +2476,7 @@ void init_curb_easy() {
   rb_define_singleton_method(cCurlEasy, "http_delete", ruby_curl_easy_class_perform_delete, -1);
   rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
   rb_define_singleton_method(cCurlEasy, "http_post", ruby_curl_easy_class_perform_post, -1);
+  rb_define_singleton_method(cCurlEasy, "http_head", ruby_curl_easy_class_perform_head, -1);
 
   /* Attributes for config next perform */
   rb_define_method(cCurlEasy, "url=", ruby_curl_easy_url_set, 1);
