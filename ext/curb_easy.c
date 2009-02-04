@@ -1383,13 +1383,29 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
   
   // Sort out the built-in body/header data.
   if (bodybuf != Qnil) {
-    rbce->body_data = rb_str_to_str(bodybuf);
+    if (TYPE(bodybuf) == T_STRING) {
+      rbce->body_data = rb_str_to_str(bodybuf);
+    }
+    else if (rb_respond_to(bodybuf, rb_intern("to_str"))) {
+      rbce->body_data = rb_funcall(bodybuf, rb_intern("to_str"), 0);
+    }
+    else {
+      rbce->body_data = Qnil;
+    }
   } else {
     rbce->body_data = Qnil;
   }
 
   if (headerbuf != Qnil) {
-    rbce->header_data = rb_str_to_str(headerbuf);
+    if (TYPE(headerbuf) == T_STRING) {
+      rbce->header_data = rb_str_to_str(headerbuf);
+    }
+    else if (rb_respond_to(headerbuf, rb_intern("to_str"))) {
+      rbce->header_data = rb_funcall(headerbuf, rb_intern("to_str"), 0);
+    }
+    else {
+      rbce->header_data = Qnil;
+    }
   } else {
     rbce->header_data = Qnil;
   }
