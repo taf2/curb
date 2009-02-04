@@ -197,9 +197,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
 
     def self.test
-        ObjectSpace.garbage_collect
+      ObjectSpace.garbage_collect
       tfs = TestForScope.new
-        ObjectSpace.garbage_collect
+      ObjectSpace.garbage_collect
       tfs.t_method
       ObjectSpace.garbage_collect
       tfs.t_call

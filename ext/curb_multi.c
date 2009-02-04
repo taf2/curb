@@ -174,7 +174,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
     easy_handle = msg->easy_handle;
     result = msg->data.result;
     if (easy_handle) {
-      ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &rbce);
+      ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
       if (ecode != 0) {
         raise_curl_easy_error_exception(ecode);
       }
