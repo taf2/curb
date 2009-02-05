@@ -1744,7 +1744,7 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   len = RSTRING_LEN(data);
 
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-  curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_data_handler);
+  curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
   curl_easy_setopt(curl, CURLOPT_READDATA, &buffer);
   curl_easy_setopt(curl, CURLOPT_INFILESIZE, len);
 
@@ -2590,7 +2590,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "http_get", ruby_curl_easy_perform_get, 0);
   rb_define_method(cCurlEasy, "http_post", ruby_curl_easy_perform_post, -1);
   rb_define_method(cCurlEasy, "http_head", ruby_curl_easy_perform_head, 0);
-  rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 0);
+  rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 1);
 
   /* Post-perform info methods */
   rb_define_method(cCurlEasy, "body_str", ruby_curl_easy_body_str_get, 0);

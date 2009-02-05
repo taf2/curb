@@ -509,13 +509,12 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'http://www.redirect.com', redirect[1].chomp
   end
 
-  
-  # TODO: Curl::Err::CurlError: Not yet implemented
-#  def test_put_remote
-#    curl = Curl::Easy.new(TestServlet.url)
-#    curl.http_put
-#    assert_equal 'PUT', curl.body_str
-#  end
+  def test_put_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    assert curl.http_put("message")
+    assert_match /^PUT/, curl.body_str
+    assert_match /message$/, curl.body_str
+  end
 
   include TestServerMethods 
 

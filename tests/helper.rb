@@ -69,7 +69,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_PUT(req,res)
-    respond_with(:PUT,req,res)
+    respond_with("PUT\n#{req.body}",req,res)
   end
 
   def do_DELETE(req,res)
