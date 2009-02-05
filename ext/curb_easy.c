@@ -1591,9 +1591,12 @@ static VALUE ruby_curl_easy_perform_delete(VALUE self) {
   curl = rbce->curl;
   
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-  // curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
-  return handle_perform(self,rbce);
+  VALUE retval = handle_perform(self,rbce);
+
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+
+  return retval;
 }
 
 /*
@@ -1718,27 +1721,6 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
   return handle_perform(self,rbce);
-}
-
-/*
- * call-seq:
- *   easy.http_delete                                => true
- * 
- * Send a DELETE to the currently configured URL using the current 
- * options set for this Curl::Easy instance. This method always 
- * returns true, or raises an exception (defined under Curl::Err)
- * on error.
- */
-static VALUE ruby_curl_easy_perform_delete(VALUE self) {  
-  ruby_curl_easy *rbce;
-  CURL *curl;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = rbce->curl;
-
-  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-
-  return handle_perform(self, rbce);
 }
 
 /*
