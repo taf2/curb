@@ -1707,18 +1707,6 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
- /*
-  * Turns out, doing straight up head requests often breaks (due to
-  * remote server breaking), instead curl will send the request as GET
-  * or POST, but still only reall make a HEAD request because the
-  * CURLOPT_NOBODY flag was set to true which causes cURL to read only
-  * up to the end of the response header.
-  *
-  * .. http://www.yinfor.com/blog/archives/2008/02/solve_the_trouble_with_a_curl.html
-  */
-
-  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "GET");
-  curl_easy_setopt(curl, CURLOPT_HEADER, 1);
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
   return handle_perform(self,rbce);
