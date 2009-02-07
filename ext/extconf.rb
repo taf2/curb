@@ -71,8 +71,6 @@ have_constant "curle_tftp_unknownid"
 have_constant "curle_tftp_exists"
 have_constant "curle_tftp_nosuchuser"
 
-$INSTALLFILES = [["curb.rb", "$(RUBYLIBDIR)", "../ext"], ["curl.rb", "$(RUBYLIBDIR)", "../ext"]]
-
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end
