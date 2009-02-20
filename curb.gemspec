@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
              "ext/curb_multi.h", "ext/curb_postfield.h",
              "ext/curb.c", "ext/curb_easy.c", "ext/curb_errors.c",
              "ext/curb_multi.c", "ext/curb_postfield.c",
-             "ext/curb.rb", "ext/curl.rb", "ext/extconf.rb"]
+             "lib/curl.rb", "ext/extconf.rb","lib/curb.rb"]
   s.has_rdoc = true
   s.homepage = "http://curb.rubyforge.org/"
   s.rdoc_options = ["--main", "README"]

@@ -135,6 +135,7 @@ PKG_FILES = FileList[
   'ext/*.rb',
   'ext/*.c',
   'ext/*.h',
+  'lib/*.rb',
   'tests/**/*',
   'samples/**/*',
   'doc.rb',
@@ -165,7 +166,7 @@ else
     
     #### Documentation and testing.
     s.has_rdoc = true
-    s.extra_rdoc_files = Dir['ext/*.c'] << 'ext/curb.rb' << 'README' << 'LICENSE'
+    s.extra_rdoc_files = Dir['ext/*.c'] << 'lib/curb.rb' << 'README' << 'LICENSE'
     s.rdoc_options <<
       '--title' <<  'Curb API' <<
       '--main' << 'README'
