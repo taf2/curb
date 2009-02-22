@@ -4,11 +4,11 @@ require 'rake/clean'
 require 'rake/testtask'
 require 'rake/rdoctask'
 
-begin
-  require 'rake/gempackagetask'
-rescue LoadError
-  $stderr.puts("Rubygems support disabled")
-end
+#begin
+#  require 'rake/gempackagetask'
+#rescue LoadError
+#  $stderr.puts("Rubygems support disabled")
+#end
 
 CLEAN.include '**/*.o'
 CLEAN.include "**/*.#{Config::MAKEFILE_CONFIG['DLEXT']}"
@@ -130,73 +130,29 @@ task :doc_upload => [ :doc ] do
   end
 end
 
-# Packaging ------------------------------------------------
-PKG_FILES = FileList[
-  'ext/*.rb',
-  'ext/*.c',
-  'ext/*.h',
-  'lib/*.rb',
-  'tests/**/*',
-  'samples/**/*',
-  'doc.rb',
-  '[A-Z]*',
-]
-
 if ! defined?(Gem)
   warn "Package Target requires RubyGEMs"
 else
-  spec = Gem::Specification.new do |s|
-    
-    #### Basic information.
-
-    s.name = 'curb'
-    s.version = PKG_VERSION
-    s.summary = "Ruby bindings for the libcurl(3) URL transfer library."
-    s.description = <<-EOF
-      C-language Ruby bindings for the libcurl(3) URL transfer library.
-    EOF
-    s.extensions = 'ext/extconf.rb'    
-
-    #### Which files are to be included in this gem? 
-
-    s.files = PKG_FILES.to_a
-
-    #### Load-time details
-    s.require_path = 'lib'
-    
-    #### Documentation and testing.
-    s.has_rdoc = true
-    s.extra_rdoc_files = Dir['ext/*.c'] << 'lib/curb.rb' << 'README' << 'LICENSE'
-    s.rdoc_options <<
-      '--title' <<  'Curb API' <<
-      '--main' << 'README'
-
-    s.test_files = Dir.glob('tests/tc_*.rb')
-    
-    #### Author and project details.
-
-    s.author = "Ross Bamford"
-    s.email = "curb-devel@rubyforge.org"
-    s.homepage = "http://curb.rubyforge.org"
-    s.rubyforge_project = "curb"
-  end
-  
-  # Quick fix for Ruby 1.8.3 / YAML bug
-  if (RUBY_VERSION == '1.8.3')
-    def spec.to_yaml
-      out = super
-      out = '--- ' + out unless out =~ /^---/
-      out
-    end  
+  desc 'Generate gem specification'
+  task :gemspec do
+    require 'erb'
+    tspec = ERB.new(File.read(File.join(File.dirname(__FILE__),'lib','curb.gemspec.erb')))
+    File.open(File.join(File.dirname(__FILE__),'curb.gemspec'),'wb') do|f|
+      f << tspec.result
+    end
   end
 
-  package_task = Rake::GemPackageTask.new(spec) do |pkg|
-    pkg.need_zip = true
-    pkg.need_tar_gz = true
-    pkg.package_dir = 'pkg'    
-  end      
+  desc 'Build gem'
+  task :package => :gemspec do
+    require 'rubygems/specification'
+    spec_source = File.read File.join(File.dirname(__FILE__),'curb.gemspec')
+    spec = nil
+    # see: http://gist.github.com/16215
+    Thread.new { spec = eval("$SAFE = 3\n#{spec_source}") }.join
+    spec.validate
+    Gem::Builder.new(spec).build
+  end
 end
-
 
 # --------------------------------------------------------------------
 # Creating a release
