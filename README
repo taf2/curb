@@ -2,7 +2,6 @@
 
 * http://curb.rubyforge.org/
 * http://rubyforge.org/projects/curb
-* http://groups.google.com/group/curb---ruby-libcurl-bindings
 * http://github.com/taf2/curb/tree/master
 
 Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
@@ -18,7 +17,7 @@ Ruby license. See the LICENSE file for the gory details.
 
 === You will need
 
-* A working Ruby installation (1.8+, tested with 1.8.5)
+* A working Ruby installation (1.8+, tested with 1.8.5, 1.8.6, 1.8.7, and 1.9.1)
 * A working (lib)curl installation, with development stuff (7.5+, tested with 7.15)
 * A sane build environment
 
