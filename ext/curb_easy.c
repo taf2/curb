@@ -43,8 +43,8 @@ static size_t read_data_handler(char *stream,
   size_t result = 0;
 
   if (buffer != NULL && *buffer != NULL) {
-    int len = size * nmemb;
-    char *s1 = strncpy(stream, *buffer, len);
+    int len = (size * nmemb);
+    char *s1 = memcpy(stream, *buffer, (len*sizeof(char)));
     result = strlen(s1);
     *buffer += result;
   }
@@ -1455,10 +1455,10 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 //  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, errors);
 //  curl_easy_setopt(rbce->curl, CURLOPT_VERBOSE, 1);
 
-//  if( rb_thread_alone() ) {
-//    result = curl_easy_perform(rbce->curl);
-//  }
-//  else {
+/*  if( rb_thread_alone() ) {
+    result = curl_easy_perform(rbce->curl);
+  }
+  else {*/
 
     /* NOTE:
      * We create an Curl multi handle here and use rb_thread_select allowing other ruby threads to 
@@ -1468,6 +1468,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
     if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
       raise_curl_multi_error_exception(mcode);
     }
+
 
     while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) ) ;
 
@@ -1488,15 +1489,17 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
       FD_ZERO(&fdwrite);
       FD_ZERO(&fdexcep);
 
-      /* set a suitable timeout to play around with */
-      timeout.tv_sec = 1;
-      timeout.tv_usec = 0;
+      //time_t timer = time(NULL);
       /* get file descriptors from the transfers */
       mcode = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
       if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
         raise_curl_multi_error_exception(mcode);
       }
+      //printf("selecting on the thread\n");
 
+      /* set a suitable timeout to play around with - ruby seems to be greedy about this and won't necessarily yield so the timeout is small.. */
+      timeout.tv_sec = 0;
+      timeout.tv_usec = 100000;
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &timeout);
       if (rc < 0) {
         rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
@@ -1504,7 +1507,9 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
    
       switch(rc) {
       case 0:
+        //printf("timeout(%.2f) :", (double)difftime(time(NULL), timer) );
       default:
+        //printf("readable/writable: %d\n", rc);
         /* timeout or readable/writable sockets */
         while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
       break;
@@ -1524,7 +1529,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
     curl_multi_remove_handle(multi_handle, rbce->curl);
     curl_multi_cleanup(multi_handle);
-//  }
+  //}
 
   ruby_curl_easy_cleanup(self, rbce, bodybuf, headerbuf, headers);
   
