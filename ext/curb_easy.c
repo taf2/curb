@@ -40,16 +40,16 @@ static size_t read_data_handler(char *stream,
                                 size_t size, 
                                 size_t nmemb, 
                                 char **buffer) {
-    size_t result = 0;
+  size_t result = 0;
 
-    if (buffer != NULL && *buffer != NULL) {
-        int len = size * nmemb;
-        char *s1 = strncpy(stream, *buffer, len);
-        result = strlen(s1);
-        *buffer += result;
-    }
+  if (buffer != NULL && *buffer != NULL) {
+    int len = size * nmemb;
+    char *s1 = strncpy(stream, *buffer, len);
+    result = strlen(s1);
+    *buffer += result;
+  }
 
-    return result;
+  return result;
 }
 
 static size_t proc_data_handler(char *stream, 
