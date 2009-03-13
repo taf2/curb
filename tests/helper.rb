@@ -93,8 +93,16 @@ module TestServerMethods
       @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
       @server.mount(servlet.path, servlet)
+      queue = Queue.new # synchronize the thread startup to the main thread
 
-      @test_thread = Thread.new { @server.start }
+      @test_thread = Thread.new { queue << 1; @server.start }
+
+      # wait for the queue
+      value = queue.pop
+      if !value
+        STDERR.puts "Failed to startup test server!"
+        exit(1)
+      end
 
       exit_code = lambda do
         begin

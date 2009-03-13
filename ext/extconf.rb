@@ -35,7 +35,7 @@ def have_constant(name)
     end
   end
 end
-  
+
 have_constant "curlinfo_redirect_time"
 have_constant "curlinfo_response_code"
 have_constant "curlinfo_filetime"
@@ -74,6 +74,28 @@ have_constant "curle_tftp_nosuchuser"
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end
+
+# do some checking to detect ruby 1.8 hash.c vs ruby 1.9 hash.c
+def test_for(name, const, src)
+  checking_for "Ruby 1.9" do
+    if try_compile(src,"#{$CFLAGS} #{$LIBS}")
+      define const
+      true
+    else
+      false
+    end
+  end
+end
+test_for("Ruby 1.9", "RUBY19_HASH", %{
+  #include <ruby.h>
+  int main() {
+    VALUE hash = rb_hash_new();
+    if( RHASH(hash)->ntbl->num_entries ) {
+      return 0;
+    }
+    return 1;
+  }
+})
 
 create_header('curb_config.h')
 create_makefile('curb_core')

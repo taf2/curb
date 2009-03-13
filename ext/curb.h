@@ -33,6 +33,12 @@
 #define RSTRING_LEN(x) RSTRING(x)->len 
 #endif
 
+#ifdef HAVE_RUBY19_HASH
+  #define RHASH_LEN(hash) RHASH(hash)->ntbl->num_entries
+#else
+  #define RHASH_LEN(hash) RHASH(hash)->tbl->num_entries
+#endif
+
 extern VALUE mCurl;
 
 extern void Init_curb_core();
