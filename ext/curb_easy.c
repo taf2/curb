@@ -1367,7 +1367,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
   }
   
   /* Setup HTTP headers if necessary */
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);   // clear
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
   
   if (rbce->headers != Qnil) {      
     if ((rb_type(rbce->headers) == T_ARRAY) || (rb_type(rbce->headers) == T_HASH)) {
@@ -1742,7 +1742,14 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_READDATA, &buffer);
   curl_easy_setopt(curl, CURLOPT_INFILESIZE, len);
 
-  return handle_perform(self, rbce);
+  VALUE ret = handle_perform(self, rbce);
+  /* cleanup  */
+  curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
+  curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
+  curl_easy_setopt(curl, CURLOPT_READDATA, NULL);
+  curl_easy_setopt(curl, CURLOPT_INFILESIZE, 0);
+
+  return ret;
 }
 
 /* =================== DATA FUNCS =============== */
