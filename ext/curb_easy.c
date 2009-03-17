@@ -1557,7 +1557,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
     rb_funcall( rbce->success_proc, idCall, 1, self );
   }
   else if (rbce->failure_proc != Qnil && 
-           (response_code >= 300 && response_code < 600)) {
+           (response_code >= 300 && response_code <= 999)) {
     rb_funcall( rbce->failure_proc, idCall, 1, self );
   }
 

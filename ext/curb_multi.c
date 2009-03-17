@@ -82,6 +82,22 @@ static VALUE ruby_curl_multi_new(VALUE self) {
 /*
  * call-seq:
  * multi = Curl::Multi.new
+ * multi.max_connects = 800
+ *
+ * Set the max connections in the cache for a multi handle
+ */
+static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
+  ruby_curl_multi *rbcm;
+
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2INT(count));
+
+  return self;
+}
+
+/*
+ * call-seq:
+ * multi = Curl::Multi.new
  * easy = Curl::Easy.new('url')
  *
  * multi.add(easy)
@@ -210,7 +226,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
         rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
       }
       else if (rbce->failure_proc != Qnil &&
-              (response_code >= 300 && response_code < 600)) {
+              (response_code >= 300 && response_code <= 999)) {
         rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
       }
     }
@@ -327,6 +343,7 @@ void init_curb_multi() {
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, -1);
 
   /* Instnace methods */
+  rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
   rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "remove", ruby_curl_multi_remove, 1);
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, 0);
