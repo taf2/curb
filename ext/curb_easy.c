@@ -1422,8 +1422,8 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
     if (TYPE(bodybuf) == T_STRING) {
       rbce->body_data = rb_str_to_str(bodybuf);
     }
-    else if (rb_respond_to(bodybuf, rb_intern("to_str"))) {
-      rbce->body_data = rb_funcall(bodybuf, rb_intern("to_str"), 0);
+    else if (rb_respond_to(bodybuf, rb_intern("to_s"))) {
+      rbce->body_data = rb_funcall(bodybuf, rb_intern("to_s"), 0);
     }
     else {
       rbce->body_data = Qnil;
@@ -1436,8 +1436,8 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
     if (TYPE(headerbuf) == T_STRING) {
       rbce->header_data = rb_str_to_str(headerbuf);
     }
-    else if (rb_respond_to(headerbuf, rb_intern("to_str"))) {
-      rbce->header_data = rb_funcall(headerbuf, rb_intern("to_str"), 0);
+    else if (rb_respond_to(headerbuf, rb_intern("to_s"))) {
+      rbce->header_data = rb_funcall(headerbuf, rb_intern("to_s"), 0);
     }
     else {
       rbce->header_data = Qnil;
@@ -1507,7 +1507,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
       FD_ZERO(&fdwrite);
       FD_ZERO(&fdexcep);
 
-      time_t timer = time(NULL);
+      //time_t timer = time(NULL);
       /* get file descriptors from the transfers */
       mcode = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
       if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
