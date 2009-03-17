@@ -34,22 +34,41 @@ static size_t default_data_handler(char *stream,
   rb_str_buf_cat(out, stream, size * nmemb);
   return size * nmemb;
 }
+typedef struct _PutStream {
+  char *buffer;
+  size_t offset, len;
+} PutStream;
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *stream);
-static size_t read_data_handler(char *stream,
+static size_t read_data_handler(void *ptr,
                                 size_t size, 
                                 size_t nmemb, 
-                                char **buffer) {
-  size_t result = 0;
+                                void *stream) {
 
-  if (buffer != NULL && *buffer != NULL) {
-    int len = (size * nmemb);
-    char *s1 = memcpy(stream, *buffer, (len*sizeof(char)));
-    result = strlen(s1);
-    *buffer += result;
+  PutStream *pstream = (PutStream*)stream;
+  size_t sent_bytes = (size * nmemb);
+  size_t remaining = pstream->len - pstream->offset;
+
+  // amount remaining is less then the buffer to send  - can send it all
+  if( remaining < sent_bytes ) {
+    memcpy(ptr, pstream->buffer+pstream->offset, remaining);
+    sent_bytes = remaining;
+    pstream->offset += remaining;
+  }
+  else if( remaining > sent_bytes ) { // sent_bytes <= remaining - send what we can fit in the buffer(ptr)
+    memcpy(ptr, pstream->buffer+pstream->offset, sent_bytes);
+    pstream->offset += sent_bytes;
+  }
+  else { // they're equal
+    memcpy(ptr, pstream->buffer+pstream->offset, --sent_bytes);
+    pstream->offset += sent_bytes;
+  }
+  if (sent_bytes == 0) {
+    free(pstream);
   }
 
-  return result;
+  //printf("sent_bytes: %ld of %ld\n", sent_bytes, remaining);
+  return sent_bytes;
 }
 
 static size_t proc_data_handler(char *stream, 
@@ -1731,19 +1750,22 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
 static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   ruby_curl_easy *rbce;
   CURL *curl;
-  char *buffer;
-  int len;
+
+  PutStream *pstream = (PutStream*)malloc(sizeof(PutStream));
+  memset(pstream, 0, sizeof(PutStream));
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
-  buffer = StringValuePtr(data);
-  len = RSTRING_LEN(data);
+  pstream->len = RSTRING_LEN(data);
+  pstream->buffer = StringValuePtr(data);
+
 
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
-  curl_easy_setopt(curl, CURLOPT_READDATA, &buffer);
-  curl_easy_setopt(curl, CURLOPT_INFILESIZE, len);
+  curl_easy_setopt(curl, CURLOPT_READDATA, pstream);
+  //printf("uploading %d bytes\n", pstream->len);
+  curl_easy_setopt(curl, CURLOPT_INFILESIZE, pstream->len);
 
   VALUE ret = handle_perform(self, rbce);
   /* cleanup  */
