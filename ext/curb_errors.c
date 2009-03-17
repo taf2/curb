@@ -309,15 +309,21 @@ void raise_curl_easy_error_exception(CURLcode code) {
     case CURLE_FTP_SSL_FAILED:          /* 64 - Requested FTP SSL level failed */
       exclz = eCurlErrFTPSSLFailed;
       break;          
+#ifdef HAVE_CURLE_SEND_FAIL_REWIND 
     case CURLE_SEND_FAIL_REWIND:        /* 65 - Sending the data requires a rewind that failed */
       exclz = eCurlErrSendFailedRewind;
-      break;          
+      break;
+#endif
+#ifdef HAVE_CURLE_SSL_ENGINE_INITFAILED
     case CURLE_SSL_ENGINE_INITFAILED:   /* 66 - failed to initialise ENGINE */
       exclz = eCurlErrSSLEngineInitFailed;
       break;          
+#endif
+#ifdef HAVE_CURLE_LOGIN_DENIED
     case CURLE_LOGIN_DENIED:            /* 67 - user, password or similar was not accepted and we failed to login */
       exclz = eCurlErrLoginDenied;
       break;      
+#endif
       
       // recent additions, may not be present in all supported versions
 #ifdef HAVE_CURLE_TFTP_NOTFOUND
