@@ -1506,9 +1506,9 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
       if( rc >= 0 ) {
         switch(rc) {
         case 0:
-          printf("timeout(%.6f) :", difftime(time(NULL), timer) );
+          //printf("timeout(%.6f) :", difftime(time(NULL), timer) );
         default:
-          printf("readable/writable: %d\n", rc);
+          //printf("readable/writable: %d\n", rc);
           /* timeout or readable/writable sockets */
           while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
           break;

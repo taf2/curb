@@ -87,28 +87,35 @@ module TestServerMethods
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
     if @server.nil? and !File.exist?(locked_file)
+
       File.open(locked_file,'w') {|f| f << 'locked' }
+      rd, wr = IO.pipe
 
-      # start up a webrick server for testing delete 
-      @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
+      @__pid = fork do
+        rd.close
+        rd = nil
 
-      @server.mount(servlet.path, servlet)
-      queue = Queue.new # synchronize the thread startup to the main thread
+        # start up a webrick server for testing delete 
+        server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
-      @test_thread = Thread.new { queue << 1; @server.start }
-
-      # wait for the queue
-      value = queue.pop
-      if !value
-        STDERR.puts "Failed to startup test server!"
-        exit(1)
+        server.mount(servlet.path, servlet)
+        trap("INT") { server.shutdown }
+        GC.start
+        wr.flush
+        wr.close
+        server.start
       end
+      wr.close
+      rd.read
+      rd.close
 
       exit_code = lambda do
         begin
-          #puts "stopping"
-          File.unlink locked_file if File.exist?(locked_file)
-          @server.shutdown unless @server.nil?
+          if File.exist?(locked_file)
+            File.unlink locked_file
+            Process.kill 'INT', @__pid
+          end
+          #@server.shutdown unless @server.nil?
         rescue Object => e
           puts "Error #{__FILE__}:#{__LINE__}\n#{e.message}"
         end
