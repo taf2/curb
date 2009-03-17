@@ -429,9 +429,10 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
 
   if ((rbcpf->local_file == Qnil) && (rbcpf->remote_file == Qnil)) {
     if (rbcpf->name != Qnil) {
-      char *tmpchrs;
+
+      char *tmpchrs = curl_escape(RSTRING_PTR(rbcpf->name), RSTRING_LEN(rbcpf->name));
       
-      if ((tmpchrs = curl_escape(StringValuePtr(rbcpf->name), RSTRING_LEN(rbcpf->name))) == NULL) {
+      if (!tmpchrs) {
         rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
       } else {
         VALUE tmpcontent = Qnil;
@@ -445,8 +446,17 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
         } else {
           tmpcontent = rb_str_new2("");
         }
-        
-        if ((tmpchrs = curl_escape(StringValuePtr(tmpcontent), RSTRING_LEN(tmpcontent))) == NULL) {
+        if (TYPE(tmpcontent) != T_STRING) {
+          if (rb_respond_to(tmpcontent, rb_intern("to_s"))) {
+            tmpcontent = rb_funcall(tmpcontent, rb_intern("to_s"), 0);
+          }
+          else {
+            rb_raise(rb_eRuntimeError, "postfield(%s) is not a string and does not respond_to to_s", RSTRING_PTR(escd_name) );
+          }
+        }
+        //fprintf(stderr, "encoding content: %ld - %s\n", RSTRING_LEN(tmpcontent), RSTRING_PTR(tmpcontent) );
+        tmpchrs = curl_escape(RSTRING_PTR(tmpcontent), RSTRING_LEN(tmpcontent));
+        if (!tmpchrs) {
           rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content `%s'", tmpchrs);
         } else {
           VALUE escd_content = rb_str_new2(tmpchrs);
