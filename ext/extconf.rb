@@ -70,6 +70,10 @@ have_constant "curle_tftp_illegal"
 have_constant "curle_tftp_unknownid"
 have_constant "curle_tftp_exists"
 have_constant "curle_tftp_nosuchuser"
+# older versions of libcurl 7.12
+have_constant "curle_send_fail_rewind"
+have_constant "curle_ssl_engine_initfailed"
+have_constant "curle_login_denied"
 
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
@@ -77,7 +81,7 @@ end
 
 # do some checking to detect ruby 1.8 hash.c vs ruby 1.9 hash.c
 def test_for(name, const, src)
-  checking_for "Ruby 1.9" do
+  checking_for name do
     if try_compile(src,"#{$CFLAGS} #{$LIBS}")
       define const
       true
@@ -100,6 +104,15 @@ test_for("Ruby 1.9 st.h", "RUBY19_ST_H", %{
   #include <ruby.h>
   #include <ruby/st.h>
   int main() {
+    return 0;
+  }
+})
+
+test_for("curl_easy_escape", "CURL_EASY_ESCAPE", %{
+  #include <curl/curl.h>
+  int main() {
+    CURL *easy = curl_easy_init();
+    curl_easy_escape(easy,"hello",5);
     return 0;
   }
 })
