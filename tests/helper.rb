@@ -17,6 +17,12 @@ $TEST_URL = "file://#{URI.escape(File.expand_path(__FILE__).tr('\\','/').tr(':',
 require 'thread'
 require 'webrick'
 
+# set this to true to avoid testing with multiple threads
+# or to test with multiple threads set it to false
+# this is important since, some code paths will change depending
+# on the presence of multiple threads
+TEST_SINGLE_THREADED=false
+
 # keep webrick quiet
 class ::WEBrick::HTTPServer
   def access_log(config, req, res)
@@ -89,31 +95,52 @@ module TestServerMethods
     if @server.nil? and !File.exist?(locked_file)
 
       File.open(locked_file,'w') {|f| f << 'locked' }
-      rd, wr = IO.pipe
+      if TEST_SINGLE_THREADED
+        rd, wr = IO.pipe
+        @__pid = fork do
+          rd.close
+          rd = nil
 
-      @__pid = fork do
-        rd.close
-        rd = nil
+          # start up a webrick server for testing delete 
+          server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
-        # start up a webrick server for testing delete 
-        server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
-
-        server.mount(servlet.path, servlet)
-        trap("INT") { server.shutdown }
-        GC.start
-        wr.flush
+          server.mount(servlet.path, servlet)
+          trap("INT") { server.shutdown }
+          GC.start
+          wr.flush
+          wr.close
+          server.start
+        end
         wr.close
-        server.start
+        rd.read
+        rd.close
+      else
+        # start up a webrick server for testing delete 
+        @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
+
+        @server.mount(servlet.path, servlet)
+        queue = Queue.new # synchronize the thread startup to the main thread
+
+        @test_thread = Thread.new { queue << 1; @server.start }
+
+        # wait for the queue
+        value = queue.pop
+        if !value
+          STDERR.puts "Failed to startup test server!"
+          exit(1)
+        end
+
       end
-      wr.close
-      rd.read
-      rd.close
 
       exit_code = lambda do
         begin
           if File.exist?(locked_file)
             File.unlink locked_file
-            Process.kill 'INT', @__pid
+            if TEST_SINGLE_THREADED
+              Process.kill 'INT', @__pid
+            else
+              @server.shutdown unless @server.nil?
+            end
           end
           #@server.shutdown unless @server.nil?
         rescue Object => e
