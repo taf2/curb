@@ -4,7 +4,13 @@
  * 
  * $Id$
  */
+
+#include "curb_config.h"
+#ifdef HAVE_RUBY19_ST_H
+#include <ruby/st.h>
+#else
 #include <st.h>
+#endif
 #include "curb_easy.h"
 #include "curb_errors.h"
 #include "curb_postfield.h"
@@ -41,7 +47,7 @@ static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) 
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
   //printf("hash entries: %d\n", RHASH(rbcm->requests)->tbl->num_entries );
-  if (RHASH_LEN(rbcm->requests) > 0) {
+  if (rbcm && RHASH_LEN(rbcm->requests) > 0) {
     rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
 
     curl_multi_cleanup(rbcm->handle);

@@ -86,7 +86,7 @@ def test_for(name, const, src)
     end
   end
 end
-test_for("Ruby 1.9", "RUBY19_HASH", %{
+test_for("Ruby 1.9 Hash", "RUBY19_HASH", %{
   #include <ruby.h>
   int main() {
     VALUE hash = rb_hash_new();
@@ -94,6 +94,13 @@ test_for("Ruby 1.9", "RUBY19_HASH", %{
       return 0;
     }
     return 1;
+  }
+})
+test_for("Ruby 1.9 st.h", "RUBY19_ST_H", %{
+  #include <ruby.h>
+  #include <ruby/st.h>
+  int main() {
+    return 0;
   }
 })
 
