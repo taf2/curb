@@ -87,10 +87,12 @@ static VALUE ruby_curl_multi_new(VALUE self) {
  * Set the max connections in the cache for a multi handle
  */
 static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
+#ifdef HAVE_CURLMOPT_MAXCONNECTS
   ruby_curl_multi *rbcm;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2INT(count));
+#endif
 
   return self;
 }

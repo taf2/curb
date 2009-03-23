@@ -75,6 +75,9 @@ have_constant "curle_send_fail_rewind"
 have_constant "curle_ssl_engine_initfailed"
 have_constant "curle_login_denied"
 
+# older than 7.16.3
+have_constant "curlmopt_maxconnects"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end
