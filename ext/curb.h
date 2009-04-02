@@ -32,6 +32,9 @@
 #ifndef RSTRING_LEN 
 #define RSTRING_LEN(x) RSTRING(x)->len 
 #endif
+#ifndef RSTRING_PTR
+#define RSTRING_PTR(x) RSTRING(x)->ptr
+#endif
 
 #ifdef HAVE_RUBY19_HASH
   #define RHASH_LEN(hash) RHASH(hash)->ntbl->num_entries
