@@ -78,7 +78,11 @@ end
 # Test Tasks ---------------------------------------------------------
 task :ta => :alltests
 task :tu => :unittests
-task :test => :unittests
+task :test => [:rmpid,:unittests]
+
+task :rmpid do
+  sh "rm -rf tests/server_lock-*"
+end
 
 if ENV['RELTEST']
   announce "Release task testing - not running regression tests on alltests"
