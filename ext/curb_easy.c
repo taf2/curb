@@ -138,6 +138,10 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->postdata_buffer);
   rb_gc_mark(rbce->bodybuf);
   rb_gc_mark(rbce->headerbuf);
+
+  if( rbce->self != Qnil ) {
+    rb_gc_mark(rbce->self);
+  }
 }
 
 void curl_easy_free(ruby_curl_easy *rbce) {
@@ -224,6 +228,8 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->bodybuf = Qnil;
   rbce->headerbuf = Qnil;
   rbce->curl_headers = NULL;
+
+  rbce->self = Qnil;
   
   new_curl = Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, rbce);
   

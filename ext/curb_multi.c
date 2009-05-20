@@ -130,7 +130,7 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
     curl_multi_perform(rbcm->handle, &(rbcm->running));
   }
 
-  rb_hash_aset( rbcm->requests, rb_int_new((long)rbce->curl), easy );
+  rb_hash_aset( rbcm->requests, easy, easy );
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
 
   if (rbcm->active > rbcm->running) {
@@ -163,8 +163,6 @@ static VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   rb_curl_multi_remove(rbcm,easy);
-  // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
-  rb_hash_delete( rbcm->requests, rb_int_new((long)rbce->curl) );
 
   return self;
 }
@@ -185,6 +183,12 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   ruby_curl_easy_cleanup( easy, rbce, rbce->bodybuf, rbce->headerbuf, rbce->curl_headers );
   rbce->headerbuf = Qnil;
   rbce->bodybuf = Qnil;
+
+  // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
+  VALUE r = rb_hash_delete( rbcm->requests, easy );
+  if( r != easy || r == Qnil ) {
+    fprintf(stderr, "Critical:: Unable to remove easy from requests\n");
+  }
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
@@ -193,7 +197,6 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
   CURLcode ecode;
   CURL *easy_handle;
   ruby_curl_easy *rbce = NULL;
-//  VALUE finished = rb_ary_new();
 
   /* check for finished easy handles and remove from the multi handle */
   while ((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
@@ -209,8 +212,6 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
       if (ecode != 0) {
         raise_curl_easy_error_exception(ecode);
       }
-      //printf( "finished: 0x%X\n", (long)rbce->self );
-      //rb_ary_push(finished, rbce->self);
       ruby_curl_multi_remove( self, rbce->self );
 
       if (rbce->complete_proc != Qnil) {
@@ -234,18 +235,12 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
               (response_code >= 300 && response_code <= 999)) {
         rb_funcall( rbce->failure_proc, idCall, 1, rbce->self );
       }
+      rbce->self = Qnil;
     }
     else {
       //printf( "missing easy handle\n" );
     }
   }
-
-  /*
-  while (RARRAY(finished)->len > 0) {
-    //printf( "finished handle\n" );
-    ruby_curl_multi_remove( self, rb_ary_pop(finished) );
-  }
-   */
 }
 
 /* called within ruby_curl_multi_perform */

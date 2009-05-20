@@ -180,7 +180,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     def t_method
       @buf = ""
       @m = Curl::Multi.new
-      10.times do
+      10.times do|i|
         c = Curl::Easy.new($TEST_URL)
         c.on_success{|b| @buf << b.body_str }
         ObjectSpace.garbage_collect
