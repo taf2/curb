@@ -32,6 +32,7 @@ typedef struct {
   VALUE userpwd;
   VALUE proxypwd;
   VALUE headers;        /* ruby array of strings with headers to set */
+  VALUE cookiefile;     /* filename */
   VALUE cookiejar;      /* filename */
   VALUE cert;
   VALUE encoding;
