@@ -78,6 +78,10 @@ have_constant "curle_login_denied"
 # older than 7.16.3
 have_constant "curlmopt_maxconnects"
 
+# centos 4.5 build of libcurl
+have_constant "curlm_bad_socket"
+have_constant "curlm_unknown_option"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end

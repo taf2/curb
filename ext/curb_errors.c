@@ -392,12 +392,16 @@ void raise_curl_multi_error_exception(CURLMcode code) {
     case CURLM_INTERNAL_ERROR: /* 4 */
       exclz = mCurlErrInternalError;
       break;
+#if HAVE_CURLM_BAD_SOCKET
     case CURLM_BAD_SOCKET: /* 5 */
       exclz = mCurlErrBadSocket;
       break;
+#endif
+#if HAVE_CURLM_UNKNOWN_OPTION
     case CURLM_UNKNOWN_OPTION: /* 6 */
       exclz = mCurlErrUnknownOption;
       break;
+#endif
     default:
       exclz = eCurlErrError;
       exmsg = "Unknown error result from libcurl";
