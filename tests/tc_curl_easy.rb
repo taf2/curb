@@ -433,6 +433,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert c.enable_cookies?
   end
 
+  def test_cookies_option
+    c = Curl::Easy.new
+    assert_nil c.cookies
+    assert_equal "name1=content1; name2=content2;", c.cookies = "name1=content1; name2=content2;"
+    assert_equal "name1=content1; name2=content2;", c.cookies
+  end
+
   def test_cookiefile
     c = Curl::Easy.new
     assert_nil c.cookiefile

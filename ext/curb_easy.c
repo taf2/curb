@@ -128,6 +128,7 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->userpwd);
   rb_gc_mark(rbce->proxypwd);  
   rb_gc_mark(rbce->headers);
+  rb_gc_mark(rbce->cookies);
   rb_gc_mark(rbce->cookiefile);
   rb_gc_mark(rbce->cookiejar);
   rb_gc_mark(rbce->cert);
@@ -191,6 +192,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->userpwd = Qnil;
   rbce->proxypwd = Qnil;
   rbce->headers = rb_hash_new();
+  rbce->cookies = Qnil;
   rbce->cookiefile = Qnil;
   rbce->cookiejar = Qnil;
   rbce->cert = Qnil;
@@ -437,6 +439,29 @@ static VALUE ruby_curl_easy_proxypwd_get(VALUE self) {
   CURB_OBJECT_GETTER(ruby_curl_easy, proxypwd);
 }
 
+
+/*
+ * call-seq:
+ *   easy.cookies = "name1=content1; name2=content2;"                => "pwd string"
+ *
+ * Set cookies to be sent by this Curl::Easy instance. The format of the string should
+ * be NAME=CONTENTS, where NAME is the cookie name and CONTENTS is what the cookie should contain. 
+ * Set multiple cookies in one string like this: "name1=content1; name2=content2;" etc. 
+ */
+static VALUE ruby_curl_easy_cookies_set(VALUE self, VALUE cookies) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, cookies);
+}
+
+/*
+ * call-seq:
+ *   easy.cookies                                   => "name1=content1; name2=content2;"
+ * 
+ * Obtain the cookies for this Curl::Easy instance. 
+ */ 
+static VALUE ruby_curl_easy_cookies_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, cookies);
+}
+
 /*
  * call-seq:
  *   easy.cookiefile = "cookies.txt"                => "pwd string"
@@ -452,7 +477,7 @@ static VALUE ruby_curl_easy_cookiefile_set(VALUE self, VALUE cookiefile) {
 
 /*
  * call-seq:
- *   easy.cookiefile                                   => "cookies.txt""
+ *   easy.cookiefile                                   => "cookies.txt"
  * 
  * Obtain the cookiefile file for this Curl::Easy instance. 
  */ 
@@ -1412,6 +1437,10 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
     } else {
       curl_easy_setopt(curl, CURLOPT_COOKIEFILE, ""); /* "" = magic to just enable */
     }
+  }
+
+  if (rbce->cookies != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_COOKIE, StringValuePtr(rbce->cookies));
   }
 
   /* Set up HTTPS cert handling if necessary */
@@ -2585,6 +2614,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "userpwd", ruby_curl_easy_userpwd_get, 0);
   rb_define_method(cCurlEasy, "proxypwd=", ruby_curl_easy_proxypwd_set, 1);
   rb_define_method(cCurlEasy, "proxypwd", ruby_curl_easy_proxypwd_get, 0);
+  rb_define_method(cCurlEasy, "cookies=", ruby_curl_easy_cookies_set, 1);
+  rb_define_method(cCurlEasy, "cookies", ruby_curl_easy_cookies_get, 0);
   rb_define_method(cCurlEasy, "cookiefile=", ruby_curl_easy_cookiefile_set, 1);
   rb_define_method(cCurlEasy, "cookiefile", ruby_curl_easy_cookiefile_get, 0);
   rb_define_method(cCurlEasy, "cookiejar=", ruby_curl_easy_cookiejar_set, 1);
