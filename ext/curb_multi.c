@@ -298,20 +298,23 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
       raise_curl_multi_error_exception(mcode);
     }
 
+#ifdef HAVE_CURL_MULTI_TIMEOUT 
     /* get the curl suggested time out */
     mcode = curl_multi_timeout(rbcm->handle, &timeout);
     if (mcode != CURLM_OK) {
       raise_curl_multi_error_exception(mcode);
     }
+#else
+    /* libcurl doesn't have a timeout method defined... make a wild guess */
+    timeout = 1; /* wait a second */
+#endif
 
     if (timeout == 0) { /* no delay */
       rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
       continue;
     }
     else if (timeout == -1) {
-      timeout = 1; /* You must not wait too long 
-                     (more than a few seconds perhaps) before 
-                     you call curl_multi_perform() again */
+      timeout = 1; /* wait a second */
     }
 
     if (rb_block_given_p()) {
