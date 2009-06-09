@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.extra_rdoc_files = ['LICENSE', 'README']
   <%
     files = ['LICENSE', 'README', 'Rakefile',
-             'doc.rb', 'ext/extconf.rb'] + Dir["lib/**/**.rb"] + Dir["ext/**/**.c"] + Dir["ext/**/**.h"]
+             'doc.rb', 'ext/extconf.rb'] + Dir["lib/**/**.rb"] + Dir["ext/**/**.c"] + Dir["ext/**/**.h"].reject{|h| h == 'ext/curb_config.h' }
   %>
   s.files = <%= files.inspect %>
   #### Load-time details
