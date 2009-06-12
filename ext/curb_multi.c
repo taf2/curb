@@ -42,7 +42,19 @@ static void curl_multi_mark(ruby_curl_multi *rbcm) {
 }
 
 static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) {
-  rb_curl_multi_remove(rbcm, easy);
+  //rb_curl_multi_remove(rbcm, easy);
+  CURLMcode result;
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(easy, ruby_curl_easy, rbce);
+  result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
+  if (result != 0) {
+    raise_curl_multi_error_exception(result);
+  }
+  // XXX: easy handle may not be finished yet... so don't clean it GC pass will get it next time
+  VALUE r = rb_hash_delete( rbcm->requests, easy );
+  if( r != easy || r == Qnil ) {
+    rb_raise(rb_eRuntimeError, "Critical:: Unable to remove easy from requests");
+  }
 }
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
@@ -187,7 +199,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
   VALUE r = rb_hash_delete( rbcm->requests, easy );
   if( r != easy || r == Qnil ) {
-    fprintf(stderr, "Critical:: Unable to remove easy from requests\n");
+    rb_raise(rb_eRuntimeError, "Critical:: Unable to remove easy from requests");
   }
 }
 
