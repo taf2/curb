@@ -78,6 +78,17 @@ have_constant "curle_login_denied"
 # older than 7.16.3
 have_constant "curlmopt_maxconnects"
 
+# additional consts
+have_constant "curle_conv_failed"
+have_constant "curle_conv_reqd"
+have_constant "curle_ssl_cacert_badfile"
+have_constant "curle_remote_file_not_found"
+have_constant "curle_ssh"
+have_constant "curle_ssl_shutdown_failed"
+have_constant "curle_again"
+have_constant "curle_ssl_crl_badfile"
+have_constant "curle_ssl_issuer_error"
+
 # centos 4.5 build of libcurl
 have_constant "curlm_bad_socket"
 have_constant "curlm_unknown_option"

@@ -98,6 +98,16 @@ VALUE eCurlErrTFTPUnknownID;
 VALUE eCurlErrTFTPFileExists;
 VALUE eCurlErrTFTPNoSuchUser;
 
+VALUE eCurlErrConvFailed;
+VALUE eCurlErrConvReqd;
+VALUE eCurlErrSSLCacertBadfile;
+VALUE eCurlErrRemoteFileNotFound;
+VALUE eCurlErrSSH;
+VALUE eCurlErrSSLShutdownFailed;
+VALUE eCurlErrAgain;
+VALUE eCurlErrSSLCRLBadfile;
+VALUE eCurlErrSSLIssuerError;
+
 /* multi errors */
 VALUE mCurlErrCallMultiPerform;
 VALUE mCurlErrBadHandle;
@@ -361,6 +371,63 @@ void raise_curl_easy_error_exception(CURLcode code) {
       exclz = eCurlErrTFTPNotFound;
       break;
 #endif
+#ifdef HAVE_CURLE_CONV_FAILED
+    case CURLE_CONV_FAILED:             /* 75 - conversion failed */
+      exclz = eCurlErrConvFailed;
+      break;
+#endif
+#ifdef HAVE_CURLE_CONV_REQD
+    case CURLE_CONV_REQD:               /* 76 - caller must register conversion
+                                                callbacks using curl_easy_setopt options
+                                                CURLOPT_CONV_FROM_NETWORK_FUNCTION,
+                                                CURLOPT_CONV_TO_NETWORK_FUNCTION, and
+                                                CURLOPT_CONV_FROM_UTF8_FUNCTION */
+      exclz = eCurlErrConvReqd;
+      break;
+#endif
+#ifdef HAVE_CURLE_SSL_CACERT_BADFILE
+    case CURLE_SSL_CACERT_BADFILE:      /* 77 - could not load CACERT file, missing
+                                                or wrong format */
+      exclz = eCurlErrSSLCacertBadfile;
+      break;
+#endif
+#ifdef  HAVE_CURLE_REMOTE_FILE_NOT_FOUND
+    case CURLE_REMOTE_FILE_NOT_FOUND:   /* 78 - remote file not found */
+      exclz = eCurlErrRemoteFileNotFound;
+      break;
+#endif
+#ifdef  HAVE_CURLE_SSH
+    case CURLE_SSH:                     /* 79 - error from the SSH layer, somewhat
+                                    generic so the error message will be of
+                                    interest when this has happened */
+      exclz = eCurlErrSSH;
+      break;
+#endif
+#ifdef  HAVE_CURLE_SSL_SHUTDOWN_FAILED
+    case CURLE_SSL_SHUTDOWN_FAILED:     /* 80 - Failed to shut down the SSL
+                                    connection */
+      exclz = eCurlErrSSLShutdownFailed;
+      break;
+#endif
+#ifdef  HAVE_CURLE_AGAIN
+    case CURLE_AGAIN:                   /* 81 - socket is not ready for send/recv,
+                                    wait till it's ready and try again (Added
+                                    in 7.18.2) */
+      exclz = eCurlErrAgain;
+      break;
+#endif
+#ifdef  HAVE_CURLE_SSL_CRL_BADFILE
+    case CURLE_SSL_CRL_BADFILE:         /* 82 - could not load CRL file, missing or
+                                    wrong format (Added in 7.19.0) */
+      exclz = eCurlErrSSLCRLBadfile;
+      break;
+#endif
+#ifdef  HAVE_CURLE_SSL_ISSUER_ERROR
+    case CURLE_SSL_ISSUER_ERROR:        /* 83 - Issuer check failed.  (Added in
+                                    7.19.0) */
+      exclz = eCurlErrSSLIssuerError;
+      break;
+#endif
     default:
       exclz = eCurlErrError;
       exmsg = "Unknown error result from libcurl";
@@ -501,10 +568,20 @@ void init_curb_errors() {
   eCurlErrRecvError = rb_define_class_under(mCurlErr, "RecvError", eCurlErrError);
   eCurlErrShareInUse = rb_define_class_under(mCurlErr, "ShareInUseError", eCurlErrError);
 
+  eCurlErrConvFailed  = rb_define_class_under(mCurlErr, "ConvFailed", eCurlErrError);
+  eCurlErrConvReqd    = rb_define_class_under(mCurlErr, "ConvReqd", eCurlErrError);
+  eCurlErrRemoteFileNotFound  = rb_define_class_under(mCurlErr, "RemoteFileNotFound", eCurlErrError);
+  eCurlErrAgain  = rb_define_class_under(mCurlErr, "Again", eCurlErrError);
+
   eCurlErrSSLCertificate = rb_define_class_under(mCurlErr, "SSLCertificateError", eCurlErrError);
   eCurlErrSSLCipher = rb_define_class_under(mCurlErr, "SSLCypherError", eCurlErrError);
   eCurlErrSSLCACertificate = rb_define_class_under(mCurlErr, "SSLCACertificateError", eCurlErrError);
   eCurlErrBadContentEncoding = rb_define_class_under(mCurlErr, "BadContentEncodingError", eCurlErrError);
+  eCurlErrSSLCacertBadfile   = rb_define_class_under(mCurlErr, "SSLCaertBadFile", eCurlErrError);
+  eCurlErrSSLCRLBadfile      = rb_define_class_under(mCurlErr, "SSLCRLBadfile", eCurlErrError);
+  eCurlErrSSLIssuerError     = rb_define_class_under(mCurlErr, "SSLIssuerError", eCurlErrError);
+  eCurlErrSSLShutdownFailed  = rb_define_class_under(mCurlErr, "SSLShutdownFailed", eCurlErrError);
+  eCurlErrSSH                = rb_define_class_under(mCurlErr, "SSH", eCurlErrError);
 
   eCurlErrLDAPInvalidURL = rb_define_class_under(mCurlErr, "InvalidLDAPURLError", eCurlErrLDAPError);
 

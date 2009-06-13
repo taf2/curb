@@ -97,6 +97,15 @@ extern VALUE eCurlErrTFTPIllegalOperation;
 extern VALUE eCurlErrTFTPUnknownID;
 extern VALUE eCurlErrTFTPFileExists;
 extern VALUE eCurlErrTFTPNoSuchUser;
+extern VALUE eCurlErrConvFailed;
+extern VALUE eCurlErrConvReqd;
+extern VALUE eCurlErrSSLCacertBadfile;
+extern VALUE eCurlErrRemoteFileNotFound;
+extern VALUE eCurlErrSSH;
+extern VALUE eCurlErrSSLShutdownFailed;
+extern VALUE eCurlErrAgain;
+extern VALUE eCurlErrSSLCRLBadfile;
+extern VALUE eCurlErrSSLIssuerError;
 
 /* multi errors */
 extern VALUE mCurlErrCallMultiPerform;
