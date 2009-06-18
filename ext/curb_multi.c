@@ -106,7 +106,28 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2INT(count));
 #endif
 
-  return self;
+  return count;
+}
+
+/*
+ * call-seq:
+ * multi = Curl::Multi.new
+ * multi.pipeline = true
+ *
+ * Pass a long set to 1 to enable or 0 to disable. Enabling pipelining on a multi handle will make it
+ * attempt to perform HTTP Pipelining as far as possible for transfers using this handle. This means
+ * that if you add a second request that can use an already existing connection, the second request will
+ * be "piped" on the same connection rather than being executed in parallel. (Added in 7.16.0)
+ *
+ */
+static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE onoff) {
+#ifdef HAVE_CURLMOPT_PIPELINING
+  ruby_curl_multi *rbcm;
+
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  curl_multi_setopt(rbcm->handle, CURLMOPT_PIPELINING, onoff == Qtrue ? 1 : 0);
+#endif
+  return onoff;
 }
 
 /*
@@ -359,6 +380,7 @@ void init_curb_multi() {
 
   /* Instnace methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
+  rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
   rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "remove", ruby_curl_multi_remove, 1);
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, 0);
