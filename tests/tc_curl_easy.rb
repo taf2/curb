@@ -504,6 +504,20 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match '/nonexistent', redirect[1]
   end
 
+  def test_head_accessor
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.head = true
+    curl.perform
+
+    redirect = curl.header_str.match(/Location: (.*)/)
+
+    assert_equal '', curl.body_str
+    assert_match '/nonexistent', redirect[1]
+    curl.head = false
+    curl.perform
+    assert_equal 'GET', curl.body_str
+  end
+
   def test_put_remote
     curl = Curl::Easy.new(TestServlet.url)
     assert curl.http_put("message")
