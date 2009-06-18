@@ -1697,11 +1697,14 @@ static VALUE ruby_curl_easy_perform_delete(VALUE self) {
  * 
  * Transfer the currently configured URL using the options set for this
  * Curl::Easy instance. If this is an HTTP URL, it will be transferred via
- * the GET request method (i.e. this method is a synonym for +http_get+ 
- * when using HTTP URLs).
+ * the GET or HEAD request method.
  */
 static VALUE ruby_curl_easy_perform(VALUE self) {  
-  return ruby_curl_easy_perform_get(self);
+  ruby_curl_easy *rbce;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  
+  return handle_perform(self,rbce);
 }
 
 /*
@@ -1801,6 +1804,28 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
   return handle_perform(self,rbce);
+}
+
+/*
+ *call-seq:
+ * easy = Curl::Easy.new("url") do|c|
+ *  c.head = true
+ * end
+ * easy.perform
+ */
+static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
+  ruby_curl_easy *rbce;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if( onoff == Qtrue ) {
+    curl_easy_setopt(rbce->curl, CURLOPT_NOBODY, 1);
+  }
+  else {
+    curl_easy_setopt(rbce->curl, CURLOPT_NOBODY, 0);
+  }
+
+  return onoff;
 }
 
 /*
@@ -2685,6 +2710,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "http_post", ruby_curl_easy_perform_post, -1);
   rb_define_method(cCurlEasy, "http_head", ruby_curl_easy_perform_head, 0);
   rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 1);
+  rb_define_method(cCurlEasy, "head=", ruby_curl_easy_set_head_option, 1);
 
   /* Post-perform info methods */
   rb_define_method(cCurlEasy, "body_str", ruby_curl_easy_body_str_get, 0);
