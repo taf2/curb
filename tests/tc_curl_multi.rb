@@ -146,7 +146,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       #assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     end
 
-    c1.on_failure do|c|
+    c1.on_failure do|c,rc|
       #puts "failure called: #{c.body_str.inspect}"
     end
 

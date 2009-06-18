@@ -1629,7 +1629,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
   if (result != 0) {
 //    printf("error: %s\n", errors);
     if (rbce->failure_proc != Qnil) {
-      rb_funcall( rbce->failure_proc, idCall, 1, self );
+      rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, INT2FIX(result) );
     } else {
       raise_curl_easy_error_exception(result);
     }
@@ -1641,7 +1641,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
   }
   else if (rbce->failure_proc != Qnil && 
            (response_code >= 300 && response_code <= 999)) {
-    rb_funcall( rbce->failure_proc, idCall, 1, self );
+    rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, INT2FIX(result) );
   }
 
   return Qtrue;
