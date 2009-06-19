@@ -45,4 +45,3 @@ module Curl
     end
   end
 end
-

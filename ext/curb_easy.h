@@ -1,7 +1,7 @@
 /* curb_easy.h - Curl easy mode
- * Copyright (c)2006 Ross Bamford. 
+ * Copyright (c)2006 Ross Bamford.
  * Licensed under the Ruby License. See LICENSE for details.
- * 
+ *
  * $Id: curb_easy.h 25 2006-12-07 23:38:25Z roscopeco $
  */
 #ifndef __CURB_EASY_H
@@ -17,13 +17,13 @@
 typedef struct {
   /* The handler */
   CURL *curl;
-  
+
   /* Objects we associate */
-  VALUE url;  
+  VALUE url;
   VALUE proxy_url;
-  
+
   VALUE body_proc;
-  VALUE header_proc;  
+  VALUE header_proc;
   VALUE body_data;      /* Holds the response body from the last call to curl_easy_perform */
   VALUE header_data;    /* unless a block is supplied (they'll be nil)      */
   VALUE progress_proc;
@@ -45,7 +45,7 @@ typedef struct {
   /* Other opts */
   unsigned short local_port;       // 0 is no port
   unsigned short local_port_range; // "  "  " "
-  unsigned short proxy_port;       // "  "  " " 
+  unsigned short proxy_port;       // "  "  " "
   int proxy_type;
   long http_auth_types;
   long proxy_auth_types;
@@ -55,7 +55,7 @@ typedef struct {
   long dns_cache_timeout;
   unsigned long ftp_response_timeout;
 
-  /* bool flags */  
+  /* bool flags */
   char proxy_tunnel;
   char fetch_file_time;
   char ssl_verify_peer;
@@ -64,15 +64,15 @@ typedef struct {
   char use_netrc;
   char follow_location;
   char unrestricted_auth;
-  char verbose;  
+  char verbose;
   char multipart_form_post;
   char enable_cookies;
-  
+
   /* this is sometimes used as a buffer for a form data string,
    * which we alloc in C and need to hang around for the call,
    * and in case it's asked for before the next call.
    */
-  VALUE postdata_buffer;  
+  VALUE postdata_buffer;
 
   /* when added to a multi handle these buffers are needed
    * when the easy handle isn't supplied the body proc

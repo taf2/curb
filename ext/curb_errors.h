@@ -1,7 +1,7 @@
 /* curb_errors.h - Ruby exception types for curl errors
- * Copyright (c)2006 Ross Bamford. 
+ * Copyright (c)2006 Ross Bamford.
  * Licensed under the Ruby License. See LICENSE for details.
- * 
+ *
  * $Id: curb_errors.h 4 2006-11-17 18:35:31Z roscopeco $
  */
 #ifndef __CURB_ERRORS_H

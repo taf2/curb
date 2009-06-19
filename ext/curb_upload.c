@@ -44,10 +44,6 @@ VALUE ruby_curl_upload_offset_get(VALUE self) {
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
   return INT2FIX(rbcu->offset);
 }
-VALUE ruby_curl_upload_stream_size(VALUE self) {
-  ruby_curl_upload *rbcu;
-  Data_Get_Struct(self, ruby_curl_upload, rbcu);
-}
 
 /* =================== INIT LIB =====================*/
 void init_curb_upload() {
@@ -57,5 +53,4 @@ void init_curb_upload() {
   rb_define_method(cCurlUpload, "stream", ruby_curl_upload_stream_get, 0);
   rb_define_method(cCurlUpload, "offset=", ruby_curl_upload_offset_set, 1);
   rb_define_method(cCurlUpload, "offset", ruby_curl_upload_offset_get, 0);
-  rb_define_method(cCurlUpload, "size", ruby_curl_upload_stream_size, 0);
 }

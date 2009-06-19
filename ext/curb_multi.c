@@ -1,7 +1,7 @@
 /* curb_easy.c - Curl easy mode
- * Copyright (c)2008 Todd A. Fisher. 
+ * Copyright (c)2008 Todd A. Fisher.
  * Licensed under the Ruby License. See LICENSE for details.
- * 
+ *
  * $Id$
  */
 
@@ -72,12 +72,12 @@ static void curl_multi_free(ruby_curl_multi *rbcm) {
 /*
  * call-seq:
  *   Curl::Multi.new                                   => #&lt;Curl::Easy...&gt;
- * 
+ *
  * Create a new Curl::Multi instance
  */
 static VALUE ruby_curl_multi_new(VALUE klass) {
   VALUE new_curlm;
-  
+
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
 
   rbcm->handle = curl_multi_init();
@@ -86,7 +86,7 @@ static VALUE ruby_curl_multi_new(VALUE klass) {
 
   rbcm->active = 0;
   rbcm->running = 0;
-  
+
   new_curlm = Data_Wrap_Struct(klass, curl_multi_mark, curl_multi_free, rbcm);
 
   return new_curlm;
@@ -180,7 +180,7 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
  * easy = Curl::Easy.new('url')
  *
  * multi.add(easy)
- * 
+ *
  * # sometime later
  * multi.remove(easy)
  *
@@ -204,7 +204,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   CURLMcode result;
   ruby_curl_easy *rbce;
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
- 
+
   rbcm->active--;
 
   //printf( "calling rb_curl_multi_remove: 0x%X, active: %d\n", (long)easy, rbcm->active );
@@ -213,7 +213,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   if (result != 0) {
     raise_curl_multi_error_exception(result);
   }
- 
+
   ruby_curl_easy_cleanup( easy, rbce, rbce->bodybuf, rbce->headerbuf, rbce->curl_headers );
   rbce->headerbuf = Qnil;
   rbce->bodybuf = Qnil;
@@ -254,7 +254,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
 
       long response_code = -1;
       curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
- 
+
       if (result != 0) {
         if (rbce->failure_proc != Qnil) {
           rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, INT2FIX(result) );
@@ -321,7 +321,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
 
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
 
-  while(rbcm->running) { 
+  while(rbcm->running) {
     FD_ZERO(&fdread);
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
@@ -332,7 +332,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
       raise_curl_multi_error_exception(mcode);
     }
 
-#ifdef HAVE_CURL_MULTI_TIMEOUT 
+#ifdef HAVE_CURL_MULTI_TIMEOUT
     /* get the curl suggested time out */
     mcode = curl_multi_timeout(rbcm->handle, &timeout);
     if (mcode != CURLM_OK) {
@@ -354,7 +354,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
     if (rb_block_given_p()) {
       rb_yield(self);
     }
- 
+
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout * 1000) % 1000000;
 

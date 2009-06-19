@@ -1,7 +1,7 @@
 /* Curb - Libcurl(3) bindings for Ruby.
- * Copyright (c)2006 Ross Bamford. 
+ * Copyright (c)2006 Ross Bamford.
  * Licensed under the Ruby License. See LICENSE for details.
- * 
+ *
  * $Id: curb.h 39 2006-12-23 15:28:45Z roscopeco $
  */
 
@@ -29,8 +29,8 @@
 
 
 // Maybe not yet defined in Ruby
-#ifndef RSTRING_LEN 
-#define RSTRING_LEN(x) RSTRING(x)->len 
+#ifndef RSTRING_LEN
+#define RSTRING_LEN(x) RSTRING(x)->len
 #endif
 #ifndef RSTRING_PTR
 #define RSTRING_PTR(x) RSTRING(x)->ptr
@@ -47,4 +47,3 @@ extern VALUE mCurl;
 extern void Init_curb_core();
 
 #endif
-

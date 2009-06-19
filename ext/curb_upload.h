@@ -26,6 +26,5 @@ VALUE ruby_curl_upload_stream_set(VALUE self, VALUE stream);
 VALUE ruby_curl_upload_stream_get(VALUE self);
 VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset);
 VALUE ruby_curl_upload_offset_get(VALUE self);
-VALUE ruby_curl_upload_stream_size(VALUE self);
 
 #endif

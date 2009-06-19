@@ -1,7 +1,7 @@
 /* curb_errors.c - Ruby exception types for curl errors
- * Copyright (c)2006 Ross Bamford. 
+ * Copyright (c)2006 Ross Bamford.
  * Licensed under the Ruby License. See LICENSE for details.
- * 
+ *
  * $Id: curb_errors.c 10 2006-11-20 00:17:30Z roscopeco $
  */
 #include "curb_errors.h"
@@ -125,201 +125,201 @@ VALUE eCurlErrInvalidPostField;
 void raise_curl_easy_error_exception(CURLcode code) {
   VALUE exclz;
   const char *exmsg = NULL;
-  
+
   switch (code) {
     case CURLE_UNSUPPORTED_PROTOCOL:    /* 1 */
       exclz = eCurlErrUnsupportedProtocol;
-      break;      
+      break;
     case CURLE_FAILED_INIT:             /* 2 */
       exclz = eCurlErrFailedInit;
       break;
     case CURLE_URL_MALFORMAT:           /* 3 */
       exclz = eCurlErrMalformedURL;
-      break;          
+      break;
     case CURLE_URL_MALFORMAT_USER:      /* 4 (NOT USED) */
       exclz = eCurlErrMalformedURLUser;
-      break;          
+      break;
     case CURLE_COULDNT_RESOLVE_PROXY:   /* 5 */
       exclz = eCurlErrProxyResolution;
-      break;          
+      break;
     case CURLE_COULDNT_RESOLVE_HOST:    /* 6 */
       exclz = eCurlErrHostResolution;
-      break;          
+      break;
     case CURLE_COULDNT_CONNECT:         /* 7 */
       exclz = eCurlErrConnectFailed;
-      break;         
+      break;
     case CURLE_FTP_WEIRD_SERVER_REPLY:  /* 8 */
       exclz = eCurlErrFTPWierdReply;
-      break;      
+      break;
     case CURLE_FTP_ACCESS_DENIED:       /* 9 denied due to lack of access. */
       exclz = eCurlErrFTPAccessDenied;
-      break;          
+      break;
     case CURLE_FTP_USER_PASSWORD_INCORRECT: /* 10 */
       exclz = eCurlErrFTPBadPassword;
-      break;          
+      break;
     case CURLE_FTP_WEIRD_PASS_REPLY:    /* 11 */
       exclz = eCurlErrFTPWierdPassReply;
-      break;          
+      break;
     case CURLE_FTP_WEIRD_USER_REPLY:    /* 12 */
       exclz = eCurlErrFTPWierdUserReply;
-      break;            
+      break;
     case CURLE_FTP_WEIRD_PASV_REPLY:    /* 13 */
       exclz = eCurlErrFTPWierdPasvReply;
-      break;      
+      break;
     case CURLE_FTP_WEIRD_227_FORMAT:    /* 14 */
       exclz = eCurlErrFTPWierd227Format;
-      break;          
+      break;
     case CURLE_FTP_CANT_GET_HOST:       /* 15 */
       exclz = eCurlErrFTPCantGetHost;
-      break;      
+      break;
     case CURLE_FTP_CANT_RECONNECT:      /* 16 */
       exclz = eCurlErrFTPCantReconnect;
-      break;      
+      break;
     case CURLE_FTP_COULDNT_SET_BINARY:  /* 17 */
       exclz = eCurlErrFTPCouldntSetBinary;
-      break;      
+      break;
     case CURLE_PARTIAL_FILE:            /* 18 */
       exclz = eCurlErrPartialFile;
-      break;      
+      break;
     case CURLE_FTP_COULDNT_RETR_FILE:   /* 19 */
       exclz = eCurlErrFTPCouldntRetrFile;
-      break;      
+      break;
     case CURLE_FTP_WRITE_ERROR:         /* 20 */
       exclz = eCurlErrFTPWrite;
-      break;      
+      break;
     case CURLE_FTP_QUOTE_ERROR:         /* 21 */
       exclz = eCurlErrFTPQuote;
-      break;      
+      break;
     case CURLE_HTTP_RETURNED_ERROR:     /* 22 */
       exclz = eCurlErrHTTPFailed;
-      break;          
+      break;
     case CURLE_WRITE_ERROR:             /* 23 */
       exclz = eCurlErrWriteError;
-      break;          
+      break;
     case CURLE_MALFORMAT_USER:          /* 24 - NOT USED */
       exclz = eCurlErrMalformedUser;
-      break;          
+      break;
     case CURLE_FTP_COULDNT_STOR_FILE:   /* 25 - failed FTP upload */
       exclz = eCurlErrFTPCouldntStorFile;
-      break;          
+      break;
     case CURLE_READ_ERROR:              /* 26 - could open/read from file */
       exclz = eCurlErrReadError;
-      break;          
+      break;
     case CURLE_OUT_OF_MEMORY:           /* 27 */
       exclz = eCurlErrOutOfMemory;
-      break;          
+      break;
     case CURLE_OPERATION_TIMEOUTED:     /* 28 - the timeout time was reached */
       exclz = eCurlErrTimeout;
-      break;          
+      break;
     case CURLE_FTP_COULDNT_SET_ASCII:   /* 29 - TYPE A failed */
       exclz = eCurlErrFTPCouldntSetASCII;
-      break;          
+      break;
     case CURLE_FTP_PORT_FAILED:         /* 30 - FTP PORT operation failed */
       exclz = eCurlErrFTPPortFailed;
-      break;          
+      break;
     case CURLE_FTP_COULDNT_USE_REST:    /* 31 - the REST command failed */
       exclz = eCurlErrFTPCouldntUseRest;
-      break;          
+      break;
     case CURLE_FTP_COULDNT_GET_SIZE:    /* 32 - the SIZE command failed */
       exclz = eCurlErrFTPCouldntGetSize;
-      break;          
+      break;
     case CURLE_HTTP_RANGE_ERROR:        /* 33 - RANGE "command" didn't work */
       exclz = eCurlErrHTTPRange;
-      break;          
+      break;
     case CURLE_HTTP_POST_ERROR:         /* 34 */
       exclz = eCurlErrHTTPPost;
-      break;      
+      break;
     case CURLE_SSL_CONNECT_ERROR:       /* 35 - wrong when connecting with SSL */
       exclz = eCurlErrSSLConnectError;
-      break;      
+      break;
     case CURLE_BAD_DOWNLOAD_RESUME:     /* 36 - couldn't resume download */
       exclz = eCurlErrBadResume;
-      break;      
+      break;
     case CURLE_FILE_COULDNT_READ_FILE:  /* 37 */
       exclz = eCurlErrFileCouldntRead;
-      break;          
+      break;
     case CURLE_LDAP_CANNOT_BIND:        /* 38 */
       exclz = eCurlErrLDAPCouldntBind;
-      break;          
+      break;
     case CURLE_LDAP_SEARCH_FAILED:      /* 39 */
       exclz = eCurlErrLDAPSearchFailed;
-      break;      
+      break;
     case CURLE_LIBRARY_NOT_FOUND:       /* 40 */
       exclz = eCurlErrLibraryNotFound;
-      break;      
+      break;
     case CURLE_FUNCTION_NOT_FOUND:      /* 41 */
       exclz = eCurlErrFunctionNotFound;
-      break;      
+      break;
     case CURLE_ABORTED_BY_CALLBACK:     /* 42 */
       exclz = eCurlErrAbortedByCallback;
-      break;      
+      break;
     case CURLE_BAD_FUNCTION_ARGUMENT:   /* 43 */
       exclz = eCurlErrBadFunctionArgument;
-      break;      
+      break;
     case CURLE_BAD_CALLING_ORDER:       /* 44 - NOT USED */
       exclz = eCurlErrBadCallingOrder;
-      break;      
+      break;
     case CURLE_INTERFACE_FAILED:        /* 45 - CURLOPT_INTERFACE failed */
       exclz = eCurlErrInterfaceFailed;
-      break;      
+      break;
     case CURLE_BAD_PASSWORD_ENTERED:    /* 46 - NOT USED */
       exclz = eCurlErrBadPasswordEntered;
-      break;          
+      break;
     case CURLE_TOO_MANY_REDIRECTS:      /* 47 - catch endless re-direct loops */
       exclz = eCurlErrTooManyRedirects;
-      break;          
+      break;
     case CURLE_UNKNOWN_TELNET_OPTION:   /* 48 - User specified an unknown option */
       exclz = eCurlErrTelnetUnknownOption;
-      break;      
+      break;
     case CURLE_TELNET_OPTION_SYNTAX:    /* 49 - Malformed telnet option */
       exclz = eCurlErrTelnetBadOptionSyntax;
-      break;          
+      break;
     case CURLE_OBSOLETE:                /* 50 - NOT USED */
       exclz = eCurlErrObsolete;
-      break;          
+      break;
     case CURLE_SSL_PEER_CERTIFICATE:    /* 51 - peer's certificate wasn't ok */
       exclz = eCurlErrSSLPeerCertificate;
-      break;          
+      break;
     case CURLE_GOT_NOTHING:             /* 52 - when this is a specific error */
       exclz = eCurlErrGotNothing;
-      break;          
+      break;
     case CURLE_SSL_ENGINE_NOTFOUND:     /* 53 - SSL crypto engine not found */
       exclz = eCurlErrSSLEngineNotFound;
-      break;            
+      break;
     case CURLE_SSL_ENGINE_SETFAILED:    /* 54 - can not set SSL crypto engine as default */
       exclz = eCurlErrSSLEngineSetFailed;
-      break;          
+      break;
     case CURLE_SEND_ERROR:              /* 55 - failed sending network data */
       exclz = eCurlErrSendError;
-      break;      
+      break;
     case CURLE_RECV_ERROR:              /* 56 - failure in receiving network data */
       exclz = eCurlErrRecvError;
-      break;          
+      break;
     case CURLE_SHARE_IN_USE:            /* 57 - share is in use */
       exclz = eCurlErrShareInUse;
-      break;          
+      break;
     case CURLE_SSL_CERTPROBLEM:         /* 58 - problem with the local certificate */
       exclz = eCurlErrSSLCertificate;
-      break;          
+      break;
     case CURLE_SSL_CIPHER:              /* 59 - couldn't use specified cipher */
       exclz = eCurlErrSSLCipher;
-      break;          
+      break;
     case CURLE_SSL_CACERT:              /* 60 - problem with the CA cert (path?) */
       exclz = eCurlErrSSLCACertificate;
-      break;          
+      break;
     case CURLE_BAD_CONTENT_ENCODING:    /* 61 - Unrecognized transfer encoding */
       exclz = eCurlErrBadContentEncoding;
-      break;          
+      break;
     case CURLE_LDAP_INVALID_URL:        /* 62 - Invalid LDAP URL */
       exclz = eCurlErrLDAPInvalidURL;
-      break;          
+      break;
     case CURLE_FILESIZE_EXCEEDED:       /* 63 - Maximum file size exceeded */
       exclz = eCurlErrFileSizeExceeded;
-      break;          
+      break;
     case CURLE_FTP_SSL_FAILED:          /* 64 - Requested FTP SSL level failed */
       exclz = eCurlErrFTPSSLFailed;
-      break;          
-#ifdef HAVE_CURLE_SEND_FAIL_REWIND 
+      break;
+#ifdef HAVE_CURLE_SEND_FAIL_REWIND
     case CURLE_SEND_FAIL_REWIND:        /* 65 - Sending the data requires a rewind that failed */
       exclz = eCurlErrSendFailedRewind;
       break;
@@ -327,21 +327,21 @@ void raise_curl_easy_error_exception(CURLcode code) {
 #ifdef HAVE_CURLE_SSL_ENGINE_INITFAILED
     case CURLE_SSL_ENGINE_INITFAILED:   /* 66 - failed to initialise ENGINE */
       exclz = eCurlErrSSLEngineInitFailed;
-      break;          
+      break;
 #endif
 #ifdef HAVE_CURLE_LOGIN_DENIED
     case CURLE_LOGIN_DENIED:            /* 67 - user, password or similar was not accepted and we failed to login */
       exclz = eCurlErrLoginDenied;
-      break;      
+      break;
 #endif
-      
+
       // recent additions, may not be present in all supported versions
 #ifdef HAVE_CURLE_TFTP_NOTFOUND
     case CURLE_TFTP_NOTFOUND:           /* 68 - file not found on server */
       exclz = eCurlErrTFTPNotFound;
-      break;          
+      break;
 #endif
-#ifdef HAVE_CURLE_TFTP_PERM      
+#ifdef HAVE_CURLE_TFTP_PERM
     case CURLE_TFTP_PERM:               /* 69 - permission problem on server */
       exclz = eCurlErrTFTPPermission;
       break;
@@ -349,13 +349,13 @@ void raise_curl_easy_error_exception(CURLcode code) {
 #ifdef HAVE_CURLE_TFTP_DISKFULL
     case CURLE_TFTP_DISKFULL:           /* 70 - out of disk space on server */
       exclz = eCurlErrTFTPDiskFull;
-      break;    
+      break;
 #endif
 #ifdef HAVE_CURLE_TFTP_ILLEGAL
     case CURLE_TFTP_ILLEGAL:            /* 71 - Illegal TFTP operation */
       exclz = eCurlErrTFTPIllegalOperation;
-      break;    
-#endif     
+      break;
+#endif
 #ifdef HAVE_CURLE_TFTP_UNKNOWNID
     case CURLE_TFTP_UNKNOWNID:          /* 72 - Unknown transfer ID */
       exclz = eCurlErrTFTPUnknownID;
@@ -364,7 +364,7 @@ void raise_curl_easy_error_exception(CURLcode code) {
 #ifdef HAVE_CURLE_TFTP_EXISTS
     case CURLE_TFTP_EXISTS:             /* 73 - File already exists */
       exclz = eCurlErrTFTPFileExists;
-      break;    
+      break;
 #endif
 #ifdef HAVE_CURLE_TFTP_NOSUCHUSER
     case CURLE_TFTP_NOSUCHUSER:         /* 74 - No such user */
@@ -432,11 +432,11 @@ void raise_curl_easy_error_exception(CURLcode code) {
       exclz = eCurlErrError;
       exmsg = "Unknown error result from libcurl";
   }
-  
+
   if (!exmsg) {
     exmsg = curl_easy_strerror(code);
   }
-  
+
   rb_raise(exclz, exmsg);
 }
 void raise_curl_multi_error_exception(CURLMcode code) {
@@ -473,7 +473,7 @@ void raise_curl_multi_error_exception(CURLMcode code) {
       exclz = eCurlErrError;
       exmsg = "Unknown error result from libcurl";
   }
-  
+
   if (!exmsg) {
     exmsg = curl_multi_strerror(code);
   }
@@ -491,7 +491,7 @@ void init_curb_errors() {
   eCurlErrLDAPError = rb_define_class_under(mCurlErr, "LDAPError", eCurlErrError);
   eCurlErrTelnetError = rb_define_class_under(mCurlErr, "TelnetError", eCurlErrError);
   eCurlErrTFTPError = rb_define_class_under(mCurlErr, "TFTPError", eCurlErrError);
-    
+
   eCurlErrUnsupportedProtocol = rb_define_class_under(mCurlErr, "UnsupportedProtocolError", eCurlErrError);
   eCurlErrFailedInit = rb_define_class_under(mCurlErr, "FailedInitError", eCurlErrError);
   eCurlErrMalformedURL = rb_define_class_under(mCurlErr, "MalformedURLError", eCurlErrError);
@@ -535,7 +535,7 @@ void init_curb_errors() {
 
   eCurlErrHTTPRange = rb_define_class_under(mCurlErr, "HTTPRangeError", eCurlErrHTTPError);
   eCurlErrHTTPPost = rb_define_class_under(mCurlErr, "HTTPPostError", eCurlErrHTTPError);
-  
+
   eCurlErrSSLConnectError = rb_define_class_under(mCurlErr, "SSLConnectError", eCurlErrError);
   eCurlErrBadResume = rb_define_class_under(mCurlErr, "BadResumeError", eCurlErrError);
 
@@ -556,7 +556,7 @@ void init_curb_errors() {
 
   eCurlErrTelnetUnknownOption = rb_define_class_under(mCurlErr, "UnknownOptionError", eCurlErrTelnetError);
   eCurlErrTelnetBadOptionSyntax = rb_define_class_under(mCurlErr, "BadOptionSyntaxError", eCurlErrTelnetError);
-  
+
   eCurlErrObsolete = rb_define_class_under(mCurlErr, "ObsoleteError", eCurlErrError);
   eCurlErrSSLPeerCertificate = rb_define_class_under(mCurlErr, "SSLPeerCertificateError", eCurlErrError);
   eCurlErrGotNothing = rb_define_class_under(mCurlErr, "GotNothingError", eCurlErrError);
@@ -600,6 +600,6 @@ void init_curb_errors() {
   eCurlErrTFTPUnknownID = rb_define_class_under(mCurlErr, "UnknownIDError", eCurlErrTFTPError);
   eCurlErrTFTPFileExists = rb_define_class_under(mCurlErr, "FileExistsError", eCurlErrTFTPError);
   eCurlErrTFTPNoSuchUser = rb_define_class_under(mCurlErr, "NoSuchUserError", eCurlErrTFTPError);
-  
+
   eCurlErrInvalidPostField = rb_define_class_under(mCurlErr, "InvalidPostFieldError", eCurlErrError);
-}  
+}
