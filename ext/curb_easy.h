@@ -83,6 +83,7 @@ typedef struct {
   struct curl_slist *curl_headers;
 
   VALUE self; /* pointer to self, used by multi interface */
+  VALUE upload; /* pointer to an active upload otherwise Qnil */
 
 } ruby_curl_easy;
 

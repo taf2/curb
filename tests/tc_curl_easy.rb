@@ -2,7 +2,7 @@ require File.join(File.dirname(__FILE__), 'helper')
 
 class TestCurbCurlEasy < Test::Unit::TestCase
   def test_class_perform_01   
-    assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL)    
+    assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     assert_equal "", c.header_str
   end    
@@ -22,6 +22,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   
   def test_new_01
     c = Curl::Easy.new
+    assert_equal Curl::Easy, c.class
     assert_nil c.url
     assert_nil c.body_str
     assert_nil c.header_str
@@ -54,8 +55,19 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal $TEST_URL, c.url
     assert_equal blk, c.on_body   # sets handler nil, returns old handler
     assert_equal nil, c.on_body
-  end    
-  
+  end
+
+  class Foo < Curl::Easy
+  end
+  def test_new_05
+    # can use Curl::Easy as a base class
+    c = Foo.new
+    assert_equal Foo, c.class
+    c.url = $TEST_URL
+    c.perform
+    assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
+  end
+
   def test_escape
     c = Curl::Easy.new
     
@@ -523,6 +535,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert curl.http_put("message")
     assert_match /^PUT/, curl.body_str
     assert_match /message$/, curl.body_str
+  end
+
+  def test_put_remote_file
+    curl = Curl::Easy.new(TestServlet.url)
+    File.open(__FILE__,'r') do|f|
+      assert curl.http_put(f)
+    end
+    assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str
   end
 
   include TestServerMethods 

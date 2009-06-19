@@ -7,6 +7,7 @@
 #include "curb_easy.h"
 #include "curb_errors.h"
 #include "curb_postfield.h"
+#include "curb_upload.h"
 
 #include <errno.h>
 #include <string.h>
@@ -34,20 +35,56 @@ static size_t default_data_handler(char *stream,
   rb_str_buf_cat(out, stream, size * nmemb);
   return size * nmemb;
 }
-typedef struct _PutStream {
-  char *buffer;
-  size_t offset, len;
-} PutStream;
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *stream);
 static size_t read_data_handler(void *ptr,
                                 size_t size, 
                                 size_t nmemb, 
-                                void *stream) {
+                                ruby_curl_easy *rbce) {
+  size_t read_bytes = (size*nmemb);
+  VALUE stream = ruby_curl_upload_stream_get(rbce->upload);
 
-  PutStream *pstream = (PutStream*)stream;
-  size_t sent_bytes = (size * nmemb);
-  size_t remaining = pstream->len - pstream->offset;
+  if (rb_respond_to(stream, rb_intern("read"))) {//if (rb_respond_to(stream, rb_intern("to_s"))) {
+    /* copy read_bytes from stream into ptr */
+    VALUE str = rb_funcall(stream, rb_intern("read"), 1, rb_int_new(read_bytes) );
+    if( str != Qnil ) {
+      memcpy(ptr, RSTRING_PTR(str), RSTRING_LEN(str));
+      return RSTRING_LEN(str);
+    }
+    else {
+      return 0;
+    }
+  }
+  else {
+    ruby_curl_upload *rbcu;
+    Data_Get_Struct(rbce->upload, ruby_curl_upload, rbcu);
+    VALUE str = rb_funcall(stream, rb_intern("to_s"), 0);
+    size_t len = RSTRING_LEN(str);
+    size_t remaining = len - rbcu->offset;
+    char *str_ptr = RSTRING_PTR(str);
+    if( remaining < read_bytes ) {
+      if( remaining > 0 ) {
+        memcpy(ptr, str_ptr+rbcu->offset, remaining);
+        read_bytes = remaining;
+        rbcu->offset += remaining;
+      }
+      return remaining;
+    }
+    else if( remaining > read_bytes ) { // read_bytes <= remaining - send what we can fit in the buffer(ptr)
+      memcpy(ptr, str_ptr+rbcu->offset, read_bytes);
+      rbcu->offset += read_bytes;
+    }
+    else { // they're equal
+      memcpy(ptr, str_ptr+rbcu->offset, --read_bytes);
+      rbcu->offset += read_bytes;
+    }
+    return read_bytes;
+  }
+
+ // PutStream *pstream = (PutStream*)stream;
+ // size_t sent_bytes = (size * nmemb);
+ // size_t remaining = pstream->len - pstream->offset;
+ /*
 
   // amount remaining is less then the buffer to send  - can send it all
   if( remaining < sent_bytes ) {
@@ -66,9 +103,10 @@ static size_t read_data_handler(void *ptr,
   if (sent_bytes == 0) {
     free(pstream);
   }
+  */
 
   //printf("sent_bytes: %ld of %ld\n", sent_bytes, remaining);
-  return sent_bytes;
+  //return sent_bytes;
 }
 
 static size_t proc_data_handler(char *stream, 
@@ -143,6 +181,10 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
 
   if( rbce->self != Qnil ) {
     rb_gc_mark(rbce->self);
+  }
+
+  if( rbce->upload != Qnil ) {
+    rb_gc_mark(rbce->upload);
   }
 }
 
@@ -234,8 +276,9 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->curl_headers = NULL;
 
   rbce->self = Qnil;
+  rbce->upload = Qnil;
   
-  new_curl = Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, rbce);
+  new_curl = Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
   
   if (blk != Qnil) {
     rb_funcall(blk, idCall, 1, new_curl);
@@ -1532,6 +1575,10 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
   CURLM *multi_handle = curl_multi_init();
   struct curl_slist *headers = NULL;
   VALUE bodybuf = Qnil, headerbuf = Qnil;
+  long timeout;
+  struct timeval tv = {0, 0};
+  int rc; /* select() return code */
+  int maxfd;
 //  char errors[CURL_ERROR_SIZE*2];
 
   ruby_curl_easy_setup(rbce, &bodybuf, &headerbuf, &headers);
@@ -1558,10 +1605,8 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
       raise_curl_multi_error_exception(mcode);
     }
 
+
     while(still_running) {
-      struct timeval timeout;
-      int rc; /* select() return code */
-      int maxfd;
 
       fd_set fdread;
       fd_set fdwrite;
@@ -1578,10 +1623,29 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
         raise_curl_multi_error_exception(mcode);
       }
 
+#ifdef HAVE_CURL_MULTI_TIMEOUT 
+      /* get the curl suggested time out */
+      mcode = curl_multi_timeout(multi_handle, &timeout);
+      if (mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
+#else
+      /* libcurl doesn't have a timeout method defined... make a wild guess */
+      timeout = 1; /* wait a second */
+#endif
+
+      if (timeout == 0) { /* no delay */
+        while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
+        continue;
+      }
+      else if (timeout == -1) {
+        timeout = 1; /* wait a second */
+      }
+
       /* set a suitable timeout to play around with - ruby seems to be greedy about this and won't necessarily yield so the timeout is small.. */
-      timeout.tv_sec = 0.0;
-      timeout.tv_usec = 100000.0;
-      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &timeout);
+      tv.tv_sec = timeout / 1000;
+      tv.tv_usec = (timeout * 1000) % 1000000;
+      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
       if (rc < 0) {
         rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
       }
@@ -1840,21 +1904,38 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   ruby_curl_easy *rbce;
   CURL *curl;
 
-  PutStream *pstream = (PutStream*)malloc(sizeof(PutStream));
-  memset(pstream, 0, sizeof(PutStream));
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  VALUE upload = ruby_curl_upload_new(cCurlUpload);
+  ruby_curl_upload_stream_set(upload,data);
+
   curl = rbce->curl;
-
-  pstream->len = RSTRING_LEN(data);
-  pstream->buffer = StringValuePtr(data);
-
+  rbce->upload = upload; /* keep the upload object alive as long as
+                            the easy handle is active or until the upload
+                            is complete or terminated... */
 
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
-  curl_easy_setopt(curl, CURLOPT_READDATA, pstream);
-  //printf("uploading %d bytes\n", pstream->len);
-  curl_easy_setopt(curl, CURLOPT_INFILESIZE, pstream->len);
+  curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
+
+  if (rb_respond_to(data, rb_intern("read"))) {
+    VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
+    if( stat ) {
+      ruby_curl_easy_headers_set(self,rb_str_new2("Expect:")); 
+      VALUE size = rb_funcall(stat, rb_intern("size"), 0);
+      curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2INT(size));
+    }
+    else {
+      ruby_curl_easy_headers_set(self,rb_str_new2("Transfer-Encoding: chunked")); 
+    }
+  }
+  else if (rb_respond_to(data, rb_intern("to_s"))) {
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE, RSTRING_LEN(data));
+    ruby_curl_easy_headers_set(self,rb_str_new2("Expect:")); 
+  }
+  else {
+    rb_raise(rb_eRuntimeError, "PUT data must respond to read or to_s");
+  }
 
   VALUE ret = handle_perform(self, rbce);
   /* cleanup  */
