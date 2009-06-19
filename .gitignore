@@ -6,5 +6,7 @@ ext/curb_easy.o
 ext/curb_errors.o
 ext/curb_multi.o
 ext/curb_postfield.o
+ext/curb_upload.o
+ext/curb_config.h
 pkg/
 ext/mkmf.log
