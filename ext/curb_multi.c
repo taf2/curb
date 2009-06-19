@@ -66,6 +66,7 @@ static void curl_multi_free(ruby_curl_multi *rbcm) {
     //rb_hash_clear(rbcm->requests)
     rbcm->requests = Qnil;
   }
+  free(rbcm);
 }
 
 /*
@@ -74,7 +75,7 @@ static void curl_multi_free(ruby_curl_multi *rbcm) {
  * 
  * Create a new Curl::Multi instance
  */
-static VALUE ruby_curl_multi_new(VALUE self) {
+static VALUE ruby_curl_multi_new(VALUE klass) {
   VALUE new_curlm;
   
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
@@ -86,7 +87,7 @@ static VALUE ruby_curl_multi_new(VALUE self) {
   rbcm->active = 0;
   rbcm->running = 0;
   
-  new_curlm = Data_Wrap_Struct(cCurlMulti, curl_multi_mark, curl_multi_free, rbcm);
+  new_curlm = Data_Wrap_Struct(klass, curl_multi_mark, curl_multi_free, rbcm);
 
   return new_curlm;
 }
@@ -376,7 +377,7 @@ void init_curb_multi() {
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 
   /* Class methods */
-  rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, -1);
+  rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
 
   /* Instnace methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
