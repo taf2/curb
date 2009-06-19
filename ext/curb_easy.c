@@ -2721,7 +2721,6 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "http_connect_code", ruby_curl_easy_http_connect_code_get, 0);
   rb_define_method(cCurlEasy, "file_time", ruby_curl_easy_file_time_get, 0);
   rb_define_method(cCurlEasy, "total_time", ruby_curl_easy_total_time_get, 0);
-  rb_define_method(cCurlEasy, "total_time", ruby_curl_easy_total_time_get, 0);
   rb_define_method(cCurlEasy, "name_lookup_time", ruby_curl_easy_name_lookup_time_get, 0);
   rb_define_method(cCurlEasy, "connect_time", ruby_curl_easy_connect_time_get, 0);
   rb_define_method(cCurlEasy, "pre_transfer_time", ruby_curl_easy_pre_transfer_time_get, 0);
