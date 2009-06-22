@@ -532,9 +532,11 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_put_remote
     curl = Curl::Easy.new(TestServlet.url)
+    curl.headers['Content-Type'] = 'application/json'
     assert curl.http_put("message")
     assert_match /^PUT/, curl.body_str
     assert_match /message$/, curl.body_str
+    assert_match /application\/json/, curl.header_str
   end
 
   def test_put_remote_file

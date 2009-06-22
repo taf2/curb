@@ -1568,27 +1568,27 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
  */
 static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
-  int msgs;
-  int still_running = 1;
   CURLcode result = -1;
-  CURLMcode mcode = -1;
-  CURLM *multi_handle = curl_multi_init();
   struct curl_slist *headers = NULL;
   VALUE bodybuf = Qnil, headerbuf = Qnil;
-  long timeout;
-  struct timeval tv = {0, 0};
-  int rc; /* select() return code */
-  int maxfd;
 //  char errors[CURL_ERROR_SIZE*2];
 
   ruby_curl_easy_setup(rbce, &bodybuf, &headerbuf, &headers);
 //  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, errors);
 //  curl_easy_setopt(rbce->curl, CURLOPT_VERBOSE, 1);
 
-//  if( rb_thread_alone() ) {
-//    result = curl_easy_perform(rbce->curl);
-//  }
-//  else {
+  if( rb_thread_alone() ) {
+    result = curl_easy_perform(rbce->curl);
+  }
+  else {
+    int msgs;
+    int still_running = 1;
+    CURLMcode mcode = -1;
+    CURLM *multi_handle = curl_multi_init();
+    long timeout;
+    struct timeval tv = {0, 0};
+    int rc; /* select() return code */
+    int maxfd;
 
     /* NOTE:
      * We create an Curl multi handle here and use rb_thread_select allowing other ruby threads to
@@ -1679,7 +1679,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
     curl_multi_remove_handle(multi_handle, rbce->curl);
     curl_multi_cleanup(multi_handle);
-//  }
+  }
 
   ruby_curl_easy_cleanup(self, rbce, bodybuf, headerbuf, headers);
 
@@ -1918,20 +1918,34 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
 
+  /* 
+   * we need to set specific headers for the PUT to work... so
+   * convert the internal headers structure to a HASH if one is set
+   */
+  if (rbce->headers != Qnil) {
+    if (rb_type(rbce->headers) == T_ARRAY || rb_type(rbce->headers) == T_STRING) {
+      rb_raise(rb_eRuntimeError, "Must set headers as a HASH to modify the headers in an http_put request");
+    }
+  }
+
   if (rb_respond_to(data, rb_intern("read"))) {
     VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
     if( stat ) {
-      ruby_curl_easy_headers_set(self,rb_str_new2("Expect:"));
+      if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
+        rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
+      }
       VALUE size = rb_funcall(stat, rb_intern("size"), 0);
       curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2INT(size));
     }
-    else {
-      ruby_curl_easy_headers_set(self,rb_str_new2("Transfer-Encoding: chunked"));
+    else if( rb_hash_aref(rbce->headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
+      rb_hash_aset(rbce->headers, rb_str_new2("Transfer-Encoding"), rb_str_new2("chunked"));
     }
   }
   else if (rb_respond_to(data, rb_intern("to_s"))) {
     curl_easy_setopt(curl, CURLOPT_INFILESIZE, RSTRING_LEN(data));
-    ruby_curl_easy_headers_set(self,rb_str_new2("Expect:"));
+    if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
+      rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
+    }
   }
   else {
     rb_raise(rb_eRuntimeError, "PUT data must respond to read or to_s");

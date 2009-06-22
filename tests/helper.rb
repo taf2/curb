@@ -76,6 +76,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_PUT(req,res)
+    res['X-Requested-Content-Type'] = req.content_type
     respond_with("PUT\n#{req.body}",req,res)
   end
 
