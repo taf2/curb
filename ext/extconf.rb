@@ -3,7 +3,7 @@ require 'mkmf'
 dir_config('curl')
 
 if find_executable('curl-config')
-  $CFLAGS << " #{`curl-config --cflags`.strip}"
+  $CFLAGS << " -Wall -O0 -ggdb #{`curl-config --cflags`.strip}"
   $LIBS << " #{`curl-config --libs`.strip}"
 elsif !have_library('curl') or !have_header('curl/curl.h')
   fail <<-EOM
@@ -125,6 +125,21 @@ test_for("Ruby 1.9 st.h", "RUBY19_ST_H", %{
   #include <ruby.h>
   #include <ruby/st.h>
   int main() {
+    return 0;
+  }
+})
+test_for("Ruby 1.9 Threads", "RUBY_THREAD_BLOCKING_REGION", %{
+  #include <ruby.h>
+  struct rb_blocking_region_buffer *rb_thread_blocking_region_begin(void);
+  void rb_thread_blocking_region_end(struct rb_blocking_region_buffer *region);
+  static VALUE cb_func(void *ptr) {
+    return Qnil;
+  }
+  int main() {
+    int data = 0;
+    struct rb_blocking_region_buffer *lock = rb_thread_blocking_region_begin();
+    rb_thread_blocking_region_end(lock);
+    rb_thread_blocking_region(cb_func, &data, RUBY_UBF_IO, 0);
     return 0;
   }
 })

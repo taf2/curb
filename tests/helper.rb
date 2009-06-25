@@ -94,7 +94,7 @@ module TestServerMethods
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
     if @server.nil? and !File.exist?(locked_file)
-
+      timer = Time.now
       File.open(locked_file,'w') {|f| f << 'locked' }
       if TEST_SINGLE_THREADED
         rd, wr = IO.pipe
@@ -151,7 +151,7 @@ module TestServerMethods
 
       trap("INT"){exit_code.call}
       at_exit{exit_code.call}
-
+      puts "test harness ready after #{Time.now - timer} in single threaded mode: #{TEST_SINGLE_THREADED}"
     end
   end
 end

@@ -42,6 +42,20 @@
   #define RHASH_LEN(hash) RHASH(hash)->tbl->num_entries
 #endif
 
+#ifdef HAVE_RUBY_THREAD_BLOCKING_REGION
+  struct rb_blocking_region_buffer *rb_thread_blocking_region_begin(void);
+  void rb_thread_blocking_region_end(struct rb_blocking_region_buffer *region);
+  VALUE rb_thread_blocking_region( rb_blocking_function_t *func, void *data1, rb_unblock_function_t *ubf, void *data2);
+
+  #define RB_UNLOCK_BEGIN() do {struct rb_blocking_region_buffer *__curb__lock = rb_thread_blocking_region_begin();
+  #define RB_UNLOCK_END()  rb_thread_blocking_region_end(__curb__lock); } while(0)
+  #define RB_SELECT rb_thread_select
+#else
+  #define RB_UNLOCK_BEGIN()
+  #define RB_UNLOCK_END()
+  #define RB_SELECT rb_thread_select
+#endif
+
 extern VALUE mCurl;
 
 extern void Init_curb_core();
