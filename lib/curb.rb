@@ -1,9 +1,4 @@
-begin
-  require 'curb_core'
-rescue LoadError
-  $: << File.dirname(__FILE__)
-  require 'curb_core'
-end
+require 'curb_core'
 
 module Curl
   class Easy
