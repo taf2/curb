@@ -246,4 +246,22 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   end
 =end
 
+  def test_multi_easy_get_01
+    urls = []
+    root_uri = 'http://127.0.0.1:9129/ext/'
+    # send a request to fetch all c files in the ext dir
+    Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
+      urls << root_uri + File.basename(path)
+    end
+    Curl::Multi.get(urls, {:follow_location => true}, {:pipeline => true}) do|curl|
+      assert_equal 200, curl.response_code
+    end
+  end
+
+  include TestServerMethods 
+
+  def setup
+    server_setup
+  end
+
 end

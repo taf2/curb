@@ -44,4 +44,26 @@ module Curl
       end
     end
   end
+  class Multi
+    class << self
+      # call-seq:
+      #   Curl::Multi.get('url1','url2','url3','url4','url5', :follow_location => true) do|easy|
+      #     easy
+      #   end
+      # 
+      # Blocking call to fetch multiple url's in parallel.
+      def get(urls, easy_options={}, multi_options={}, &blk)
+        m = Curl::Multi.new
+        urls.each do|url|
+          c = Curl::Easy.new(url)
+          easy_options.each do|k,v|
+            c.send("#{k}=",v)
+          end
+          c.on_complete {|curl| blk.call curl }
+          m.add(c)
+        end
+        m.perform
+      end
+    end
+  end
 end
