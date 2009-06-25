@@ -249,7 +249,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
       ruby_curl_multi_remove( self, rbce->self );
 
       if (rbce->complete_proc != Qnil) {
-        rb_funcall( rbce->complete_proc, idCall, 1, self );
+        rb_funcall( rbce->complete_proc, idCall, 1, rbce->self );
       }
 
       long response_code = -1;
