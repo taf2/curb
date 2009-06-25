@@ -21,7 +21,7 @@ require 'webrick'
 # or to test with multiple threads set it to false
 # this is important since, some code paths will change depending
 # on the presence of multiple threads
-TEST_SINGLE_THREADED=false
+TEST_SINGLE_THREADED=true
 
 # keep webrick quiet
 class ::WEBrick::HTTPServer
@@ -106,6 +106,8 @@ module TestServerMethods
           server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
           server.mount(servlet.path, servlet)
+          server.mount("/ext", WEBrick::HTTPServlet::FileHandler, File.join(File.dirname(__FILE__),'..','ext'))
+
           trap("INT") { server.shutdown }
           GC.start
           wr.flush
@@ -120,6 +122,7 @@ module TestServerMethods
         @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
         @server.mount(servlet.path, servlet)
+        @server.mount("/ext", WEBrick::HTTPServlet::FileHandler, File.join(File.dirname(__FILE__),'..','ext'))
         queue = Queue.new # synchronize the thread startup to the main thread
 
         @test_thread = Thread.new { queue << 1; @server.start }
