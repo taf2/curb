@@ -278,7 +278,7 @@ void Init_curb_core() {
 #ifdef HAVE_CURLAUTH_BASIC
   rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(CURLAUTH_BASIC));
 #else
-  rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(0);
+  rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use Digest authentication. */
