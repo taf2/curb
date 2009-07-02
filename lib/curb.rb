@@ -38,6 +38,21 @@ module Curl
         return curl
       end
     end
+
+    # Allow the incoming cert string to be file:password
+    # but be careful to not use a colon from a windows file path
+    # as the split point. Mimic what curl's main does
+    alias_method :native_cert=, :cert=
+    def cert=(cert_file)
+      pos = cert_file.rindex(':')
+      if pos && pos > 1
+        self.native_cert= cert_file[0..pos-1]
+        self.certpassword= cert_file[pos+1..-1]
+      else
+        self.native_cert= cert_file
+      end
+      self.cert
+    end
   end
   class Multi
     class << self
@@ -49,6 +64,12 @@ module Curl
       # Blocking call to fetch multiple url's in parallel.
       def get(urls, easy_options={}, multi_options={}, &blk)
         m = Curl::Multi.new
+        # configure the multi handle
+        multi_options.each do|k,v|
+          m.send("#{k}=", v)
+        end
+
+        # create and configure each easy handle
         urls.each do|url|
           c = Curl::Easy.new(url)
           easy_options.each do|k,v|

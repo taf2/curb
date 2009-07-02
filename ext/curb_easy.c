@@ -170,7 +170,11 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->cookiefile);
   rb_gc_mark(rbce->cookiejar);
   rb_gc_mark(rbce->cert);
+  rb_gc_mark(rbce->cacert);
+  rb_gc_mark(rbce->certpassword);
+  rb_gc_mark(rbce->certtype);
   rb_gc_mark(rbce->encoding);
+  rb_gc_mark(rbce->useragent);
   rb_gc_mark(rbce->success_proc);
   rb_gc_mark(rbce->failure_proc);
   rb_gc_mark(rbce->complete_proc);
@@ -238,7 +242,11 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->cookiefile = Qnil;
   rbce->cookiejar = Qnil;
   rbce->cert = Qnil;
+  rbce->cacert = Qnil;
+  rbce->certpassword = Qnil;
+  rbce->certtype = rb_str_new2("PEM");
   rbce->encoding = Qnil;
+  rbce->useragent = Qnil;
   rbce->success_proc = Qnil;
   rbce->failure_proc = Qnil;
   rbce->complete_proc = Qnil;
@@ -576,6 +584,60 @@ static VALUE ruby_curl_easy_cert_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.cacert = "cacert.file"                      => ""
+ *
+ * Set a cacert bundle to use for this Curl::Easy instance. This file
+ * will be used to validate SSL certificates.
+ *
+ */
+static VALUE ruby_curl_easy_cacert_set(VALUE self, VALUE cacert) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, cacert);
+}
+
+/*
+ * call-seq:
+ *   easy.cacert                                      => "cacert.file"
+ *
+ * Obtain the cacert file to use for this Curl::Easy instance.
+ */
+static VALUE ruby_curl_easy_cacert_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, cacert);
+}
+
+/*
+ * call-seq:
+ *   easy.certpassword = "cert password"                   => ""
+ *
+ * Set a password used to open the specified cert
+ */
+static VALUE ruby_curl_easy_certpassword_set(VALUE self, VALUE certpassword) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, certpassword);
+}
+
+/*
+ * call-seq:
+ *   easy.certtype = "PEM|DER"                        => ""
+ *
+ * Set a cert type to use for this Curl::Easy instance.
+ * Default is PEM
+ *
+ */
+static VALUE ruby_curl_easy_certtype_set(VALUE self, VALUE certtype) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, certtype);
+}
+
+/*
+ * call-seq:
+ *   easy.certtype                                  => "cert.type"
+ *
+ * Obtain the cert type used for this Curl::Easy instance
+ */
+static VALUE ruby_curl_easy_certtype_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, certtype);
+}
+
+/*
+ * call-seq:
  *   easy.encoding=                                     => "string"
  *
  * Set the accepted encoding types, curl will handle all of the decompression
@@ -593,6 +655,27 @@ static VALUE ruby_curl_easy_encoding_set(VALUE self, VALUE encoding) {
 */
 static VALUE ruby_curl_easy_encoding_get(VALUE self) {
   CURB_OBJECT_GETTER(ruby_curl_easy, encoding);
+}
+
+/*
+ * call-seq:
+ *   easy.useragent = "Ruby/Curb"                      => ""
+ *
+ * Set the user agent string for this Curl::Easy instance
+ *
+ */
+static VALUE ruby_curl_easy_useragent_set(VALUE self, VALUE useragent) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, useragent);
+}
+
+/*
+ * call-seq:
+ *   easy.useragent                                  => "Ruby/Curb"
+ *
+ * Obtain the user agent string used for this Curl::Easy instance
+ */
+static VALUE ruby_curl_easy_useragent_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, useragent);
 }
 
 /* ================== IMMED ATTRS ==================*/
@@ -1488,9 +1571,22 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
 
   /* Set up HTTPS cert handling if necessary */
   if (rbce->cert != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, StringValuePtr(rbce->certtype));
     curl_easy_setopt(curl, CURLOPT_SSLCERT, StringValuePtr(rbce->cert));
+    if (rbce->certpassword != Qnil) {
+      curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, StringValuePtr(rbce->certpassword));
+    }
+  }
+  if (rbce->cacert != Qnil) {
+    // XXX: This should really be using the output of 'curl-config --ca'
     curl_easy_setopt(curl, CURLOPT_CAINFO, "/usr/local/share/curl/curl-ca-bundle.crt");
   }
+  
+  /* Set the user-agent string if specified */
+  if (rbce->useragent != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, StringValuePtr(rbce->useragent));
+  }
+
 
   /* Setup HTTP headers if necessary */
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
@@ -2742,8 +2838,15 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "cookiejar", ruby_curl_easy_cookiejar_get, 0);
   rb_define_method(cCurlEasy, "cert=", ruby_curl_easy_cert_set, 1);
   rb_define_method(cCurlEasy, "cert", ruby_curl_easy_cert_get, 0);
+  rb_define_method(cCurlEasy, "cacert=", ruby_curl_easy_cacert_set, 1);
+  rb_define_method(cCurlEasy, "cacert", ruby_curl_easy_cacert_get, 0);
+  rb_define_method(cCurlEasy, "certpassword=", ruby_curl_easy_certpassword_set, 1);
+  rb_define_method(cCurlEasy, "certtype=", ruby_curl_easy_certtype_set, 1);
+  rb_define_method(cCurlEasy, "certtype", ruby_curl_easy_certtype_get, 0);
   rb_define_method(cCurlEasy, "encoding=", ruby_curl_easy_encoding_set, 1);
   rb_define_method(cCurlEasy, "encoding", ruby_curl_easy_encoding_get, 0);
+  rb_define_method(cCurlEasy, "useragent=", ruby_curl_easy_useragent_set, 1);
+  rb_define_method(cCurlEasy, "useragent", ruby_curl_easy_useragent_get, 0);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);

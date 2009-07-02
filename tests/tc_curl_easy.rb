@@ -547,6 +547,46 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str
   end
 
+  # Generate a self-signed cert with
+  # openssl req -new -newkey rsa:1024 -days 365 -nodes -x509 \
+  #   -keyout tests/cert.pem  -out tests/cert.pem
+  def test_cert
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.cert= File.join(File.dirname(__FILE__),"cert.pem")
+    assert /cert.pem$/,curl.cert
+  end
+
+  def test_cert_with_password
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.cert= File.join(File.dirname(__FILE__),"cert.pem:password")
+    assert /cert.pem$/,curl.cert
+  end
+
+  def test_cert_type
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.certtype= "DER"
+    assert "DER", curl.certtype
+  end
+
+  def test_default_certtype
+    curl = Curl::Easy.new(TestServlet.url)
+    assert "PEM", curl.certtype
+  end
+
+  # Generate a CA cert with instructions at
+  # http://technocage.com/~caskey/openssl/
+  def test_ca_cert
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.cacert= File.join(File.dirname(__FILE__),"cacert.pem")
+    assert /cacert.pem$/, curl.cacert
+  end
+
+  def test_user_agent
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.useragent= "Curb-Easy/Ruby"
+    assert /ScrubDog$/,curl.useragent
+  end
+
   include TestServerMethods 
 
   def setup
