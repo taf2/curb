@@ -49,6 +49,12 @@ module Curl
       # Blocking call to fetch multiple url's in parallel.
       def get(urls, easy_options={}, multi_options={}, &blk)
         m = Curl::Multi.new
+        # configure the multi handle
+        multi_options.each do|k,v|
+          m.send("#{k}=", v)
+        end
+
+        # create and configure each easy handle
         urls.each do|url|
           c = Curl::Easy.new(url)
           easy_options.each do|k,v|
