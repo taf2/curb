@@ -89,7 +89,6 @@ class TestCurbCurlMulti < Test::Unit::TestCase
         end
         m.add c
       end
-
       m.perform
 
       assert n, responses.size

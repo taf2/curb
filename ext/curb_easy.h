@@ -36,7 +36,11 @@ typedef struct {
   VALUE cookiefile;     /* filename */
   VALUE cookiejar;      /* filename */
   VALUE cert;
+  VALUE cacert;
+  VALUE certpassword;
+  VALUE certtype;
   VALUE encoding;
+  VALUE useragent;
 
   VALUE success_proc;
   VALUE failure_proc;
