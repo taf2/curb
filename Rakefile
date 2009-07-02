@@ -4,12 +4,6 @@ require 'rake/clean'
 require 'rake/testtask'
 require 'rake/rdoctask'
 
-#begin
-#  require 'rake/gempackagetask'
-#rescue LoadError
-#  $stderr.puts("Rubygems support disabled")
-#end
-
 CLEAN.include '**/*.o'
 CLEAN.include "**/*.#{Config::MAKEFILE_CONFIG['DLEXT']}"
 CLOBBER.include 'doc'
