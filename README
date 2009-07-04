@@ -106,7 +106,16 @@ HTTP POST file upload:
   c.multipart_form_post = true
   c.http_post(Curl::PostField.file('myfile.rb'))
 
-Multi Interface:
+Multi Interface (Basic):
+  easy_options = {:follow_location => true}
+  multi_options = {:pipeline => true}
+
+  Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
+    # do something interesting with the easy response
+    puts easy.last_effective_url
+  end
+
+Multi Interface (Advanced):
   responses = {}
   requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
   m = Curl::Multi.new
