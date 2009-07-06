@@ -1,8 +1,7 @@
-/* curb_easy.c - Curl easy mode
+/* curb_multi.c - Curl multi mode
  * Copyright (c)2008 Todd A. Fisher.
  * Licensed under the Ruby License. See LICENSE for details.
  *
- * $Id$
  */
 
 #include "curb_config.h"
