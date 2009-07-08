@@ -11,12 +11,14 @@
 #include "curb_easy.h"
 #include <curl/multi.h>
 
+#if 0
 typedef struct {
   int active;
   int running;
   VALUE requests; /* hash of handles currently added */
   CURLM *handle;
 } ruby_curl_multi;
+#endif
 
 extern VALUE cCurlMulti;
 void init_curb_multi();

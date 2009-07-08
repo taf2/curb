@@ -11,6 +11,7 @@
 
 #include <curl/easy.h>
 
+#if 0
 /* a lot of this *could* be kept in the handler itself,
  * but then we lose the ability to query it's status.
  */
@@ -91,10 +92,11 @@ typedef struct {
 
 } ruby_curl_easy;
 
-extern VALUE cCurlEasy;
 
 VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce, VALUE *bodybuf, VALUE *headerbuf, struct curl_slist **headers);
 VALUE ruby_curl_easy_cleanup(VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, VALUE headerbuf, struct curl_slist *headers);
+#endif
+extern VALUE cCurlEasy;
 
 void init_curb_easy();
 

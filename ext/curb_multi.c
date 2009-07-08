@@ -1,4 +1,4 @@
-/* curb_easy.c - Curl easy mode
+/* curb_multi.c - Curl multi mode
  * Copyright (c)2008 Todd A. Fisher.
  * Licensed under the Ruby License. See LICENSE for details.
  *
@@ -19,13 +19,15 @@
 #include <errno.h>
 
 extern VALUE mCurl;
-static VALUE idCall;
+//static VALUE idCall;
 
 #ifdef RDOC_NEVER_DEFINED
   mCurl = rb_define_module("Curl");
 #endif
 
 VALUE cCurlMulti;
+
+#if 0
 
 static VALUE ruby_curl_multi_remove(VALUE , VALUE );
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
@@ -369,13 +371,39 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
 
   return Qnil;
 }
+#endif
+
+static void ruby_curl_multi_free(CURLM *multi) {
+  curl_multi_cleanup(multi);
+}
+
+static VALUE ruby_curl_multi_alloc(VALUE klass) {
+  CURLM *multi;
+  VALUE handle;
+
+  multi = curl_multi_init();
+  handle = Data_Wrap_Struct( klass, NULL, ruby_curl_multi_free, multi );
+
+  return handle;
+}
 
 /* =================== INIT LIB =====================*/
 void init_curb_multi() {
-  idCall = rb_intern("call");
+//  idCall = rb_intern("call");
 
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 
+  rb_define_alloc_func(cCurlMulti, ruby_curl_multi_alloc);
+  rb_define_method(cCurlMulti, "assign", ruby_curl_multi_assign, 1);
+  rb_define_method(cCurlMulti, "info_read", ruby_curl_multi_info_read, 0);
+  rb_define_method(cCurlMulti, "fdset", ruby_curl_multi_fdset, 3);
+  rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, 0);
+  rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);
+  rb_define_method(cCurlMulti, "remove", ruby_curl_multi_remove, 1);
+  rb_define_method(cCurlMulti, "setopt", ruby_curl_multi_remove, 2);
+  rb_define_method(cCurlMulti, "socket_action", ruby_curl_multi_socket_action, 2);
+  rb_define_method(cCurlMulti, "timeout", ruby_curl_multi_timeout, 0);
+#if 0
   /* Class methods */
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
 
@@ -385,4 +413,5 @@ void init_curb_multi() {
   rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "remove", ruby_curl_multi_remove, 1);
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, 0);
+#endif
 }

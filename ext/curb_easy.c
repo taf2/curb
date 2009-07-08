@@ -1,29 +1,24 @@
 /* curb_easy.c - Curl easy mode
- * Copyright (c)2006 Ross Bamford.
+ * Copyright (c)2009 Todd A. Fisher.
  * Licensed under the Ruby License. See LICENSE for details.
  *
- * $Id: curb_easy.c 30 2006-12-09 12:30:24Z roscopeco $
+ * This file was originally created by Ross Bamford
  */
 #include "curb_easy.h"
 #include "curb_errors.h"
 #include "curb_postfield.h"
 #include "curb_upload.h"
-
 #include <errno.h>
 #include <string.h>
 
 extern VALUE mCurl;
-
-static VALUE idCall;
-static VALUE idJoin;
-static VALUE rbstrAmp;
 
 #ifdef RDOC_NEVER_DEFINED
   mCurl = rb_define_module("Curl");
 #endif
 
 VALUE cCurlEasy;
-
+#if 0
 
 /* ================== CURL HANDLER FUNCS ==============*/
 
@@ -2797,20 +2792,127 @@ static VALUE ruby_curl_easy_class_perform_post(int argc, VALUE *argv, VALUE klas
 
   return c;
 }
+#endif
 
+void ruby_curl_easy_free(CURL *easy) {
+  curl_easy_cleanup(easy);
+}
+
+static VALUE ruby_curl_easy_alloc(VALUE klass) {
+  CURL *easy;
+  VALUE handle;
+  CURLcode ecode;
+
+  easy = curl_easy_init();
+
+  handle = Data_Wrap_Struct( klass, NULL, ruby_curl_easy_free, easy );
+
+  /* set the Ruby VALUE pointer to the curl handle */
+  ecode = curl_easy_setopt(easy, CURLOPT_PRIVATE, (void*)handle);
+  if (ecode != CURLE_OK) {
+    raise_curl_easy_error_exception(ecode);
+  }
+
+  return handle;
+}
+
+static VALUE ruby_curl_easy_version(VALUE klass) {
+  return rb_int_new(LIBCURL_VERSION_NUM);
+}
+
+static VALUE ruby_curl_easy_unescape(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_escape(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_perform(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_reset(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_pause(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_getinfo(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_dup(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_setopt(VALUE self, VALUE key, VALUE value) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_error_string(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
+
+static VALUE ruby_curl_easy_error_code(VALUE self, VALUE str) {
+  CURL *easy;
+
+  Data_Get_Struct(self, CURL*, easy);
+
+}
 
 /* =================== INIT LIB =====================*/
 void init_curb_easy() {
-  idCall = rb_intern("call");
-  idJoin = rb_intern("join");
-
-  rbstrAmp = rb_str_new2("&");
-  rb_global_variable(&rbstrAmp);
 
   cCurlEasy = rb_define_class_under(mCurl, "Easy", rb_cObject);
 
   /* Class methods */
-  rb_define_singleton_method(cCurlEasy, "new", ruby_curl_easy_new, -1);
+  rb_define_alloc_func(cCurlEasy, ruby_curl_easy_alloc);
+  //rb_define_singleton_method(cCurlEasy, "new", ruby_curl_easy_new, 0);
+  rb_define_singleton_method(cCurlEasy, "version", ruby_curl_easy_version, 0);
+
+  /* Instance methods */
+  rb_define_method(cCurlEasy, "unescape", ruby_curl_easy_unescape, 1);
+  rb_define_method(cCurlEasy, "escape", ruby_curl_easy_escape, 1);
+  rb_define_method(cCurlEasy, "perform", ruby_curl_easy_perform, 0);
+  rb_define_method(cCurlEasy, "reset", ruby_curl_easy_reset, 0);
+  rb_define_method(cCurlEasy, "pause", ruby_curl_easy_pause, 0);
+  rb_define_method(cCurlEasy, "getinfo", ruby_curl_easy_getinfo, 1);
+  rb_define_method(cCurlEasy, "dup", ruby_curl_easy_dup, 0);
+  rb_define_method(cCurlEasy, "setopt", ruby_curl_easy_setopt, 2);
+  rb_define_method(cCurlEasy, "error_string", ruby_curl_easy_error_string, 0);
+  rb_define_method(cCurlEasy, "error_code", ruby_curl_easy_error_code, 0);
+
+#if 0
   rb_define_singleton_method(cCurlEasy, "perform", ruby_curl_easy_class_perform, -1);
   rb_define_singleton_method(cCurlEasy, "http_delete", ruby_curl_easy_class_perform_delete, -1);
   rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
@@ -2946,4 +3048,5 @@ void init_curb_easy() {
   /* Runtime support */
   rb_define_method(cCurlEasy, "clone", ruby_curl_easy_clone, 0);
   rb_define_alias(cCurlEasy, "dup", "clone");
+#endif
 }
