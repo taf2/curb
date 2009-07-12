@@ -1,8 +1,8 @@
-== Curb - Libcurl bindings for Ruby
+# Curb - Libcurl bindings for Ruby
 
-* http://curb.rubyforge.org/
-* http://rubyforge.org/projects/curb
-* http://github.com/taf2/curb/tree/master
++ [rubyforge rdoc]: http://curb.rubyforge.org/
++ [rubyforge project]: http://rubyforge.org/projects/curb
++ [github project]: http://github.com/taf2/curb/tree/master
 
 Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
 libcurl(3), a fully-featured client-side URL transfer library.
@@ -10,18 +10,18 @@ cURL and libcurl live at http://curl.haxx.se/ .
 
 Curb is a work-in-progress, and currently only supports libcurl's 'easy' and 'multi' modes.
 
-=== License
+## License
 
 Curb is copyright (c)2006 Ross Bamford, and released under the terms of the 
 Ruby license. See the LICENSE file for the gory details. 
 
-=== You will need
+## You will need
 
-* A working Ruby installation (1.8+, tested with 1.8.5, 1.8.6, 1.8.7, and 1.9.1)
-* A working (lib)curl installation, with development stuff (7.5+, tested with 7.15)
-* A sane build environment
++ A working Ruby installation (1.8+, tested with 1.8.5, 1.8.6, 1.8.7, and 1.9.1)
++ A working (lib)curl installation, with development stuff (7.5+, tested with 7.15)
++ A sane build environment
 
-=== Installation...
+## Installation...
 
 ... will usually be as simple as:
 
@@ -46,27 +46,27 @@ documentation with:
 
   $ rake doc
 
-=== Examples
+## Examples
 
-Simple fetch via HTTP:
+### Simple fetch via HTTP:
 
   c = Curl::Easy.perform("http://www.google.co.uk")
   puts c.body_str
 
-Same thing, more manual:
+### Same thing, more manual:
 
   c = Curl::Easy.new("http://www.google.co.uk")
   c.perform
   puts c.body_str
 
-Additional config:
+### Additional config:
 
   Curl::Easy.perform("http://www.google.co.uk") do |curl| 
     curl.headers["User-Agent"] = "myapp-0.0"
     curl.verbose = true
   end
 
-Same thing, more manual:
+### Same thing, more manual:
 
   c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
     curl.headers["User-Agent"] = "myapp-0.0"
@@ -75,7 +75,7 @@ Same thing, more manual:
   
   c.perform
 
-Supplying custom handlers:
+### Supplying custom handlers:
 
   c = Curl::Easy.new("http://www.google.co.uk")
   
@@ -84,7 +84,7 @@ Supplying custom handlers:
   
   c.perform
 
-Reusing Curls:
+### Reusing Curls:
 
   c = Curl::Easy.new
 
@@ -94,19 +94,20 @@ Reusing Curls:
     c.body_str
   end
 
-HTTP POST form:
+### HTTP POST form:
 
   c = Curl::Easy.http_post("http://my.rails.box/thing/create",
                            Curl::PostField.content('thing[name]', 'box',
                            Curl::PostField.content('thing[type]', 'storage')
 
-HTTP POST file upload:
+### HTTP POST file upload:
 
   c = Curl::Easy.new("http://my.rails.box/files/upload")
   c.multipart_form_post = true
   c.http_post(Curl::PostField.file('myfile.rb'))
 
-Multi Interface (Basic):
+### Multi Interface (Basic):
+
   easy_options = {:follow_location => true}
   multi_options = {:pipeline => true}
 
@@ -115,7 +116,8 @@ Multi Interface (Basic):
     puts easy.last_effective_url
   end
 
-Multi Interface (Advanced):
+### Multi Interface (Advanced):
+
   responses = {}
   requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
   m = Curl::Multi.new
