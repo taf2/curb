@@ -122,5 +122,7 @@ extern VALUE eCurlErrInvalidPostField;
 void init_curb_errors();
 void raise_curl_easy_error_exception(CURLcode code);
 void raise_curl_multi_error_exception(CURLMcode code);
+VALUE rb_curl_easy_error(CURLcode code);
+VALUE rb_curl_multi_error(CURLMcode code);
 
 #endif

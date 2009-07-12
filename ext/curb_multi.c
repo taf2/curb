@@ -258,7 +258,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
 
       if (result != 0) {
         if (rbce->failure_proc != Qnil) {
-          rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, INT2FIX(result) );
+          rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
         }
       }
       else if (rbce->success_proc != Qnil &&
@@ -268,7 +268,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
       }
       else if (rbce->failure_proc != Qnil &&
               (response_code >= 300 && response_code <= 999)) {
-        rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, INT2FIX(result) );
+        rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
       }
       rbce->self = Qnil;
     }

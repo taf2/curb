@@ -121,8 +121,7 @@ VALUE mCurlErrUnknownOption;
 VALUE eCurlErrInvalidPostField;
 
 
-/* rb_raise an approriate exception for the supplied CURLcode */
-void raise_curl_easy_error_exception(CURLcode code) {
+VALUE rb_curl_easy_error(CURLcode code) {
   VALUE exclz;
   const char *exmsg = NULL;
 
@@ -437,9 +436,17 @@ void raise_curl_easy_error_exception(CURLcode code) {
     exmsg = curl_easy_strerror(code);
   }
 
-  rb_raise(exclz, exmsg);
+  VALUE results = rb_ary_new2(2);
+  rb_ary_push(results, exclz);
+  rb_ary_push(results, rb_str_new2(exmsg));
+  return results;
 }
-void raise_curl_multi_error_exception(CURLMcode code) {
+/* rb_raise an approriate exception for the supplied CURLcode */
+void raise_curl_easy_error_exception(CURLcode code) {
+  VALUE obj = rb_curl_easy_error(code);
+  rb_raise(rb_ary_entry(obj,0), RSTRING_PTR(rb_ary_entry(obj,1)));
+}
+VALUE rb_curl_multi_error(CURLMcode code) {
   VALUE exclz;
   const char *exmsg = NULL;
 
@@ -478,7 +485,14 @@ void raise_curl_multi_error_exception(CURLMcode code) {
     exmsg = curl_multi_strerror(code);
   }
 
-  rb_raise(exclz, exmsg);
+  VALUE results = rb_ary_new2(2);
+  rb_ary_push(results, exclz);
+  rb_ary_push(results, rb_str_new2(exmsg));
+  return results;
+}
+void raise_curl_multi_error_exception(CURLMcode code) {
+  VALUE obj = rb_curl_multi_error(code);
+  rb_raise(rb_ary_entry(obj,0), RSTRING_PTR(rb_ary_entry(obj,1)));
 }
 
 void init_curb_errors() {
