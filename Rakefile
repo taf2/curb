@@ -63,6 +63,11 @@ end
 desc "Compile the shared object"
 task :compile => [CURB_SO]
 
+desc "Create the markdown file"
+task :markdown do
+  cp "README", "README.markdown"
+end
+
 desc "Install to your site_ruby directory"
 task :install => :alltests do
   m = make 'install' 
