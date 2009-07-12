@@ -25,16 +25,16 @@ Ruby license. See the LICENSE file for the gory details.
 
 ... will usually be as simple as:
 
-	$ gem install curb
+    $ gem install curb
 	
 Or, if you downloaded the archive:	
 
-  $ rake install 
+    $ rake install 
 
 If you have a wierd setup, you might need extconf options. In this case, pass
 them like so:
 
-	$ rake install EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever'
+    $ rake install EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever'
 	
 Currently, Curb is tested only on GNU/Linux x86 - YMMV on other platforms.
 If you do use another platform and experience problems, or if you can 
@@ -44,97 +44,97 @@ list on Curb's Rubyforge page.
 Curb has fairly extensive RDoc comments in the source. You can build the
 documentation with:
 
-  $ rake doc
+    $ rake doc
 
 ## Examples
 
 ### Simple fetch via HTTP:
 
-  c = Curl::Easy.perform("http://www.google.co.uk")
-  puts c.body_str
+    c = Curl::Easy.perform("http://www.google.co.uk")
+    puts c.body_str
 
 ### Same thing, more manual:
 
-  c = Curl::Easy.new("http://www.google.co.uk")
-  c.perform
-  puts c.body_str
+    c = Curl::Easy.new("http://www.google.co.uk")
+    c.perform
+    puts c.body_str
 
 ### Additional config:
 
-  Curl::Easy.perform("http://www.google.co.uk") do |curl| 
-    curl.headers["User-Agent"] = "myapp-0.0"
-    curl.verbose = true
-  end
+    Curl::Easy.perform("http://www.google.co.uk") do |curl| 
+      curl.headers["User-Agent"] = "myapp-0.0"
+      curl.verbose = true
+    end
 
 ### Same thing, more manual:
 
-  c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
-    curl.headers["User-Agent"] = "myapp-0.0"
-    curl.verbose = true
-  end
+    c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
+      curl.headers["User-Agent"] = "myapp-0.0"
+      curl.verbose = true
+    end
   
-  c.perform
+    c.perform
 
 ### Supplying custom handlers:
 
-  c = Curl::Easy.new("http://www.google.co.uk")
+    c = Curl::Easy.new("http://www.google.co.uk")
   
-  c.on_body { |data| print(data) }
-  c.on_header { |data| print(data) }
+    c.on_body { |data| print(data) }
+    c.on_header { |data| print(data) }
   
-  c.perform
+    c.perform
 
 ### Reusing Curls:
 
-  c = Curl::Easy.new
+    c = Curl::Easy.new
 
-  ["http://www.google.co.uk", "http://www.ruby-lang.org/"].map do |url|
-    c.url = url
-    c.perform
-    c.body_str
-  end
+    ["http://www.google.co.uk", "http://www.ruby-lang.org/"].map do |url|
+      c.url = url
+      c.perform
+      c.body_str
+    end
 
 ### HTTP POST form:
 
-  c = Curl::Easy.http_post("http://my.rails.box/thing/create",
-                           Curl::PostField.content('thing[name]', 'box',
-                           Curl::PostField.content('thing[type]', 'storage')
+    c = Curl::Easy.http_post("http://my.rails.box/thing/create",
+                             Curl::PostField.content('thing[name]', 'box',
+                             Curl::PostField.content('thing[type]', 'storage')
 
 ### HTTP POST file upload:
 
-  c = Curl::Easy.new("http://my.rails.box/files/upload")
-  c.multipart_form_post = true
-  c.http_post(Curl::PostField.file('myfile.rb'))
+    c = Curl::Easy.new("http://my.rails.box/files/upload")
+    c.multipart_form_post = true
+    c.http_post(Curl::PostField.file('myfile.rb'))
 
 ### Multi Interface (Basic):
 
-  easy_options = {:follow_location => true}
-  multi_options = {:pipeline => true}
+    easy_options = {:follow_location => true}
+    multi_options = {:pipeline => true}
 
-  Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
-    # do something interesting with the easy response
-    puts easy.last_effective_url
-  end
+    Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
+      # do something interesting with the easy response
+      puts easy.last_effective_url
+    end
 
 ### Multi Interface (Advanced):
 
-  responses = {}
-  requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
-  m = Curl::Multi.new
-  # add a few easy handles
-  requests.each do |url|
-    responses[url] = ""
-    c = Curl::Easy.new(url) do|curl|
-      curl.follow_location = true
-      curl.on_body{|data| responses[url] << data; data.size }
+    responses = {}
+    requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
+    m = Curl::Multi.new
+    # add a few easy handles
+    requests.each do |url|
+      responses[url] = ""
+      c = Curl::Easy.new(url) do|curl|
+        curl.follow_location = true
+        curl.on_body{|data| responses[url] << data; data.size }
+      end
+      m.add(c)
     end
-    m.add(c)
-  end
-
-  m.perform do
-    puts "idling... can do some work here, including add new requests"
-  end
-
-  requests.each do|url|
-    puts responses[url]
-  end
+   
+    m.perform do
+      puts "idling... can do some work here, including add new requests"
+    end
+   
+    requests.each do|url|
+      puts responses[url]
+    end
