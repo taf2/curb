@@ -72,7 +72,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_POST(req,res)
-    respond_with(:POST,req,res)
+    respond_with("POST\n#{req.body}",req,res)
   end
 
   def do_PUT(req,res)
