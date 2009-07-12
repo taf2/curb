@@ -146,7 +146,10 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
 
     c1.on_failure do|c,rc|
-      #puts "failure called: #{c.body_str.inspect}"
+      # rc => [Curl::Err::MalformedURLError, "URL using bad/illegal format or missing URL"]
+      assert_equal Curl::Easy, c.class
+      assert_equal Curl::Err::MalformedURLError, rc.first
+      assert_equal "URL using bad/illegal format or missing URL", rc.last
     end
 
     c2.on_success do|c|
