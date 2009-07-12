@@ -678,6 +678,58 @@ static VALUE ruby_curl_easy_useragent_get(VALUE self) {
   CURB_OBJECT_GETTER(ruby_curl_easy, useragent);
 }
 
+/*
+ * call-seq:
+ *   easy.post_body = "some=form%20data&to=send" => string or nil
+ * 
+ * Sets the POST body of this Curl::Easy instance.  This is expected to be
+ * URL encoded; no additional processing or encoding is done on the string.
+ * The content-type header will be set to application/x-www-form-urlencoded.
+ * 
+ * This is handy if you want to perform a POST against a Curl::Multi instance.
+ */
+static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
+  ruby_curl_easy *rbce;
+  CURL *curl;
+  
+  char *data;
+  long len;
+  
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  
+  curl = rbce->curl;
+  
+  if ( post_body == Qnil ) {
+    rbce->postdata_buffer = Qnil;
+    
+  } else {  
+    data = StringValuePtr(post_body);
+    len = RSTRING_LEN(post_body);
+  
+    // Store the string, since it has to hang around for the duration of the 
+    // request.  See CURLOPT_POSTFIELDS in the libcurl docs.
+    rbce->postdata_buffer = post_body;
+  
+    curl_easy_setopt(curl, CURLOPT_POST, 1);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, len);
+    
+    return post_body;
+  }
+  
+  return Qnil;
+}
+
+/*
+ * call-seq:
+ *   easy.post_body                                  => "string" or nil
+ *
+ * Obtain the POST body used in this Curl::Easy instance.
+ */
+static VALUE ruby_curl_easy_post_body_get(VALUE self) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, postdata_buffer);
+}
+
 /* ================== IMMED ATTRS ==================*/
 
 /*
@@ -1925,19 +1977,12 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
     return ret;
   } else {
-    long len;
-    char *data;
-
-    if ((rbce->postdata_buffer = rb_funcall(args_ary, idJoin, 1, rbstrAmp)) == Qnil) {
+    VALUE post_body;
+    if ((post_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp)) == Qnil) {
       rb_raise(eCurlErrError, "Failed to join arguments");
       return Qnil;
     } else {
-      data = StringValuePtr(rbce->postdata_buffer);
-      len = RSTRING_LEN(rbce->postdata_buffer);
-
-      curl_easy_setopt(curl, CURLOPT_POST, 1);
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, len);
+      ruby_curl_easy_post_body_set(self, post_body);
 
       return handle_perform(self,rbce);
     }
@@ -2847,6 +2892,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "encoding", ruby_curl_easy_encoding_get, 0);
   rb_define_method(cCurlEasy, "useragent=", ruby_curl_easy_useragent_set, 1);
   rb_define_method(cCurlEasy, "useragent", ruby_curl_easy_useragent_get, 0);
+  rb_define_method(cCurlEasy, "post_body=", ruby_curl_easy_post_body_set, 1);
+  rb_define_method(cCurlEasy, "post_body", ruby_curl_easy_post_body_get, 0);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);

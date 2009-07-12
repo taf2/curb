@@ -497,7 +497,25 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_post_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_post
-    assert_equal 'POST', curl.body_str
+    assert_equal "POST\n", curl.body_str
+  end
+  
+  def test_post_with_body_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.post_body = 'foo=bar&encoded%20string=val'
+    
+    curl.perform
+    
+    assert_equal "POST\nfoo=bar&encoded%20string=val", curl.body_str
+    assert_equal 'foo=bar&encoded%20string=val', curl.post_body
+  end
+  
+  def test_form_post_body_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_post('foo=bar', 'encoded%20string=val')
+    
+    assert_equal "POST\nfoo=bar&encoded%20string=val", curl.body_str
+    assert_equal 'foo=bar&encoded%20string=val', curl.post_body
   end
 
   def test_delete_remote
