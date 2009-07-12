@@ -1,0 +1,10 @@
+# From safis  http://github.com/taf2/curb/issues#issue/5
+# irb: require 'curb'
+# irb: multi = Curl::Multi.new
+# irb: exit
+# <main>:47140: [BUG] Bus Error
+$:.unshift File.join(File.dirname(__FILE__),'..','ext')
+$:.unshift File.join(File.dirname(__FILE__),'..','lib')
+require 'curb'
+multi = Curl::Multi.new
+exit

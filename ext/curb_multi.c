@@ -57,14 +57,16 @@ static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) 
 }
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
+
   //printf("hash entries: %d\n", RHASH(rbcm->requests)->tbl->num_entries );
-  if (rbcm && RHASH_LEN(rbcm->requests) > 0) {
+  if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
+
     rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
 
-    curl_multi_cleanup(rbcm->handle);
     //rb_hash_clear(rbcm->requests)
     rbcm->requests = Qnil;
   }
+  curl_multi_cleanup(rbcm->handle);
   free(rbcm);
 }
 
