@@ -1,8 +1,8 @@
 # Curb - Libcurl bindings for Ruby
 
-+ [rubyforge rdoc]: http://curb.rubyforge.org/
-+ [rubyforge project]: http://rubyforge.org/projects/curb
-+ [github project]: http://github.com/taf2/curb/tree/master
++ [rubyforge rdoc](http://curb.rubyforge.org/)
++ [rubyforge project](http://rubyforge.org/projects/curb)
++ [github project](http://github.com/taf2/curb/tree/master)
 
 Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
 libcurl(3), a fully-featured client-side URL transfer library.
