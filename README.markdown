@@ -6,7 +6,7 @@
 
 Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
 libcurl(3), a fully-featured client-side URL transfer library.
-cURL and libcurl live at http://curl.haxx.se/ .
+cURL and libcurl live at [http://curl.haxx.se/](http://curl.haxx.se/) .
 
 Curb is a work-in-progress, and currently only supports libcurl's 'easy' and 'multi' modes.
 
