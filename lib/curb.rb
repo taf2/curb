@@ -75,7 +75,7 @@ module Curl
           easy_options.each do|k,v|
             c.send("#{k}=",v)
           end
-          c.on_complete {|curl| blk.call curl }
+          c.on_complete {|curl| blk.call curl } if blk
           m.add(c)
         end
         m.perform
