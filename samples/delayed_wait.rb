@@ -27,22 +27,20 @@ require 'curb'
 
 module Curl
   class DelayedEasy
-    attr_accessor :response_thread
-    
-    @@delayed_responses ||= {}
+    attr_accessor :response_thread, :delayed_response
     
     def initialize(*args, &blk)
       curl = nil
       self.response_thread = Thread.new {
         curl = Curl::Easy.new(*args, &blk)
         curl.perform
-        @@delayed_responses[self.object_id] = curl
+        @delayed_response = curl
       }
       self
     end
 
     def delayed_response
-      @@delayed_responses[self.object_id] or
+      @delayed_response or
       ( puts 'waiting...'; self.response_thread.join; self.delayed_response )
     end
 
