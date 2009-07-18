@@ -100,6 +100,50 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m = nil
 
   end
+  
+  def test_idle_check
+    m = Curl::Multi.new
+    e = Curl::Easy.new($TEST_URL)
+    
+    assert(m.idle?, 'A new Curl::Multi handle should be idle')
+    
+    m.add(e)
+    
+    assert((not m.idle?), 'A Curl::Multi handle with a request should not be idle')
+    
+    m.perform
+    
+    assert(m.idle?, 'A Curl::Multi handle should be idle after performing its requests')
+  end
+  
+  def test_requests
+    m = Curl::Multi.new
+    
+    assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests')
+    
+    10.times do
+      m.add(Curl::Easy.new($TEST_URL))
+    end
+    
+    assert_equal(10, m.requests.length, 'multi.requests should contain all the active requests')
+    
+    m.perform
+    
+    assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests after a perform')
+  end
+  
+  def test_cancel
+    m = Curl::Multi.new
+    m.cancel! # shouldn't raise anything
+    
+    10.times do
+      m.add(Curl::Easy.new($TEST_URL))
+    end
+    
+    m.cancel!
+    
+    assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests after being canceled')
+  end
 
   def test_with_success
     c1 = Curl::Easy.new($TEST_URL)

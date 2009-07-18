@@ -93,6 +93,51 @@ static VALUE ruby_curl_multi_new(VALUE klass) {
   return new_curlm;
 }
 
+// Hash#foreach callback for ruby_curl_multi_requests
+static int ruby_curl_multi_requests_callback(VALUE key, VALUE value, VALUE result_array) {
+  rb_ary_push(result_array, value);
+  
+  return ST_CONTINUE;
+}
+
+/*
+ * call-seq:
+ *   multi.requests                                   => [#&lt;Curl::Easy...&gt;, ...]
+ * 
+ * Returns an array containing all the active requests on this Curl::Multi object.
+ */
+static VALUE ruby_curl_multi_requests(VALUE self) {
+  ruby_curl_multi *rbcm;
+  
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  
+  VALUE result_array = rb_ary_new();
+  
+  // iterate over the requests hash, and stuff references into the array.
+  rb_hash_foreach( rbcm->requests, ruby_curl_multi_requests_callback, result_array );
+  
+  return result_array;
+}
+
+/*
+ * call-seq:
+ *   multi.idle?                                      => true or false
+ * 
+ * Returns whether or not this Curl::Multi handle is processing any requests.  E.g. this returns
+ * true when multi.requests.length == 0.
+ */
+static VALUE ruby_curl_multi_idle(VALUE self) {
+  ruby_curl_multi *rbcm;
+  
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  
+  if ( FIX2INT( rb_funcall(rbcm->requests, rb_intern("length"), 0) ) == 0 ) {
+    return Qtrue;
+  } else {
+    return Qfalse;
+  }
+}
+
 /*
  * call-seq:
  * multi = Curl::Multi.new
@@ -185,7 +230,7 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
  * # sometime later
  * multi.remove(easy)
  *
- * Remove an easy handle from a multi stack
+ * Remove an easy handle from a multi stack.
  *
  * Will raise an exception if the easy handle is not found
  */
@@ -224,6 +269,30 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   if( r != easy || r == Qnil ) {
     rb_raise(rb_eRuntimeError, "Critical:: Unable to remove easy from requests");
   }
+}
+
+// Hash#foreach callback for ruby_curl_multi_cancel
+static int ruby_curl_multi_cancel_callback(VALUE key, VALUE value, ruby_curl_multi *rbcm) {
+  rb_curl_multi_remove(rbcm, value);
+  
+  return ST_CONTINUE;
+}
+
+/*
+ * call-seq:
+ *   multi.cancel!
+ * 
+ * Cancels all requests currently being made on this Curl::Multi handle.  
+ */
+static VALUE ruby_curl_multi_cancel(VALUE self) {
+  ruby_curl_multi *rbcm;
+
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  
+  rb_hash_foreach( rbcm->requests, ruby_curl_multi_cancel_callback, (VALUE)rbcm );
+  
+  // for chaining
+  return self;
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
@@ -379,11 +448,16 @@ void init_curb_multi() {
 
   /* Class methods */
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
-
+  
+  /* "Attributes" */
+  rb_define_method(cCurlMulti, "requests", ruby_curl_multi_requests, 0);
+  rb_define_method(cCurlMulti, "idle?", ruby_curl_multi_idle, 0);
+  
   /* Instnace methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
   rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "remove", ruby_curl_multi_remove, 1);
+  rb_define_method(cCurlMulti, "cancel!", ruby_curl_multi_cancel, 0);
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, 0);
 }
