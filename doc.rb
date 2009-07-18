@@ -34,7 +34,7 @@ begin
     end
   end
  
-  system("rdoc --title='Curb - libcurl bindings for ruby' --main=README #{pp_srcdir}/*.c README LICENSE ext/curb.rb")
+  system("rdoc --title='Curb - libcurl bindings for ruby' --main=README #{pp_srcdir}/*.c README LICENSE lib/curb.rb")
 ensure
   rm_rf(tmpdir)
 end

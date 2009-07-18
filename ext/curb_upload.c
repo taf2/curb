@@ -6,6 +6,10 @@
 extern VALUE mCurl;
 VALUE cCurlUpload;
 
+#ifdef RDOC_NEVER_DEFINED
+  mCurl = rb_define_module("Curl");
+#endif
+
 static void curl_upload_mark(ruby_curl_upload *rbcu) {
   if (rbcu->stream) rb_gc_mark(rbcu->stream);
 }
@@ -13,6 +17,10 @@ static void curl_upload_free(ruby_curl_upload *rbcu) {
   free(rbcu);
 }
 
+/*
+ * call-seq:
+ *   internal class for sending large file uploads
+ */
 VALUE ruby_curl_upload_new(VALUE klass) {
   VALUE upload;
   ruby_curl_upload *rbcu = ALLOC(ruby_curl_upload);
@@ -22,23 +30,39 @@ VALUE ruby_curl_upload_new(VALUE klass) {
   return upload;
 }
 
+/*
+ * call-seq:
+ *   internal class for sending large file uploads
+ */
 VALUE ruby_curl_upload_stream_set(VALUE self, VALUE stream) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
   rbcu->stream = stream;
   return stream;
 }
+/*
+ * call-seq:
+ *   internal class for sending large file uploads
+ */
 VALUE ruby_curl_upload_stream_get(VALUE self) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
   return rbcu->stream;
 }
+/*
+ * call-seq:
+ *   internal class for sending large file uploads
+ */
 VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
   rbcu->offset = FIX2INT(offset);
   return offset;
 }
+/*
+ * call-seq:
+ *   internal class for sending large file uploads
+ */
 VALUE ruby_curl_upload_offset_get(VALUE self) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
