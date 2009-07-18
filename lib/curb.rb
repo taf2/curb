@@ -80,6 +80,46 @@ module Curl
         end
         m.perform
       end
+
+      # call-seq:
+      #
+      #   Curl::Multi.post([{:url => 'url1', :post_fields => {'field1' => 'value1', 'field2' => 'value2'}},
+      #                     {:url => 'url2', :post_fields => {'field1' => 'value1', 'field2' => 'value2'}},
+      #                     {:url => 'url3', :post_fields => {'field1' => 'value1', 'field2' => 'value2'}}],
+      #                    { :follow_location => true, :multipart_form_post => true },
+      #                    {:pipeline => true }) do|easy|
+      #     easy_handle_on_request_complete
+      #   end
+      # 
+      # Blocking call to POST multiple form's in parallel.
+      # 
+      # urls_with_config: is a hash of url's pointing to the postfields to send 
+      # easy_options: are a set of common options to set on all easy handles
+      # multi_options: options to set on the Curl::Multi handle
+      #
+      def post(urls_with_config, easy_options, multi_options, &blk)
+        m = Curl::Multi.new
+        # configure the multi handle
+        multi_options.each do|k,v|
+          m.send("#{k}=", v)
+        end
+
+        urls_with_config.each do|conf|
+          c = conf.dup # avoid being destructive to input
+          url    = c.delete(:url)
+          fields = c.delete(:post_fields)
+          easy   = Curl::Easy.new(url)
+          # set the post post using the url fields
+          easy.post_body = fields.map{|f,k| "#{easy.escape(f)}=#{easy.escape(k)}"}.join('&')
+          # configure the easy handle
+          easy_options.each do|k,v|
+            easy.send("#{k}=",v)
+          end
+          easy.on_complete {|curl| blk.call curl } if blk
+          m.add(easy)
+        end
+        m.perform
+      end
     end
   end
 end

@@ -260,6 +260,23 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_multi_easy_post_01
+    urls = [
+      { :url => TestServlet.url + '?q=1', :post_fields => {'field1' => 'value1', 'k' => 'j'}},
+      { :url => TestServlet.url + '?q=2', :post_fields => {'field2' => 'value2', 'foo' => 'bar', 'i' => 'j' }},
+      { :url => TestServlet.url + '?q=3', :post_fields => {'field3' => 'value3', 'field4' => 'value4'}}
+    ]
+    Curl::Multi.post(urls, {:follow_location => true, :multipart_form_post => true}, {:pipeline => true}) do|easy|
+      str = easy.body_str
+      assert_match /POST/, str
+      fields = {}
+      str.gsub(/POST\n/,'').split('&').map{|sv| k, v = sv.split('='); fields[k] = v }
+      expected = urls.find{|s| s[:url] == easy.last_effective_url }
+      assert_equal expected[:post_fields], fields
+      #puts "#{easy.last_effective_url} #{fields.inspect}"
+    end
+  end
+
   include TestServerMethods 
 
   def setup

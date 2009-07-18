@@ -108,10 +108,26 @@ documentation with:
 
 ### Multi Interface (Basic):
 
+    # make multiple GET requests
     easy_options = {:follow_location => true}
     multi_options = {:pipeline => true}
 
     Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
+      # do something interesting with the easy response
+      puts easy.last_effective_url
+    end
+
+    # make multiple POST requests
+    easy_options = {:follow_location => true, :multipart_form_post => true}
+    multi_options = {:pipeline => true}
+
+    url_fields = [
+      { :url => 'url1', :post_fields => {'f1' => 'v1'} },
+      { :url => 'url2', :post_fields => {'f1' => 'v1'} },
+      { :url => 'url3', :post_fields => {'f1' => 'v1'} }
+    ]
+
+    Curl::Multi.post(url_fields, easy_options, multi_options) do|easy|
       # do something interesting with the easy response
       puts easy.last_effective_url
     end
