@@ -56,7 +56,12 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
   def test_n_requests
     n = 100
+    running = true
+    queue = Queue.new
+    # have a thread running in the background
+    thread = Thread.new { queue.pop }
     m = Curl::Multi.new
+    assert_equal Curl::Multi, m.class
     responses = []
     n.times do|i|
       responses[i] = ""
@@ -72,7 +77,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     n.times do|i|
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
     end
-    
+    queue.push 1
     m = nil
   end
 

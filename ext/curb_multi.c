@@ -207,7 +207,9 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 
   rbcm->active++;
   if (mcode == CURLM_CALL_MULTI_PERFORM) {
-    curl_multi_perform(rbcm->handle, &(rbcm->running));
+//  RB_UNLOCK_BEGIN();
+    mcode = curl_multi_perform(rbcm->handle,&(rbcm->running));
+//  RB_UNLOCK_END();
   }
 
   rb_hash_aset( rbcm->requests, easy, easy );
@@ -347,13 +349,125 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
   }
 }
 
+#ifdef HAVE_RUBY_THREAD_BLOCKING_REGION
+  /* from http://github.com/oldmoe/mysqlplus/blob/19_non_gvl_connect/ext/mysql.c */
+  typedef struct
+  {
+   void *func_pointer;
+   int param_count;
+   void *args[10];
+   void *result;
+  } arg_holder;
+
+  static VALUE call_single_function_rb_thread_blocking_region(arg_holder *arg_holder_in);
+   
+  void *rb_thread_blocking_region_variable_params(int number, ...)
+  {
+    int i;
+    va_list param_pt;
+    int real_param_count = number - 2;
+
+    va_start(param_pt, number);
+    arg_holder param_storer;
+
+    void *func_pointer = va_arg(param_pt, void *);
+    void *interrupter = va_arg(param_pt, void *);
+
+    param_storer.func_pointer = func_pointer;
+    param_storer.param_count = real_param_count;
+
+    for(i = 0; i < real_param_count; ++i) {
+      void *arg = va_arg(param_pt, void *);
+      param_storer.args[i] = arg;
+    }
+
+    va_end(param_pt);
+   
+    rb_thread_blocking_region((rb_blocking_function_t *)call_single_function_rb_thread_blocking_region, (void *) &param_storer, interrupter, 0);
+    return param_storer.result;
+  }
+  static VALUE call_single_function_rb_thread_blocking_region(arg_holder *params)
+  {
+    int param_count = params->param_count;
+    void **args = params->args;
+
+    switch(param_count) {
+    case 1: {
+      void * (*pt2Func)(void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0]);
+      } break;
+    case 2: {
+      void * (*pt2Func)(void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1]);
+      } break;
+    case 3: {
+      void * (*pt2Func)(void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2]);
+      } break;
+    case 4: {
+      void * (*pt2Func)(void *, void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3]);
+      } break;
+    case 5: {
+      void * (*pt2Func)(void *, void *, void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3], args[4]);
+     } break;
+    case 6: {
+      void * (*pt2Func)(void *, void *, void *, void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3], args[4], args[5]);
+     } break;
+    case 7: {
+      void * (*pt2Func)(void *, void *, void *, void *, void *, void *, void*) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
+     } break;
+    case 8: {
+      void * (*pt2Func)(void *, void *, void *, void *, void *, void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
+     } break;
+    case 9: {
+      void * (*pt2Func)(void *, void *, void *, void *, void *, void *, void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8]);
+     } break;
+    case 10: {
+      void * (*pt2Func)(void *, void *, void *, void *, void *, void *, void *, void *, void *, void *) = params->func_pointer;
+      params->result = (*pt2Func)(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]);
+     } break;
+    default:
+      printf("Unkonwn param count--please add it! %d\n", param_count);
+      params->result = NULL;
+      break;
+    }
+   
+    return Qnil;
+  }
+
+  static CURLMcode run_multi_loop_unblocked(CURLM *handle, int *running) {
+    CURLMcode mcode;
+    do {
+   //   fprintf(stderr,"start perform\n");
+      mcode = curl_multi_perform(handle, running);
+  //    fprintf(stderr,"end perform: %d:%d\n", mcode, CURLM_CALL_MULTI_PERFORM);
+    } while (mcode == CURLM_CALL_MULTI_PERFORM);
+ //   fprintf(stderr,"perform done: %d\n", mcode);
+    return mcode;
+  }
+  static void run_multi_loop_interrupt() {
+  }
+#endif
+
 /* called within ruby_curl_multi_perform */
 static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running) {
   CURLMcode mcode;
 
+#ifdef HAVE_RUBY_THREAD_BLOCKING_REGION
+//  fprintf(stderr,"enter blocking region\n");
+  mcode = (CURLMcode)rb_thread_blocking_region_variable_params(4, &run_multi_loop_unblocked, RUBY_UBF_IO, multi_handle, still_running);
+//  fprintf(stderr, "leave blocking region, mcode:%d should be %d\n", mcode, CURLM_OK);
+#else
   do {
     mcode = curl_multi_perform(multi_handle, still_running);
   } while (mcode == CURLM_CALL_MULTI_PERFORM);
+#endif
 
   if (mcode != CURLM_OK) {
     raise_curl_multi_error_exception(mcode);
@@ -429,6 +543,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
     tv.tv_usec = (timeout * 1000) % 1000000;
 
     rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+
     if (rc < 0) {
       rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
     }
