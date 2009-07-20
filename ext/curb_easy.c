@@ -13,6 +13,7 @@
 #include <string.h>
 
 extern VALUE mCurl;
+extern struct rb_thread_t *ruby_current_thread;
 
 static VALUE idCall;
 static VALUE idJoin;
@@ -80,33 +81,6 @@ static size_t read_data_handler(void *ptr,
     }
     return read_bytes;
   }
-
- // PutStream *pstream = (PutStream*)stream;
- // size_t sent_bytes = (size * nmemb);
- // size_t remaining = pstream->len - pstream->offset;
- /*
-
-  // amount remaining is less then the buffer to send  - can send it all
-  if( remaining < sent_bytes ) {
-    memcpy(ptr, pstream->buffer+pstream->offset, remaining);
-    sent_bytes = remaining;
-    pstream->offset += remaining;
-  }
-  else if( remaining > sent_bytes ) { // sent_bytes <= remaining - send what we can fit in the buffer(ptr)
-    memcpy(ptr, pstream->buffer+pstream->offset, sent_bytes);
-    pstream->offset += sent_bytes;
-  }
-  else { // they're equal
-    memcpy(ptr, pstream->buffer+pstream->offset, --sent_bytes);
-    pstream->offset += sent_bytes;
-  }
-  if (sent_bytes == 0) {
-    free(pstream);
-  }
-  */
-
-  //printf("sent_bytes: %ld of %ld\n", sent_bytes, remaining);
-  //return sent_bytes;
 }
 
 static size_t proc_data_handler(char *stream,
@@ -1790,10 +1764,15 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
         timeout = 1; /* wait a second */
       }
 
+      RB_UNLOCK_BEGIN();
+
       /* set a suitable timeout to play around with - ruby seems to be greedy about this and won't necessarily yield so the timeout is small.. */
       tv.tv_sec = timeout / 1000;
       tv.tv_usec = (timeout * 1000) % 1000000;
-      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+
+      rc = RB_SELECT(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+      RB_UNLOCK_END();
+
       if (rc < 0) {
         rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
       }

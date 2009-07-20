@@ -21,7 +21,7 @@ require 'webrick'
 # or to test with multiple threads set it to false
 # this is important since, some code paths will change depending
 # on the presence of multiple threads
-TEST_SINGLE_THREADED=true
+TEST_SINGLE_THREADED=false
 
 # keep webrick quiet
 class ::WEBrick::HTTPServer

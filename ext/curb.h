@@ -43,15 +43,20 @@
 #endif
 
 #ifdef HAVE_RUBY_THREAD_BLOCKING_REGION
+  /* define internal ruby blocking/unblocking methods */
   struct rb_blocking_region_buffer *rb_thread_blocking_region_begin(void);
   void rb_thread_blocking_region_end(struct rb_blocking_region_buffer *region);
   VALUE rb_thread_blocking_region( rb_blocking_function_t *func, void *data1, rb_unblock_function_t *ubf, void *data2);
 
-  #define RB_UNLOCK_BEGIN() do {struct rb_blocking_region_buffer *__curb__lock = rb_thread_blocking_region_begin();
+  #define RB_UNLOCK_BEGIN() do { struct rb_blocking_region_buffer *__curb__lock = rb_thread_blocking_region_begin();
+  #define RB_UNLOCK_RESUME() __curb__lock = rb_thread_blocking_region_begin()
+  #define RB_UNLOCK_PAUSE()  rb_thread_blocking_region_end(__curb__lock)
   #define RB_UNLOCK_END()  rb_thread_blocking_region_end(__curb__lock); } while(0)
-  #define RB_SELECT rb_thread_select
+  #define RB_SELECT select
 #else
   #define RB_UNLOCK_BEGIN()
+  #define RB_UNLOCK_RESUME()
+  #define RB_UNLOCK_PAUSE()
   #define RB_UNLOCK_END()
   #define RB_SELECT rb_thread_select
 #endif
