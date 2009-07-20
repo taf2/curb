@@ -6,9 +6,11 @@
 
 #include "curb_config.h"
 #ifdef HAVE_RUBY19_ST_H
-#include <ruby/st.h>
+  #include <ruby.h>
+  #include <ruby/st.h>
 #else
-#include <st.h>
+  #include <ruby.h>
+  #include <st.h>
 #endif
 #include "curb_easy.h"
 #include "curb_errors.h"
