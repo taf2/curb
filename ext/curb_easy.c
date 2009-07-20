@@ -1725,109 +1725,104 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 //  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, errors);
 //  curl_easy_setopt(rbce->curl, CURLOPT_VERBOSE, 1);
 
-  if( rb_thread_alone() ) {
-    result = curl_easy_perform(rbce->curl);
+  int msgs;
+  int still_running = 1;
+  CURLMcode mcode = -1;
+  CURLM *multi_handle = curl_multi_init();
+  long timeout;
+  struct timeval tv = {0, 0};
+  int rc; /* select() return code */
+  int maxfd;
+
+  /* NOTE:
+   * We create an Curl multi handle here and use rb_thread_select allowing other ruby threads to
+   * perform actions... ideally we'd have just 1 shared multi handle per all curl easy handles globally
+   */
+  mcode = curl_multi_add_handle(multi_handle, rbce->curl);
+  if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
+    raise_curl_multi_error_exception(mcode);
   }
-  else {
-    int msgs;
-    int still_running = 1;
-    CURLMcode mcode = -1;
-    CURLM *multi_handle = curl_multi_init();
-    long timeout;
-    struct timeval tv = {0, 0};
-    int rc; /* select() return code */
-    int maxfd;
 
-    /* NOTE:
-     * We create an Curl multi handle here and use rb_thread_select allowing other ruby threads to
-     * perform actions... ideally we'd have just 1 shared multi handle per all curl easy handles globally
-     */
-    mcode = curl_multi_add_handle(multi_handle, rbce->curl);
+  while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) ) ;
+
+  if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
+    raise_curl_multi_error_exception(mcode);
+  }
+
+
+  while(still_running) {
+
+    fd_set fdread;
+    fd_set fdwrite;
+    fd_set fdexcep;
+
+    FD_ZERO(&fdread);
+    FD_ZERO(&fdwrite);
+    FD_ZERO(&fdexcep);
+
+    //time_t timer = time(NULL);
+    /* get file descriptors from the transfers */
+    mcode = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
     if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
       raise_curl_multi_error_exception(mcode);
     }
-
-    while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) ) ;
-
-    if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
-      raise_curl_multi_error_exception(mcode);
-    }
-
-
-    while(still_running) {
-
-      fd_set fdread;
-      fd_set fdwrite;
-      fd_set fdexcep;
-
-      FD_ZERO(&fdread);
-      FD_ZERO(&fdwrite);
-      FD_ZERO(&fdexcep);
-
-      //time_t timer = time(NULL);
-      /* get file descriptors from the transfers */
-      mcode = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
-      if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
-        raise_curl_multi_error_exception(mcode);
-      }
 
 #ifdef HAVE_CURL_MULTI_TIMEOUT
-      /* get the curl suggested time out */
-      mcode = curl_multi_timeout(multi_handle, &timeout);
-      if (mcode != CURLM_OK) {
-        raise_curl_multi_error_exception(mcode);
-      }
+    /* get the curl suggested time out */
+    mcode = curl_multi_timeout(multi_handle, &timeout);
+    if (mcode != CURLM_OK) {
+      raise_curl_multi_error_exception(mcode);
+    }
 #else
-      /* libcurl doesn't have a timeout method defined... make a wild guess */
-      timeout = 1; /* wait a second */
+    /* libcurl doesn't have a timeout method defined... make a wild guess */
+    timeout = 1; /* wait a second */
 #endif
 
-      if (timeout == 0) { /* no delay */
+    if (timeout == 0) { /* no delay */
+      while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
+      continue;
+    }
+    else if (timeout == -1) {
+      timeout = 1; /* wait a second */
+    }
+
+    /* set a suitable timeout to play around with - ruby seems to be greedy about this and won't necessarily yield so the timeout is small.. */
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout * 1000) % 1000000;
+    rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+    if (rc < 0) {
+      rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+    }
+
+    if( rc >= 0 ) {
+      switch(rc) {
+      case 0:
+        //printf("timeout(%.6f) :", difftime(time(NULL), timer) );
+      default:
+        //printf("readable/writable: %d\n", rc);
+        /* timeout or readable/writable sockets */
         while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
-        continue;
+        break;
       }
-      else if (timeout == -1) {
-        timeout = 1; /* wait a second */
-      }
-
-      /* set a suitable timeout to play around with - ruby seems to be greedy about this and won't necessarily yield so the timeout is small.. */
-      tv.tv_sec = timeout / 1000;
-      tv.tv_usec = (timeout * 1000) % 1000000;
-      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
-      if (rc < 0) {
-        rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-      }
-
-      if( rc >= 0 ) {
-        switch(rc) {
-        case 0:
-          //printf("timeout(%.6f) :", difftime(time(NULL), timer) );
-        default:
-          //printf("readable/writable: %d\n", rc);
-          /* timeout or readable/writable sockets */
-          while(CURLM_CALL_MULTI_PERFORM == (mcode=curl_multi_perform(multi_handle, &still_running)) );
-          break;
-        }
-      }
-      else {
-        // error
-      }
-
-      if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
-        raise_curl_multi_error_exception(mcode);
-      }
-
+    }
+    else {
+      // error
     }
 
-    /* check for errors */
-    CURLMsg *msg = curl_multi_info_read(multi_handle, &msgs);
-    if (msg && msg->msg == CURLMSG_DONE) {
-      result = msg->data.result;
+    if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
+      raise_curl_multi_error_exception(mcode);
     }
 
-    curl_multi_remove_handle(multi_handle, rbce->curl);
-    curl_multi_cleanup(multi_handle);
   }
+
+  /* check for errors */
+  CURLMsg *msg = curl_multi_info_read(multi_handle, &msgs);
+  if (msg && msg->msg == CURLMSG_DONE) {
+    result = msg->data.result;
+  }
+
+  curl_multi_remove_handle(multi_handle, rbce->curl);
+  curl_multi_cleanup(multi_handle);
 
   ruby_curl_easy_cleanup(self, rbce, bodybuf, headerbuf, headers);
 
