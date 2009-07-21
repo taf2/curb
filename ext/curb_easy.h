@@ -89,6 +89,8 @@ typedef struct {
   VALUE self; /* pointer to self, used by multi interface */
   VALUE upload; /* pointer to an active upload otherwise Qnil */
 
+  int last_result; /* last result code from multi loop */
+
 } ruby_curl_easy;
 
 extern VALUE cCurlEasy;

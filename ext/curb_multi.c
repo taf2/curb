@@ -28,7 +28,6 @@ static VALUE idCall;
 
 VALUE cCurlMulti;
 
-static VALUE ruby_curl_multi_remove(VALUE , VALUE );
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 
@@ -78,7 +77,7 @@ static void curl_multi_free(ruby_curl_multi *rbcm) {
  *
  * Create a new Curl::Multi instance
  */
-static VALUE ruby_curl_multi_new(VALUE klass) {
+VALUE ruby_curl_multi_new(VALUE klass) {
   VALUE new_curlm;
 
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
@@ -188,7 +187,7 @@ static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE onoff) {
  *
  * Add an easy handle to the multi stack
  */
-static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
+VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
   CURLMcode mcode;
   ruby_curl_easy *rbce;
   ruby_curl_multi *rbcm;
@@ -236,7 +235,7 @@ static VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
  *
  * Will raise an exception if the easy handle is not found
  */
-static VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
+VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
   ruby_curl_multi *rbcm;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
@@ -318,6 +317,7 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
       if (ecode != 0) {
         raise_curl_easy_error_exception(ecode);
       }
+      rbce->last_result = result; // save the last easy result code
       ruby_curl_multi_remove( self, rbce->self );
 
       if (rbce->complete_proc != Qnil) {
@@ -379,7 +379,7 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
  *
  * Run multi handles, looping selecting when data can be transfered
  */
-static VALUE ruby_curl_multi_perform(VALUE self) {
+VALUE ruby_curl_multi_perform(VALUE self) {
   CURLMcode mcode;
   ruby_curl_multi *rbcm;
   int maxfd, rc;
@@ -439,7 +439,7 @@ static VALUE ruby_curl_multi_perform(VALUE self) {
 
   }
 
-  return Qnil;
+  return Qtrue;
 }
 
 /* =================== INIT LIB =====================*/

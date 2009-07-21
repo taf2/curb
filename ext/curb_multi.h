@@ -20,6 +20,10 @@ typedef struct {
 
 extern VALUE cCurlMulti;
 void init_curb_multi();
+VALUE ruby_curl_multi_new(VALUE klass);
+VALUE ruby_curl_multi_perform(VALUE self);
+VALUE ruby_curl_multi_add(VALUE self, VALUE easy);
+VALUE ruby_curl_multi_remove(VALUE self, VALUE easy);
 
 
 #endif
