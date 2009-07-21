@@ -82,32 +82,6 @@ static size_t read_data_handler(void *ptr,
     return read_bytes;
   }
 
- // PutStream *pstream = (PutStream*)stream;
- // size_t sent_bytes = (size * nmemb);
- // size_t remaining = pstream->len - pstream->offset;
- /*
-
-  // amount remaining is less then the buffer to send  - can send it all
-  if( remaining < sent_bytes ) {
-    memcpy(ptr, pstream->buffer+pstream->offset, remaining);
-    sent_bytes = remaining;
-    pstream->offset += remaining;
-  }
-  else if( remaining > sent_bytes ) { // sent_bytes <= remaining - send what we can fit in the buffer(ptr)
-    memcpy(ptr, pstream->buffer+pstream->offset, sent_bytes);
-    pstream->offset += sent_bytes;
-  }
-  else { // they're equal
-    memcpy(ptr, pstream->buffer+pstream->offset, --sent_bytes);
-    pstream->offset += sent_bytes;
-  }
-  if (sent_bytes == 0) {
-    free(pstream);
-  }
-  */
-
-  //printf("sent_bytes: %ld of %ld\n", sent_bytes, remaining);
-  //return sent_bytes;
 }
 
 static size_t proc_data_handler(char *stream,
