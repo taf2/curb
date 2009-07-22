@@ -1852,7 +1852,10 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
 
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
-  return handle_perform(self,rbce);
+  VALUE ret = handle_perform(self,rbce);
+
+  curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
+  return ret;
 }
 
 /*
@@ -1899,6 +1902,7 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
                             the easy handle is active or until the upload
                             is complete or terminated... */
 
+  curl_easy_setopt(curl, CURLOPT_NOBODY,0);
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
@@ -2650,6 +2654,7 @@ static VALUE ruby_curl_easy_class_perform_head(int argc, VALUE *argv, VALUE klas
   }
 
   ruby_curl_easy_perform_head(c);
+
   return c;
 }
 
