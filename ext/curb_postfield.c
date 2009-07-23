@@ -143,7 +143,7 @@ void append_to_form(VALUE self,
   }
   
   if (result != 0) {
-    char *reason;
+    const char *reason = NULL;
     
     switch (result) {
       case CURL_FORMADD_MEMORY:
