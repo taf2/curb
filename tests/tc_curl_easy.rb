@@ -555,6 +555,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match /^PUT/, curl.body_str
     assert_match /message$/, curl.body_str
     assert_match /application\/json/, curl.header_str
+  end 
+  
+  def test_put_data
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.put_data = 'message'
+    
+    curl.perform
+    
+    assert_match /^PUT/, curl.body_str
+    assert_match /message$/, curl.body_str
   end
 
   def test_put_remote_file

@@ -705,6 +705,70 @@ static VALUE ruby_curl_easy_post_body_get(VALUE self) {
   CURB_OBJECT_GETTER(ruby_curl_easy, postdata_buffer);
 }
 
+/*
+ * call-seq:
+ *   easy.put_data = data                             => ""
+ * 
+ * Points this Curl::Easy instance to data to be uploaded via PUT.  This
+ * sets the request to a PUT type request - useful if you want to PUT via
+ * a multi handle.
+ */
+static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
+  ruby_curl_easy *rbce;
+  CURL *curl;
+  
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  VALUE upload = ruby_curl_upload_new(cCurlUpload);
+  ruby_curl_upload_stream_set(upload,data);
+
+  curl = rbce->curl;
+  rbce->upload = upload; /* keep the upload object alive as long as
+                            the easy handle is active or until the upload
+                            is complete or terminated... */
+
+  curl_easy_setopt(curl, CURLOPT_NOBODY,0);
+  curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+  curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
+  curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
+
+  /* 
+   * we need to set specific headers for the PUT to work... so
+   * convert the internal headers structure to a HASH if one is set
+   */
+  if (rbce->headers != Qnil) {
+    if (rb_type(rbce->headers) == T_ARRAY || rb_type(rbce->headers) == T_STRING) {
+      rb_raise(rb_eRuntimeError, "Must set headers as a HASH to modify the headers in an PUT request");
+    }
+  }
+
+  if (rb_respond_to(data, rb_intern("read"))) {
+    VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
+    if( stat ) {
+      if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
+        rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
+      }
+      VALUE size = rb_funcall(stat, rb_intern("size"), 0);
+      curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2INT(size));
+    }
+    else if( rb_hash_aref(rbce->headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
+      rb_hash_aset(rbce->headers, rb_str_new2("Transfer-Encoding"), rb_str_new2("chunked"));
+    }
+  }
+  else if (rb_respond_to(data, rb_intern("to_s"))) {
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE, RSTRING_LEN(data));
+    if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
+      rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
+    }
+  }
+  else {
+    rb_raise(rb_eRuntimeError, "PUT data must respond to read or to_s");
+  }
+  
+  // if we made it this far, all should be well.
+  return data;
+}
+
 /* ================== IMMED ATTRS ==================*/
 
 /*
@@ -1641,6 +1705,8 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
  */
 VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, VALUE headerbuf, struct curl_slist *headers ) {
 
+  CURL *curl = rbce->curl;
+  
   // Free everything up
   if (headers) {
     curl_slist_free_all(headers);
@@ -1674,6 +1740,16 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
     }
   } else {
     rbce->header_data = Qnil;
+  }
+  
+  // clean up a PUT request's curl options.
+  if (rbce->upload != Qnil) {
+    // Should we do something about the upload object here, or will the GC handle it?
+    
+    curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
+    curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
+    curl_easy_setopt(curl, CURLOPT_READDATA, NULL);
+    curl_easy_setopt(curl, CURLOPT_INFILESIZE, 0);
   }
 
   return Qnil;
@@ -1891,62 +1967,14 @@ static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
 static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   ruby_curl_easy *rbce;
   CURL *curl;
-
+  
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-
-  VALUE upload = ruby_curl_upload_new(cCurlUpload);
-  ruby_curl_upload_stream_set(upload,data);
-
   curl = rbce->curl;
-  rbce->upload = upload; /* keep the upload object alive as long as
-                            the easy handle is active or until the upload
-                            is complete or terminated... */
-
-  curl_easy_setopt(curl, CURLOPT_NOBODY,0);
-  curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-  curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
-  curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
-
-  /* 
-   * we need to set specific headers for the PUT to work... so
-   * convert the internal headers structure to a HASH if one is set
-   */
-  if (rbce->headers != Qnil) {
-    if (rb_type(rbce->headers) == T_ARRAY || rb_type(rbce->headers) == T_STRING) {
-      rb_raise(rb_eRuntimeError, "Must set headers as a HASH to modify the headers in an http_put request");
-    }
-  }
-
-  if (rb_respond_to(data, rb_intern("read"))) {
-    VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
-    if( stat ) {
-      if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
-        rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
-      }
-      VALUE size = rb_funcall(stat, rb_intern("size"), 0);
-      curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2INT(size));
-    }
-    else if( rb_hash_aref(rbce->headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
-      rb_hash_aset(rbce->headers, rb_str_new2("Transfer-Encoding"), rb_str_new2("chunked"));
-    }
-  }
-  else if (rb_respond_to(data, rb_intern("to_s"))) {
-    curl_easy_setopt(curl, CURLOPT_INFILESIZE, RSTRING_LEN(data));
-    if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
-      rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
-    }
-  }
-  else {
-    rb_raise(rb_eRuntimeError, "PUT data must respond to read or to_s");
-  }
-
+  
+  ruby_curl_easy_put_data_set(self, data);
+  
   VALUE ret = handle_perform(self, rbce);
-  /* cleanup  */
-  curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
-  curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
-  curl_easy_setopt(curl, CURLOPT_READDATA, NULL);
-  curl_easy_setopt(curl, CURLOPT_INFILESIZE, 0);
-
+  
   return ret;
 }
 
@@ -2743,6 +2771,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "useragent", ruby_curl_easy_useragent_get, 0);
   rb_define_method(cCurlEasy, "post_body=", ruby_curl_easy_post_body_set, 1);
   rb_define_method(cCurlEasy, "post_body", ruby_curl_easy_post_body_get, 0);
+  rb_define_method(cCurlEasy, "put_data=", ruby_curl_easy_put_data_set, 1);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);
