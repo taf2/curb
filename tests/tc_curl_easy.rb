@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), 'helper')
+require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 
 class TestCurbCurlEasy < Test::Unit::TestCase
   def test_class_perform_01   

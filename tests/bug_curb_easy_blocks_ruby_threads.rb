@@ -1,4 +1,4 @@
-require File.join(File.dirname(__FILE__), 'helper')
+require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 require 'webrick'
 class ::WEBrick::HTTPServer ; def access_log(config, req, res) ; end ; end
 class ::WEBrick::BasicLog ; def log(level, data) ; end ; end

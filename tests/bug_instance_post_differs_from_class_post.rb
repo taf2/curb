@@ -23,7 +23,7 @@
 #   instance httppost. This bug is intermittent, but results in an
 #   exception from the first post when it occurs.
 #   
-require File.join(File.dirname(__FILE__), 'helper')
+require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 
 class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
   def test_bug
