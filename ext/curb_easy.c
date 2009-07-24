@@ -1744,8 +1744,7 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
   
   // clean up a PUT request's curl options.
   if (rbce->upload != Qnil) {
-    // Should we do something about the upload object here, or will the GC handle it?
-    
+    rbce->upload = Qnil; // set the upload object to Qnil to let the GC clean up
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
     curl_easy_setopt(curl, CURLOPT_READDATA, NULL);
