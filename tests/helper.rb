@@ -72,7 +72,15 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_POST(req,res)
-    respond_with("POST\n#{req.body}",req,res)
+    if req.body
+      params = {}
+      req.body.split('&').map{|s| k,v=s.split('='); params[k] = v }
+    end
+    if params and params['s'] == '500'
+      res.status = 500
+    else
+      respond_with("POST\n#{req.body}",req,res)
+    end
   end
 
   def do_PUT(req,res)

@@ -321,6 +321,26 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_mutli_recieves_500
+    m = Curl::Multi.new
+    e = Curl::Easy.new("http://127.0.0.1:9129/methods")
+    failure = false
+    e.post_body = "hello=world&s=500"
+    e.on_failure{|c,r| failure = true }
+    e.on_success{|c| failure = false }
+    m.add(e)
+    m.perform
+    assert failure
+    e2 = Curl::Easy.new(TestServlet.url)
+    e2.post_body = "hello=world"
+    e2.on_failure{|c,r| failure = true }
+    m.add(e2)
+    m.perform
+    failure = false
+    assert !failure
+    assert_equal "POST\nhello=world", e2.body_str
+  end
+
   include TestServerMethods 
 
   def setup
