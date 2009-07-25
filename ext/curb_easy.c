@@ -2536,6 +2536,21 @@ static VALUE ruby_curl_easy_ftp_entry_path_get(VALUE self) {
 #endif
 }
 
+/*
+ * call-seq:
+ *   easy.inspect                                => "#<Curl::Easy http://google.com/>"
+ */
+static VALUE ruby_curl_easy_inspect(VALUE self) {
+  char buf[64];
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  // "#<Net::HTTP http://www.google.com/:80 open=false>"
+  snprintf(buf,sizeof(buf),"#<Curl::Easy %s", RSTRING_PTR(rbce->url));
+  size_t r = strlen(buf);
+  buf[r-1] = '>';
+  return rb_str_new(buf,r);
+}
+
 
 /* ================== ESCAPING FUNCS ==============*/
 
@@ -2862,6 +2877,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "os_errno", ruby_curl_easy_os_errno_get, 0);
   rb_define_method(cCurlEasy, "num_connects", ruby_curl_easy_num_connects_get, 0);
   rb_define_method(cCurlEasy, "ftp_entry_path", ruby_curl_easy_ftp_entry_path_get, 0);
+  rb_define_method(cCurlEasy, "inspect", ruby_curl_easy_inspect, 0);
 
   /* Curl utils */
   rb_define_method(cCurlEasy, "escape", ruby_curl_easy_escape, 1);
