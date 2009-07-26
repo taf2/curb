@@ -385,7 +385,7 @@ VALUE ruby_curl_multi_perform(VALUE self) {
   int maxfd, rc;
   fd_set fdread, fdwrite, fdexcep;
 
-  long timeout;
+  long timeout_milliseconds;
   struct timeval tv = {0, 0};
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
@@ -406,36 +406,45 @@ VALUE ruby_curl_multi_perform(VALUE self) {
 
 #ifdef HAVE_CURL_MULTI_TIMEOUT
     /* get the curl suggested time out */
-    mcode = curl_multi_timeout(rbcm->handle, &timeout);
+    mcode = curl_multi_timeout(rbcm->handle, &timeout_milliseconds);
     if (mcode != CURLM_OK) {
       raise_curl_multi_error_exception(mcode);
     }
 #else
     /* libcurl doesn't have a timeout method defined... make a wild guess */
-    timeout = 1; /* wait a second */
+    timeout_milliseconds = -1;
 #endif
+    //printf("libcurl says wait: %ld ms or %ld s\n", timeout_milliseconds, timeout_milliseconds/1000);
 
-    if (timeout == 0) { /* no delay */
+    if (timeout_milliseconds == 0) { /* no delay */
       rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
       continue;
     }
-    else if (timeout == -1) {
-      timeout = 1; /* wait a second */
+    else if(timeout_milliseconds < 0) {
+      timeout_milliseconds = 500; /* wait half a second, libcurl doesn't know how long to wait */
     }
-
-    if (rb_block_given_p()) {
-      rb_yield(self);
+#ifdef __APPLE_CC__
+    if(timeout_milliseconds > 1000) {
+      timeout_milliseconds = 1000; /* apple libcurl sometimes reports huge timeouts... let's cap it */
     }
+#endif
 
-    tv.tv_sec = timeout / 1000;
-    tv.tv_usec = (timeout * 1000) % 1000000;
+    tv.tv_sec = timeout_milliseconds / 1000; // convert milliseconds to seconds
+    tv.tv_usec = (timeout_milliseconds % 1000) * 1000; // get the remainder of milliseconds and convert to micro seconds
 
     rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
-    if (rc < 0) {
+    switch(rc) {
+    case -1:
       rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+      break;
+    case 0:
+      if (rb_block_given_p()) {
+        rb_yield(self);
+      }
+    default: 
+      rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+      break;
     }
-
-    rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
 
   }
 
