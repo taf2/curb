@@ -1670,7 +1670,11 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
   }
   if (rbce->cacert != Qnil) {
     // XXX: This should really be using the output of 'curl-config --ca'
+#ifdef HAVE_CURL_CONFIG_CA
+    curl_easy_setopt(curl, CURLOPT_CAINFO, CURL_CONFIG_CA);
+#else
     curl_easy_setopt(curl, CURLOPT_CAINFO, "/usr/local/share/curl/curl-ca-bundle.crt");
+#endif
   }
   
   /* Set the user-agent string if specified */
