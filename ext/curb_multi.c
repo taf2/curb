@@ -296,55 +296,57 @@ static VALUE ruby_curl_multi_cancel(VALUE self) {
   return self;
 }
 
+static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result) {
+
+  long response_code = -1;
+  ruby_curl_easy *rbce = NULL;
+
+  CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
+
+  if (ecode != 0) {
+    raise_curl_easy_error_exception(ecode);
+  }
+
+  rbce->last_result = result; /* save the last easy result code */
+
+  ruby_curl_multi_remove( self, rbce->self );
+
+  if (rbce->complete_proc != Qnil) {
+    rb_funcall( rbce->complete_proc, idCall, 1, rbce->self );
+  }
+
+  curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
+
+  if (result != 0) {
+    if (rbce->failure_proc != Qnil) {
+      rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
+    }
+  }
+  else if (rbce->success_proc != Qnil &&
+          ((response_code >= 200 && response_code < 300) || response_code == 0)) {
+    /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
+    rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
+  }
+  else if (rbce->failure_proc != Qnil &&
+          (response_code >= 300 && response_code <= 999)) {
+    rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
+  }
+  rbce->self = Qnil;
+}
+
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
   int msgs_left, result;
   CURLMsg *msg;
-  CURLcode ecode;
   CURL *easy_handle;
-  ruby_curl_easy *rbce = NULL;
 
   /* check for finished easy handles and remove from the multi handle */
   while ((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
-
-    if (msg->msg != CURLMSG_DONE) {
-      continue;
-    }
-
-    easy_handle = msg->easy_handle;
-    result = msg->data.result;
-    if (easy_handle) {
-      ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
-      if (ecode != 0) {
-        raise_curl_easy_error_exception(ecode);
+    if (msg->msg == CURLMSG_DONE) {
+      easy_handle = msg->easy_handle;
+      result = msg->data.result;
+      if (easy_handle) {
+        rb_curl_mutli_handle_complete(self, easy_handle, result);
       }
-      rbce->last_result = result; // save the last easy result code
-      ruby_curl_multi_remove( self, rbce->self );
-
-      if (rbce->complete_proc != Qnil) {
-        rb_funcall( rbce->complete_proc, idCall, 1, rbce->self );
-      }
-
-      long response_code = -1;
-      curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
-
-      if (result != 0) {
-        if (rbce->failure_proc != Qnil) {
-          rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
-        }
-      }
-      else if (rbce->success_proc != Qnil &&
-              ((response_code >= 200 && response_code < 300) || response_code == 0)) {
-        /* NOTE: we allow response_code == 0, in the case the file is being read from disk */
-        rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
-      }
-      else if (rbce->failure_proc != Qnil &&
-              (response_code >= 300 && response_code <= 999)) {
-        rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
-      }
-      rbce->self = Qnil;
-    }
-    else {
-      //printf( "missing easy handle\n" );
     }
   }
 }
