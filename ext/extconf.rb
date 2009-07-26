@@ -4,7 +4,7 @@ dir_config('curl')
 
 if find_executable('curl-config')
   $CFLAGS << " #{`curl-config --cflags`.strip}"
-  $LIBS = " #{`curl-config --libs`.strip} #{$LIBS} #{`curl-config --libs`.strip}"
+  $LIBS << " #{`curl-config --libs`.strip}"
   ca_bundle_path=`curl-config --ca`.strip
   $defs.push( %{-D HAVE_CURL_CONFIG_CA} )
   $defs.push( %{-D CURL_CONFIG_CA='#{ca_bundle_path.inspect}'} )
