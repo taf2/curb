@@ -54,6 +54,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
   end
 
+  # NOTE: if this test runs slowly on Mac OSX, it is probably due to the use of a port install curl+ssl+ares install
+  # on my MacBook, this causes curl_easy_init to take nearly 0.01 seconds / * 100 below is 1 second too many!
   def test_n_requests
     n = 100
     m = Curl::Multi.new
@@ -220,6 +222,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m = nil
   end
 
+  # This tests whether, ruby's GC will trash an out of scope easy handle
   class TestForScope
     attr_reader :buf
 
@@ -299,6 +302,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
       urls << root_uri + File.basename(path)
     end
+    urls = urls[0..(urls.size/2)] # keep it fast, webrick...
     Curl::Multi.get(urls, {:follow_location => true}, {:pipeline => true}) do|curl|
       assert_equal 200, curl.response_code
     end
