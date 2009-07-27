@@ -57,6 +57,11 @@ static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) 
   }
 }
 
+static int
+rb_hash_clear_i(VALUE key, VALUE value, VALUE dummy) {
+  return ST_DELETE;
+}
+
 static void curl_multi_free(ruby_curl_multi *rbcm) {
 
   //printf("hash entries: %d\n", RHASH(rbcm->requests)->tbl->num_entries );
@@ -64,7 +69,7 @@ static void curl_multi_free(ruby_curl_multi *rbcm) {
 
     rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
 
-    //rb_hash_clear(rbcm->requests)
+    rb_hash_foreach(rbcm->requests, rb_hash_clear_i, 0); //rb_hash_clear(rbcm->requests);
     rbcm->requests = Qnil;
   }
   curl_multi_cleanup(rbcm->handle);
