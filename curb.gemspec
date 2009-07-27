@@ -7,12 +7,12 @@ Gem::Specification.new do |s|
   s.email   = 'todd.fisher@gmail.com'
   s.extra_rdoc_files = ['LICENSE', 'README']
   
-  s.files = ["LICENSE", "README", "Rakefile", "doc.rb", "ext/extconf.rb", "lib/curb.rb", "lib/curl.rb", "ext/curb.c", "ext/curb_easy.c", "ext/curb_errors.c", "ext/curb_multi.c", "ext/curb_postfield.c", "ext/curb_upload.c", "ext/curb.h", "ext/curb_easy.h", "ext/curb_errors.h", "ext/curb_macros.h", "ext/curb_multi.h", "ext/curb_postfield.h", "ext/curb_upload.h"]
+  s.files = ["LICENSE", "README", "Rakefile", "doc.rb", "ext/extconf.rb", "lib/curb.rb", "lib/curl.rb", "ext/curb.c", "ext/curb_postfield.c", "ext/curb_multi.c", "ext/curb_errors.c", "ext/curb_easy.c", "ext/curb_upload.c", "ext/curb_easy.h", "ext/curb_errors.h", "ext/curb_upload.h", "ext/curb_macros.h", "ext/curb.h", "ext/curb_postfield.h", "ext/curb_multi.h"]
   #### Load-time details
   s.require_paths = ['lib','ext']
   s.rubyforge_project = 'curb'
   s.summary = %q{Ruby libcurl bindings}
-  s.test_files = ["tests/alltests.rb", "tests/bug_curb_easy_blocks_ruby_threads.rb", "tests/bug_instance_post_differs_from_class_post.rb", "tests/bug_multi_segfault.rb", "tests/bug_require_last_or_segfault.rb", "tests/bug_simple_db_500.rb", "tests/helper.rb", "tests/perf/tc_parallel.rb", "tests/require_last_or_segfault_script.rb", "tests/tc_curl_download.rb", "tests/tc_curl_easy.rb", "tests/tc_curl_multi.rb", "tests/tc_curl_postfield.rb", "tests/unittests.rb"]
+  s.test_files = ["tests/tc_curl_multi.rb", "tests/tc_curl_postfield.rb", "tests/bug_curb_easy_blocks_ruby_threads.rb", "tests/unittests.rb", "tests/bug_require_last_or_segfault.rb", "tests/bug_instance_post_differs_from_class_post.rb", "tests/tc_curl_download.rb", "tests/alltests.rb", "tests/helper.rb", "tests/tc_curl_easy.rb", "tests/bug_multi_segfault.rb", "tests/require_last_or_segfault_script.rb"]
   s.extensions << 'ext/extconf.rb'
 
   #### Documentation and testing.
