@@ -1669,7 +1669,6 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
     }
   }
   if (rbce->cacert != Qnil) {
-    // XXX: This should really be using the output of 'curl-config --ca'
 #ifdef HAVE_CURL_CONFIG_CA
     curl_easy_setopt(curl, CURLOPT_CAINFO, CURL_CONFIG_CA);
 #else
@@ -1681,7 +1680,6 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
   if (rbce->useragent != Qnil) {
     curl_easy_setopt(curl, CURLOPT_USERAGENT, StringValuePtr(rbce->useragent));
   }
-
 
   /* Setup HTTP headers if necessary */
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
