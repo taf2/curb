@@ -2725,10 +2725,6 @@ static VALUE ruby_curl_easy_class_perform_post(int argc, VALUE *argv, VALUE klas
 
   VALUE c = ruby_curl_easy_new(1, &url, klass);
 
-  if (rb_block_given_p()) {
-    rb_yield(c);
-  }
-
   if (argc > 1) {
     ruby_curl_easy_perform_post(argc - 1, &argv[1], c);
   } else {
