@@ -499,6 +499,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.http_post
     assert_equal "POST\n", curl.body_str
   end
+
+  def test_post_remote_is_easy_handle
+    # see: http://pastie.org/560852 and
+    # http://groups.google.com/group/curb---ruby-libcurl-bindings/browse_thread/thread/216bb2d9b037f347?hl=en
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_post do|c|
+      assert_equal Curl::Easy, c.class
+    end
+    assert_equal "POST\n", curl.body_str
+  end
   
   def test_post_with_body_remote
     curl = Curl::Easy.new(TestServlet.url)
