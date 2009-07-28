@@ -1972,9 +1972,19 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   
   ruby_curl_easy_put_data_set(self, data);
   
-  VALUE ret = handle_perform(self, rbce);
-  
-  return ret;
+  return handle_perform(self, rbce);
+}
+
+/*
+ * call-seq:
+ *   Curl::Easy.http_put(url, data) {|c| ... }
+ *
+ * see easy.http_put
+ */
+static VALUE ruby_curl_easy_class_perform_put(VALUE klass, VALUE url, VALUE data) {
+  VALUE c = ruby_curl_easy_new(1, &url, klass);
+  ruby_curl_easy_perform_put(c, data);
+  return c;
 }
 
 /* =================== DATA FUNCS =============== */
@@ -2740,6 +2750,7 @@ void init_curb_easy() {
   rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
   rb_define_singleton_method(cCurlEasy, "http_post", ruby_curl_easy_class_perform_post, -1);
   rb_define_singleton_method(cCurlEasy, "http_head", ruby_curl_easy_class_perform_head, -1);
+  rb_define_singleton_method(cCurlEasy, "http_put", ruby_curl_easy_class_perform_put, 2);
 
   /* Attributes for config next perform */
   rb_define_method(cCurlEasy, "url=", ruby_curl_easy_url_set, 1);

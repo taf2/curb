@@ -587,6 +587,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     end
     assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str
   end
+  
+  def test_put_class_method
+    count = 0
+    curl = Curl::Easy.http_put(TestServlet.url,File.open(__FILE__,'rb')) do|c|
+      count += 1
+      assert_equal Curl::Easy, c.class
+    end
+    assert_equal 1, count
+    assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str
+  end
 
   # Generate a self-signed cert with
   # openssl req -new -newkey rsa:1024 -days 365 -nodes -x509 \
