@@ -1770,7 +1770,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
   VALUE multi = ruby_curl_multi_new(cCurlMulti);
   ruby_curl_multi_add(multi, self);
-  VALUE ret = ruby_curl_multi_perform(multi);
+  VALUE ret = rb_funcall(multi, rb_intern("perform"), 0);
 
   /* check for errors in the easy response and raise exceptions if anything went wrong and their is no on_failure handler */
   if( rbce->last_result != 0 && rbce->failure_proc == Qnil ) {
@@ -1873,9 +1873,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "*", &args_ary);
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = curl_easy_duphandle(rbce->curl);
-  curl_easy_cleanup(rbce->curl);
-  rbce->curl = curl;
+  curl = rbce->curl;
 
   if (rbce->multipart_form_post) {
     VALUE ret;
@@ -2726,6 +2724,10 @@ static VALUE ruby_curl_easy_class_perform_post(int argc, VALUE *argv, VALUE klas
   rb_scan_args(argc, argv, "1*", &url, &fields);
 
   VALUE c = ruby_curl_easy_new(1, &url, klass);
+
+  if (rb_block_given_p()) {
+    rb_yield(c);
+  }
 
   if (argc > 1) {
     ruby_curl_easy_perform_post(argc - 1, &argv[1], c);

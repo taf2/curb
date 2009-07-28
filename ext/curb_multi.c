@@ -386,7 +386,7 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
  *
  * Run multi handles, looping selecting when data can be transfered
  */
-VALUE ruby_curl_multi_perform(VALUE self) {
+VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   CURLMcode mcode;
   ruby_curl_multi *rbcm;
   int maxfd, rc;
@@ -394,9 +394,11 @@ VALUE ruby_curl_multi_perform(VALUE self) {
 
   long timeout_milliseconds;
   struct timeval tv = {0, 0};
+  VALUE block = Qnil;
+
+  rb_scan_args(argc, argv, "0&", &block);
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
-  //rb_gc_mark(self);
 
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
 
@@ -445,9 +447,12 @@ VALUE ruby_curl_multi_perform(VALUE self) {
       rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
       break;
     case 0:
-      if (rb_block_given_p()) {
-        rb_yield(self);
+      if (block != Qnil) {
+        rb_funcall(block, rb_intern("call"), 1, self); 
       }
+//      if (rb_block_given_p()) {
+//        rb_yield(self);
+//      }
     default: 
       rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
       break;
@@ -477,5 +482,5 @@ void init_curb_multi() {
   rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "remove", ruby_curl_multi_remove, 1);
   rb_define_method(cCurlMulti, "cancel!", ruby_curl_multi_cancel, 0);
-  rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, 0);
+  rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, -1);
 }

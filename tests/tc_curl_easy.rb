@@ -506,7 +506,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     count = 0
     curl = Curl::Easy.http_post(TestServlet.url) do|c|
       count += 1
-      puts "ruby test_post_remote_is_easy_handle #{c.class}"
       assert_equal Curl::Easy, c.class
     end
     assert_equal 1, count
