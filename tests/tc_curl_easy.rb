@@ -503,13 +503,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_post_remote_is_easy_handle
     # see: http://pastie.org/560852 and
     # http://groups.google.com/group/curb---ruby-libcurl-bindings/browse_thread/thread/216bb2d9b037f347?hl=en
-    count = 0
-    curl = Curl::Easy.http_post(TestServlet.url) do|c|
-      count += 1
-      assert_equal Curl::Easy, c.class
+    [:post, :get,:head,:delete].each do |method|
+      count = 0
+      curl = Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
+        count += 1
+        assert_equal Curl::Easy, c.class
+      end
+      assert_equal 1, count, "For request method: #{method.to_s.upcase}"
     end
-    assert_equal 1, count
-    assert_equal "POST\n", curl.body_str
   end
   
   def test_post_with_body_remote

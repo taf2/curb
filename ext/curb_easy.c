@@ -2649,10 +2649,6 @@ static VALUE ruby_curl_easy_class_perform(int argc, VALUE *argv, VALUE klass) {
 static VALUE ruby_curl_easy_class_perform_get(int argc, VALUE *argv, VALUE klass) {
   VALUE c = ruby_curl_easy_new(argc, argv, klass);
 
-  if (rb_block_given_p()) {
-    rb_yield(c);
-  }
-
   ruby_curl_easy_perform_get(c);
   return c;
 }
@@ -2670,10 +2666,6 @@ static VALUE ruby_curl_easy_class_perform_get(int argc, VALUE *argv, VALUE klass
 static VALUE ruby_curl_easy_class_perform_delete(int argc, VALUE *argv, VALUE klass) {
   VALUE c = ruby_curl_easy_new(argc, argv, klass);
 
-  if (rb_block_given_p()) {
-    rb_yield(c);
-  }
-
   ruby_curl_easy_perform_delete(c);
   return c;
 }
@@ -2690,10 +2682,6 @@ static VALUE ruby_curl_easy_class_perform_delete(int argc, VALUE *argv, VALUE kl
  */
 static VALUE ruby_curl_easy_class_perform_head(int argc, VALUE *argv, VALUE klass) {
   VALUE c = ruby_curl_easy_new(argc, argv, klass);
-
-  if (rb_block_given_p()) {
-    rb_yield(c);
-  }
 
   ruby_curl_easy_perform_head(c);
 
