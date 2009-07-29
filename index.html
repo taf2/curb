@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<title>taf2/curb @ GitHub</title>
+	<style type="text/css">
+		body {
+  		margin-top: 1.0em;
+  		background-color: #fff;
+		  font-family: "helvetica"; 
+  		color: #000;
+    }
+    #container {
+      margin: 0 auto;
+      width: 700px;
+    }
+		h1 { font-size: 3.8em; color: #de7a5b; margin-bottom: 3px; }
+		h1 .small { font-size: 0.4em; }
+		h1 a { text-decoration: none }
+		h2 { font-size: 1.5em; color: #de7a5b; }
+    h3 { text-align: center; color: #de7a5b; }
+    a { color: #de7a5b; }
+    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
+    .description cite { font-size: 90%; display:block; margin-top:10px; }
+    .download { float: right; }
+		pre { background: #000; color: #fff; padding: 15px;}
+    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
+    .footer { text-align:center; padding-top:30px; font-style: italic; }
+	</style>
+	
+</head>
+
+<body>
+  <a href="http://github.com/taf2/curb"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+  
+  <div id="container">
+
+    <div class="download">
+      <a href="http://github.com/taf2/curb/zipball/master">
+        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
+      <a href="http://github.com/taf2/curb/tarball/master">
+        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
+    </div>
+      
+    <h1><a href="http://github.com/taf2/curb">curb</a> 
+      <span class="small">by <a href="http://github.com/taf2">taf2</a></span></h1>
+
+    <div class="description">
+      Curb (probably CUrl-RuBy or something) provides <a href="http://ruby-lang.org/">Ruby-language</a> bindings for
+      <a title="A fully-featured client-side URL transfer library cURL and libcurl." href="http://curl.haxx.se/">libcurl(3)</a>.
+      <cite>Curb supports libcurl's 'easy' and 'multi' modes.</cite>
+    </div>
+
+    <h2>Dependencies</h2>
+    <p><a href="http://curl.haxx.se/">libcurl</a></p>
+    <h2>Examples</h2>
+    <h3>Simple fetch via HTTP:</h3>
+<pre>
+c = Curl::Easy.perform("http://www.google.co.uk")
+puts c.body_str
+</pre>
+    <h3>Same thing, more manual</h3>
+<pre>
+c = Curl::Easy.new("http://www.google.co.uk")
+c.perform
+puts c.body_str
+</pre>
+    <h3>Additional config</h3>
+<pre>
+Curl::Easy.perform("http://www.google.co.uk") do |curl| 
+  curl.headers["User-Agent"] = "myapp-0.0"
+  curl.verbose = true
+end
+</pre>
+   <h3>Same thing, more manual</h3>
+<pre>
+c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
+  curl.headers["User-Agent"] = "myapp-0.0"
+  curl.verbose = true
+end
+
+c.perform
+</pre>
+
+    <h3>Supplying custom handlers</h3>
+<pre>
+c = Curl::Easy.new("http://www.google.co.uk")
+
+c.on_body { |data| print(data) }
+c.on_header { |data| print(data) }
+
+c.perform
+</pre>
+
+    <h3>Reusing Curls</h3>
+<pre>
+c = Curl::Easy.new
+
+["http://www.google.co.uk", "http://www.ruby-lang.org/"].map do |url|
+  c.url = url
+  c.perform
+  c.body_str
+end
+</pre>
+    <h3>HTTP POST form</h3>
+<pre>
+c = Curl::Easy.http_post("http://my.rails.box/thing/create",
+                         Curl::PostField.content('thing[name]', 'box',
+                         Curl::PostField.content('thing[type]', 'storage')
+</pre>
+    <h3>HTTP POST file upload</h3>
+<pre>
+c = Curl::Easy.new("http://my.rails.box/files/upload")
+c.multipart_form_post = true
+c.http_post(Curl::PostField.file('myfile.rb'))
+</pre>
+    <h3>Multi Interface (Basic)</h3>
+      <h4>make multiple GET requests</h4>
+<pre>
+easy_options = {:follow_location => true}
+multi_options = {:pipeline => true}
+
+Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
+  # do something interesting with the easy response
+  puts easy.last_effective_url
+end
+</pre>
+
+      <h4>make multiple POST requests</h4>
+<pre>
+easy_options = {:follow_location => true, :multipart_form_post => true}
+multi_options = {:pipeline => true}
+
+url_fields = [
+  { :url => 'url1', :post_fields => {'f1' => 'v1'} },
+  { :url => 'url2', :post_fields => {'f1' => 'v1'} },
+  { :url => 'url3', :post_fields => {'f1' => 'v1'} }
+]
+
+Curl::Multi.post(url_fields, easy_options, multi_options) do|easy|
+  # do something interesting with the easy response
+  puts easy.last_effective_url
+end
+</pre>
+
+
+
+      <h3>Multi Interface (Advanced)</h3>
+<pre>
+responses = {}
+requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
+m = Curl::Multi.new
+# add a few easy handles
+requests.each do |url|
+  responses[url] = ""
+  c = Curl::Easy.new(url) do|curl|
+    curl.follow_location = true
+    curl.on_body{|data| responses[url] << data; data.size }
+  end
+  m.add(c)
+end
+
+m.perform do
+  puts "idling... can do some work here, including add new requests"
+end
+
+requests.each do|url|
+  puts responses[url]
+end
+</pre>
+    <h2>Install</h2>
+    <p>gem install taf2-curb</p>
+    <h2>Authors</h2>
+    <ul>
+    <li>Ross Bamford</li>
+    <li>Todd A. Fisher</li>
+    </ul>
+    <h2>Contributors</h2>
+    <ul>
+    <li>brycethornton</li>
+    <li>Cheah Chu Yeow</li>
+    <li>mobileAgent</li>
+    <li>Ian MacLeod</li>
+    <li>Ilya Grigorik</li>
+    <li>Jeff Whitmire</li>
+    <li>Matthew Beale</li>
+    <li>Phi.Sanders</li>
+    <li>Phillip Toland</li>
+    </ul>
+    <h2>Contact</h2>
+    <p>taf2 via github.com</p>
+    <h2>Download</h2>
+    <p>
+      You can download this project in either
+      <a href="http://github.com/taf2/curb/zipball/master">zip</a> or
+      <a href="http://github.com/taf2/curb/tarball/master">tar</a> formats.
+    </p>
+    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
+      by running:
+      <pre>$ git clone git://github.com/taf2/curb</pre>
+    </p>
+      
+    <div class="footer">
+      get the source code on GitHub : <a href="http://github.com/taf2/curb">taf2/curb</a>
+    </div>
+
+</div>
+
+
+</body>
+</html>
