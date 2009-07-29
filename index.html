@@ -1,18 +1,14 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-
 	<title>taf2/curb @ GitHub</title>
-	
 	<style type="text/css">
 		body {
   		margin-top: 1.0em;
-  		background-color: #2185a4;
+  		background-color: #fff;
 		  font-family: "helvetica"; 
-  		color: #ffffff;
+  		color: #000;
     }
     #container {
       margin: 0 auto;
@@ -25,6 +21,7 @@
     h3 { text-align: center; color: #de7a5b; }
     a { color: #de7a5b; }
     .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
+    .description cite { font-size: 90%; display:block; margin-top:10px; }
     .download { float: right; }
 		pre { background: #000; color: #fff; padding: 15px;}
     hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
@@ -49,72 +46,149 @@
       <span class="small">by <a href="http://github.com/taf2">taf2</a></span></h1>
 
     <div class="description">
-      Ruby bindings for libcurl
+      Curb (probably CUrl-RuBy or something) provides <a href="http://ruby-lang.org/">Ruby-language</a> bindings for
+      <a title="A fully-featured client-side URL transfer library cURL and libcurl." href="http://curl.haxx.se/">libcurl(3)</a>.
+      <cite>Curb supports libcurl's 'easy' and 'multi' modes.</cite>
     </div>
 
     <h2>Dependencies</h2>
-<p>libcurl</p>
-<h2>Install</h2>
-<p>gem install taf2-curb</p>
-<h2>License</h2>
-<p>Copyright (c) 2006 Ross Bamford (rosco AT roscopeco DOT co DOT uk).
-Curb is free software licensed under the following terms:
+    <p><a href="http://curl.haxx.se/">libcurl</a></p>
+    <h2>Examples</h2>
+    <h3>Simple fetch via HTTP:</h3>
+<pre>
+c = Curl::Easy.perform("http://www.google.co.uk")
+puts c.body_str
+</pre>
+    <h3>Same thing, more manual</h3>
+<pre>
+c = Curl::Easy.new("http://www.google.co.uk")
+c.perform
+puts c.body_str
+</pre>
+    <h3>Additional config</h3>
+<pre>
+Curl::Easy.perform("http://www.google.co.uk") do |curl| 
+  curl.headers["User-Agent"] = "myapp-0.0"
+  curl.verbose = true
+end
+</pre>
+   <h3>Same thing, more manual</h3>
+<pre>
+c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
+  curl.headers["User-Agent"] = "myapp-0.0"
+  curl.verbose = true
+end
 
-  1. You may make and give away verbatim copies of the source form of the
-     software without restriction, provided that you duplicate all of the
-     original copyright notices and associated disclaimers.
+c.perform
+</pre>
 
-  2. You may modify your copy of the software in any way, provided that
-     you do at least ONE of the following:
+    <h3>Supplying custom handlers</h3>
+<pre>
+c = Curl::Easy.new("http://www.google.co.uk")
 
-       a) place your modifications in the Public Domain or otherwise
-          make them Freely Available, such as by posting said
-	  modifications to Usenet or an equivalent medium, or by allowing
-	  the author to include your modifications in the software.
+c.on_body { |data| print(data) }
+c.on_header { |data| print(data) }
 
-       b) use the modified software only within your corporation or
-          organization.
+c.perform
+</pre>
 
-       c) give non-standard binaries non-standard names, with
-          instructions on where to get the original software distribution.
+    <h3>Reusing Curls</h3>
+<pre>
+c = Curl::Easy.new
 
-       d) make other distribution arrangements with the author.
+["http://www.google.co.uk", "http://www.ruby-lang.org/"].map do |url|
+  c.url = url
+  c.perform
+  c.body_str
+end
+</pre>
+    <h3>HTTP POST form</h3>
+<pre>
+c = Curl::Easy.http_post("http://my.rails.box/thing/create",
+                         Curl::PostField.content('thing[name]', 'box',
+                         Curl::PostField.content('thing[type]', 'storage')
+</pre>
+    <h3>HTTP POST file upload</h3>
+<pre>
+c = Curl::Easy.new("http://my.rails.box/files/upload")
+c.multipart_form_post = true
+c.http_post(Curl::PostField.file('myfile.rb'))
+</pre>
+    <h3>Multi Interface (Basic)</h3>
+      <h4>make multiple GET requests</h4>
+<pre>
+easy_options = {:follow_location => true}
+multi_options = {:pipeline => true}
 
-  3. You may distribute the software in object code or binary form,
-     provided that you do at least ONE of the following:
+Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
+  # do something interesting with the easy response
+  puts easy.last_effective_url
+end
+</pre>
 
-       a) distribute the binaries and library files of the software,
-	  together with instructions (in the manual page or equivalent)
-	  on where to get the original distribution.
+      <h4>make multiple POST requests</h4>
+<pre>
+easy_options = {:follow_location => true, :multipart_form_post => true}
+multi_options = {:pipeline => true}
 
-       b) accompany the distribution with the machine-readable source of
-	  the software.
+url_fields = [
+  { :url => 'url1', :post_fields => {'f1' => 'v1'} },
+  { :url => 'url2', :post_fields => {'f1' => 'v1'} },
+  { :url => 'url3', :post_fields => {'f1' => 'v1'} }
+]
 
-       c) give non-standard binaries non-standard names, with
-          instructions on where to get the original software distribution.
-
-       d) make other distribution arrangements with the author.
-
-  4. You may modify and include the part of the software into any other
-     software (possibly commercial).
-
-  5. The scripts and library files supplied as input to or produced as 
-     output from the software do not automatically fall under the
-     copyright of the software, but belong to whomever generated them, 
-     and may be sold commercially, and may be aggregated with this
-     software.
-
-  6. THIS SOFTWARE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
-     IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-     WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-     PURPOSE.
-</p>
-<h2>Authors</h2>
-<p>brycethornton (brycethornton@gmail.com)<br/>Cheah Chu Yeow (chuyeow@gmail.com)<br/>mobileAgent (flester@gmail.com)<br/>Ian MacLeod (ian@nevir.net)<br/>Ilya Grigorik (ilya@igvita.com)<br/>Jeff Whitmire (jeff@jwhitmire.com)<br/>Matthew Beale (mixonic@synitech.com)<br/>Phi.Sanders (phi.sanders@moonshark.com)<br/>Phillip Toland (ptoland@thehive.com)<br/>root (root@tech2-1.office.greenviewdata.com)<br/>Todd Fisher (taf2@spotty.localdomain)<br/>Todd A. Fisher (taf2@web3.anerian.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p>Todd Fisher (todd.fisher@gmail.com)<br/>      </p>
+Curl::Multi.post(url_fields, easy_options, multi_options) do|easy|
+  # do something interesting with the easy response
+  puts easy.last_effective_url
+end
+</pre>
 
 
+
+      <h3>Multi Interface (Advanced)</h3>
+<pre>
+responses = {}
+requests = ["http://www.google.co.uk/", "http://www.ruby-lang.org/"]
+m = Curl::Multi.new
+# add a few easy handles
+requests.each do |url|
+  responses[url] = ""
+  c = Curl::Easy.new(url) do|curl|
+    curl.follow_location = true
+    curl.on_body{|data| responses[url] << data; data.size }
+  end
+  m.add(c)
+end
+
+m.perform do
+  puts "idling... can do some work here, including add new requests"
+end
+
+requests.each do|url|
+  puts responses[url]
+end
+</pre>
+    <h2>Install</h2>
+    <p>gem install taf2-curb</p>
+    <h2>Authors</h2>
+    <ul>
+    <li>Ross Bamford</li>
+    <li>Todd A. Fisher</li>
+    </ul>
+    <h2>Contributors</h2>
+    <ul>
+    <li>brycethornton</li>
+    <li>Cheah Chu Yeow</li>
+    <li>mobileAgent</li>
+    <li>Ian MacLeod</li>
+    <li>Ilya Grigorik</li>
+    <li>Jeff Whitmire</li>
+    <li>Matthew Beale</li>
+    <li>Phi.Sanders</li>
+    <li>Phillip Toland</li>
+    </ul>
+    <h2>Contact</h2>
+    <p>taf2 via github.com</p>
     <h2>Download</h2>
     <p>
       You can download this project in either
@@ -129,9 +203,9 @@ Curb is free software licensed under the following terms:
     <div class="footer">
       get the source code on GitHub : <a href="http://github.com/taf2/curb">taf2/curb</a>
     </div>
-    
-  </div>
 
-  
+</div>
+
+
 </body>
 </html>
