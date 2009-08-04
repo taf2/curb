@@ -10,6 +10,12 @@ cURL and libcurl live at http://curl.haxx.se/ .
 
 Curb is a work-in-progress, and currently only supports libcurl's 'easy' and 'multi' modes.
 
+=== More Ruby branch
+
+The goal of this branch is to refactor much of the internals of curb.  We should end up with a mostly ruby library and a
+thin layer of C binding ruby to libcurl.  This should make it easy for anyone to extend curb and create their own friendlier
+API on top.  As well we should be able to connect with other ruby libraries like rev and eventmachine.
+
 === License
 
 Curb is copyright (c)2006 Ross Bamford, and released under the terms of the 
