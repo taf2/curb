@@ -97,8 +97,8 @@ documentation with:
 ### HTTP POST form:
 
     c = Curl::Easy.http_post("http://my.rails.box/thing/create",
-                             Curl::PostField.content('thing[name]', 'box',
-                             Curl::PostField.content('thing[type]', 'storage')
+                             Curl::PostField.content('thing[name]', 'box'),
+                             Curl::PostField.content('thing[type]', 'storage'))
 
 ### HTTP POST file upload:
 
