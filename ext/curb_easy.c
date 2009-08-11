@@ -263,14 +263,14 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
 
   new_curl = Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
 
-  if (blk != Qnil) {
-    rb_funcall(blk, idCall, 1, new_curl);
-  }
-
   /* set the rbce pointer to the curl handle */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)rbce);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
+  }
+
+  if (blk != Qnil) {
+    rb_funcall(blk, idCall, 1, new_curl);
   }
 
   return new_curl;

@@ -68,6 +68,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
   end
 
+  # test invalid use of new
+  def test_new_06
+    Curl::Easy.new(TestServlet.url) do|curl|
+      curl.http_post
+      assert_equal "POST\n", curl.body_str
+    end
+  end
+
   def test_escape
     c = Curl::Easy.new
     
