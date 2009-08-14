@@ -17,9 +17,9 @@ Ruby license. See the LICENSE file for the gory details.
 
 ## You will need
 
-+ A working Ruby installation (1.8+, tested with 1.8.5, 1.8.6, 1.8.7, and 1.9.1)
-+ A working (lib)curl installation, with development stuff (7.5+, tested with 7.15)
-+ A sane build environment
++ A working Ruby installation (1.8+, tested with 1.8.6, 1.8.7, 1.9.1, and 1.9.2)
++ A working (lib)curl installation, with development stuff (7.5+, tested with 7.19.x)
++ A sane build environment (e.g. gcc, make)
 
 ## Installation...
 
@@ -36,10 +36,9 @@ them like so:
 
     $ rake install EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever'
 	
-Currently, Curb is tested only on GNU/Linux x86 - YMMV on other platforms.
+Curb is tested only on GNU/Linux x86 and Mac OSX - YMMV on other platforms.
 If you do use another platform and experience problems, or if you can 
-expand on the above instructions, please get in touch via the mailing
-list on Curb's Rubyforge page.
+expand on the above instructions, please report the issue at http://github.com/taf2/curb/issues
 
 Curb has fairly extensive RDoc comments in the source. You can build the
 documentation with:
