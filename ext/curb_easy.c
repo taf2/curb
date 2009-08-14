@@ -2554,11 +2554,12 @@ static VALUE ruby_curl_easy_inspect(VALUE self) {
   char buf[64];
   ruby_curl_easy *rbce;
   Data_Get_Struct(self, ruby_curl_easy, rbce);
+  size_t len = 13+RSTRING_LEN(rbce->url) > 50 ? 50 : RSTRING_LEN(rbce->url);
   // "#<Net::HTTP http://www.google.com/:80 open=false>"
-  snprintf(buf,sizeof(buf),"#<Curl::Easy %s", RSTRING_PTR(rbce->url));
-  size_t r = strlen(buf);
-  buf[r-1] = '>';
-  return rb_str_new(buf,r);
+  memcpy(buf,"#<Curl::Easy ", 13);
+  memcpy(buf+13,RSTRING_PTR(rbce->url), (len - 13));
+  buf[len-1] = '>';
+  return rb_str_new(buf,len);
 }
 
 
