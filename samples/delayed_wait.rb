@@ -14,8 +14,8 @@
 # Use local curb
 #
 
-$:.unshift(File.join(File.dirname(__FILE__), '..', 'ext'))
-$:.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
+$:.unshift(File.expand_path(File.join(File.dirname(__FILE__), '..', 'ext')))
+$:.unshift(File.expand_path(File.join(File.dirname(__FILE__), '..', 'lib')))
 require 'curb'
 
 # DelayedEasy class
