@@ -106,16 +106,83 @@ module Curl
 
         urls_with_config.each do|conf|
           c = conf.dup # avoid being destructive to input
-          url    = c.delete(:url)
-          fields = c.delete(:post_fields)
-          easy   = Curl::Easy.new(url)
+          url     = c.delete(:url)
+          fields  = c.delete(:post_fields)
+          headers = c.delete(:headers)
+
+          easy    = Curl::Easy.new(url)
           # set the post post using the url fields
           easy.post_body = fields.map{|f,k| "#{easy.escape(f)}=#{easy.escape(k)}"}.join('&')
           # configure the easy handle
           easy_options.each do|k,v|
             easy.send("#{k}=",v)
           end
+
+          # headers is a special key
+          headers.each {|k,v| easy.headers[k] = v } if headers
+
           easy.on_complete {|curl| blk.call curl } if blk
+          m.add(easy)
+        end
+        m.perform
+      end
+
+      # call-seq:
+      #
+      # Curl::Multi.http( [
+      #   { :url => 'url1', :method => :post,
+      #     :post_fields => {'field1' => 'value1', 'field2' => 'value2'} },
+      #   { :url => 'url2', :method => :get,
+      #     :follow_location => true, :max_redirects => 3 },
+      #   { :url => 'url3', :method => :put, :put_data => File.open('file.txt','rb') },
+      #   { :url => 'url4', :method => :head }
+      # ], {:pipeline => true})
+      #
+      # Blocking call to issue multiple HTTP requests with varying verb's.
+      #
+      # urls_with_config: is a hash of url's pointing to the easy handle options as well as the special option :method, that can by one of [:get, :post, :put, :delete, :head], when no verb is provided e.g. :method => nil -> GET is used
+      # multi_options: options for the multi handle 
+      # blk: a callback, that yeilds when a handle is completed
+      #
+      def http(urls_with_config, multi_options, &blk)
+        m = Curl::Multi.new
+        # configure the multi handle
+        multi_options.each { |k,v| m.send("#{k}=", v) }
+
+        urls_with_config.each do|conf|
+          c = conf.dup # avoid being destructive to input
+          url     = c.delete(:url)
+          method  = c.delete(:method)
+          headers = c.delete(:headers)
+
+          easy    = Curl::Easy.new(url)
+
+          case method
+          when :post
+            fields = c.delete(:post_fields)
+            # set the post post using the url fields
+            easy.post_body = fields.map{|f,k| "#{easy.escape(f)}=#{easy.escape(k)}"}.join('&')
+          when :put
+            easy.put_data = c.delete(:put_data)
+          when :head
+            easy.head = true
+          when :delete
+            easy.delete = true
+          when :get
+          else
+            # XXX: nil is treated like a GET
+          end
+
+          # headers is a special key
+          headers.each {|k,v| easy.headers[k] = v } if headers
+ 
+          #
+          # use the remaining options as specific configuration to the easy handle
+          # bad options should raise an undefined method error
+          #
+          c.each { |k,v| easy.send("#{k}=",v) }
+
+          easy.on_complete {|curl,code| blk.call(curl,code,method) } if blk
           m.add(easy)
         end
         m.perform

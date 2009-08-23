@@ -325,6 +325,29 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_multi_easy_http_01
+    urls = [
+      { :url => TestServlet.url + '?q=1', :method => :post, :post_fields => {'field1' => 'value1', 'k' => 'j'}},
+      { :url => TestServlet.url + '?q=2', :method => :post, :post_fields => {'field2' => 'value2', 'foo' => 'bar', 'i' => 'j' }},
+      { :url => TestServlet.url + '?q=3', :method => :post, :post_fields => {'field3' => 'value3', 'field4' => 'value4'}},
+      { :url => TestServlet.url, :method => :put, :put_data => "message", 
+        :headers => {'Content-Type' => 'application/json' } },
+      { :url => TestServlet.url, :method => :get }
+    ]
+    Curl::Multi.http(urls, {:pipeline => true}) do|easy, code, method|
+      assert_equal nil, code
+      case method
+      when :post
+        assert_match /POST/, easy.body_str
+      when :get
+        assert_match /GET/, easy.body_str
+      when :put
+        assert_match /PUT/, easy.body_str
+      end
+      #puts "#{easy.body_str.inspect}, #{method.inspect}, #{code.inspect}"
+    end
+  end
+
   def test_mutli_recieves_500
     m = Curl::Multi.new
     e = Curl::Easy.new("http://127.0.0.1:9129/methods")
