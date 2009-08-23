@@ -1954,6 +1954,27 @@ static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
 
   return onoff;
 }
+/*
+ *call-seq:
+ * easy = Curl::Easy.new("url") do|c|
+ *  c.delete = true
+ * end
+ * easy.perform
+ */
+static VALUE ruby_curl_easy_set_delete_option(VALUE self, VALUE onoff) {
+  ruby_curl_easy *rbce;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if( onoff == Qtrue ) {
+    curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+  }
+  else {
+    curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, NULL);
+  }
+
+  return onoff;
+}
 
 /*
  * call-seq:
@@ -2852,6 +2873,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "http_head", ruby_curl_easy_perform_head, 0);
   rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 1);
   rb_define_method(cCurlEasy, "head=", ruby_curl_easy_set_head_option, 1);
+  rb_define_method(cCurlEasy, "delete=", ruby_curl_easy_set_delete_option, 1);
 
   /* Post-perform info methods */
   rb_define_method(cCurlEasy, "body_str", ruby_curl_easy_body_str_get, 0);
