@@ -105,7 +105,7 @@ documentation with:
     c.multipart_form_post = true
     c.http_post(Curl::PostField.file('myfile.rb'))
 
-### Multi Interface (Basic):
+### Multi Interface (Basic HTTP GET):
 
     # make multiple GET requests
     easy_options = {:follow_location => true}
@@ -115,6 +115,8 @@ documentation with:
       # do something interesting with the easy response
       puts easy.last_effective_url
     end
+
+### Multi Interface (Basic HTTP POST):
 
     # make multiple POST requests
     easy_options = {:follow_location => true, :multipart_form_post => true}
