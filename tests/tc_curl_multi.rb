@@ -325,6 +325,17 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_multi_easy_put_01
+    urls = [{ :url => TestServlet.url, :method => :put, :put_data => "message", 
+             :headers => {'Content-Type' => 'application/json' } },
+           { :url => TestServlet.url, :method => :put, :put_data => "message", 
+             :headers => {'Content-Type' => 'application/json' } }]
+    Curl::Multi.put(urls, {}, {:pipeline => true}) do|easy|
+      assert_match /PUT/, easy.body_str
+      assert_match /message/, easy.body_str
+    end
+  end
+
   def test_multi_easy_http_01
     urls = [
       { :url => TestServlet.url + '?q=1', :method => :post, :post_fields => {'field1' => 'value1', 'k' => 'j'}},

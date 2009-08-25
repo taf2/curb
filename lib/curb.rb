@@ -63,22 +63,11 @@ module Curl
       # 
       # Blocking call to fetch multiple url's in parallel.
       def get(urls, easy_options={}, multi_options={}, &blk)
-        m = Curl::Multi.new
-        # configure the multi handle
-        multi_options.each do|k,v|
-          m.send("#{k}=", v)
-        end
-
-        # create and configure each easy handle
+        url_confs = []
         urls.each do|url|
-          c = Curl::Easy.new(url)
-          easy_options.each do|k,v|
-            c.send("#{k}=",v)
-          end
-          c.on_complete {|curl| blk.call curl } if blk
-          m.add(c)
+          url_confs << {:url => url, :method => :get}.merge(easy_options)
         end
-        m.perform
+        self.http(url_confs, multi_options) {|c| blk.call(c) }
       end
 
       # call-seq:
@@ -97,35 +86,38 @@ module Curl
       # easy_options: are a set of common options to set on all easy handles
       # multi_options: options to set on the Curl::Multi handle
       #
-      def post(urls_with_config, easy_options, multi_options, &blk)
-        m = Curl::Multi.new
-        # configure the multi handle
-        multi_options.each do|k,v|
-          m.send("#{k}=", v)
+      def post(urls_with_config, easy_options={}, multi_options={}, &blk)
+        url_confs = []
+        urls_with_config.each do|uconf|
+          url_confs << uconf.merge(:method => :post).merge(easy_options)
         end
-
-        urls_with_config.each do|conf|
-          c = conf.dup # avoid being destructive to input
-          url     = c.delete(:url)
-          fields  = c.delete(:post_fields)
-          headers = c.delete(:headers)
-
-          easy    = Curl::Easy.new(url)
-          # set the post post using the url fields
-          easy.post_body = fields.map{|f,k| "#{easy.escape(f)}=#{easy.escape(k)}"}.join('&')
-          # configure the easy handle
-          easy_options.each do|k,v|
-            easy.send("#{k}=",v)
-          end
-
-          # headers is a special key
-          headers.each {|k,v| easy.headers[k] = v } if headers
-
-          easy.on_complete {|curl| blk.call curl } if blk
-          m.add(easy)
-        end
-        m.perform
+        self.http(url_confs, multi_options) {|c| blk.call(c) }
       end
+
+      # call-seq:
+      #
+      #   Curl::Multi.put([{:url => 'url1', :put_data => "some message"},
+      #                    {:url => 'url2', :put_data => IO.read('filepath')},
+      #                    {:url => 'url3', :put_data => "maybe another string or socket?"],
+      #                    {:follow_location => true},
+      #                    {:pipeline => true }) do|easy|
+      #     easy_handle_on_request_complete
+      #   end
+      # 
+      # Blocking call to POST multiple form's in parallel.
+      # 
+      # urls_with_config: is a hash of url's pointing to the postfields to send 
+      # easy_options: are a set of common options to set on all easy handles
+      # multi_options: options to set on the Curl::Multi handle
+      #
+      def put(urls_with_config, easy_options={}, multi_options={}, &blk)
+        url_confs = []
+        urls_with_config.each do|uconf|
+          url_confs << uconf.merge(:method => :put).merge(easy_options)
+        end
+        self.http(url_confs, multi_options) {|c| blk.call(c) }
+      end
+
 
       # call-seq:
       #
@@ -144,7 +136,7 @@ module Curl
       # multi_options: options for the multi handle 
       # blk: a callback, that yeilds when a handle is completed
       #
-      def http(urls_with_config, multi_options, &blk)
+      def http(urls_with_config, multi_options={}, &blk)
         m = Curl::Multi.new
         # configure the multi handle
         multi_options.each { |k,v| m.send("#{k}=", v) }
