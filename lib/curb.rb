@@ -67,7 +67,7 @@ module Curl
         urls.each do|url|
           url_confs << {:url => url, :method => :get}.merge(easy_options)
         end
-        self.http(url_confs, multi_options) {|c| blk.call(c) }
+        self.http(url_confs, multi_options) {|c,code,method| blk.call(c) }
       end
 
       # call-seq:
@@ -91,7 +91,7 @@ module Curl
         urls_with_config.each do|uconf|
           url_confs << uconf.merge(:method => :post).merge(easy_options)
         end
-        self.http(url_confs, multi_options) {|c| blk.call(c) }
+        self.http(url_confs, multi_options) {|c,code,method| blk.call(c) }
       end
 
       # call-seq:
@@ -115,7 +115,7 @@ module Curl
         urls_with_config.each do|uconf|
           url_confs << uconf.merge(:method => :put).merge(easy_options)
         end
-        self.http(url_confs, multi_options) {|c| blk.call(c) }
+        self.http(url_confs, multi_options) {|c,code,method| blk.call(c) }
       end
 
 
