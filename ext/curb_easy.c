@@ -2599,12 +2599,16 @@ static VALUE ruby_curl_easy_inspect(VALUE self) {
  * converted to their "URL escaped" version (%NN where NN is a
  * two-digit hexadecimal number).
  */
-static VALUE ruby_curl_easy_escape(VALUE self, VALUE str) {
+static VALUE ruby_curl_easy_escape(VALUE self, VALUE svalue) {
   ruby_curl_easy *rbce;
   char *result;
   VALUE rresult;
+  VALUE str = svalue;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  /* NOTE: make sure the value is a string, if not call to_s */
+  if( rb_type(str) != T_STRING ) { str = rb_funcall(str,rb_intern("to_s"),0); }
 
 #if (LIBCURL_VERSION_NUM >= 0x070f04)
   result = (char*)curl_easy_escape(rbce->curl, StringValuePtr(str), RSTRING_LEN(str));
