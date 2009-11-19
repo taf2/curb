@@ -36,7 +36,8 @@ task :test_ver do
 end
 
 # Make tasks -----------------------------------------------------
-MAKECMD = ENV['MAKE_CMD'] || 'make'
+make_program = (/mswin/ =~ RUBY_PLATFORM) ? 'nmake' : 'make'
+MAKECMD = ENV['MAKE_CMD'] || make_program
 MAKEOPTS = ENV['MAKE_OPTS'] || ''
 
 CURB_SO = "ext/curb_core.#{Config::MAKEFILE_CONFIG['DLEXT']}"
@@ -80,7 +81,7 @@ task :tu => :unittests
 task :test => [:rmpid,:unittests]
 
 task :rmpid do
-  sh "rm -rf tests/server_lock-*"
+  FileUtils.rm_rf Dir.glob("tests/server_lock-*")
 end
 
 if ENV['RELTEST']

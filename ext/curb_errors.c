@@ -124,6 +124,7 @@ VALUE eCurlErrInvalidPostField;
 VALUE rb_curl_easy_error(CURLcode code) {
   VALUE exclz;
   const char *exmsg = NULL;
+  VALUE results;
 
   switch (code) {
     case CURLE_UNSUPPORTED_PROTOCOL:    /* 1 */
@@ -436,7 +437,7 @@ VALUE rb_curl_easy_error(CURLcode code) {
     exmsg = curl_easy_strerror(code);
   }
 
-  VALUE results = rb_ary_new2(2);
+  results = rb_ary_new2(2);
   rb_ary_push(results, exclz);
   rb_ary_push(results, rb_str_new2(exmsg));
   return results;
@@ -449,6 +450,7 @@ void raise_curl_easy_error_exception(CURLcode code) {
 VALUE rb_curl_multi_error(CURLMcode code) {
   VALUE exclz;
   const char *exmsg = NULL;
+  VALUE results;
 
   switch(code) {
     case CURLM_CALL_MULTI_PERFORM: /* -1 */
@@ -485,7 +487,7 @@ VALUE rb_curl_multi_error(CURLMcode code) {
     exmsg = curl_multi_strerror(code);
   }
 
-  VALUE results = rb_ary_new2(2);
+  results = rb_ary_new2(2);
   rb_ary_push(results, exclz);
   rb_ary_push(results, rb_str_new2(exmsg));
   return results;

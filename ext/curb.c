@@ -220,9 +220,11 @@ static VALUE ruby_curl_conv_q(VALUE mod) {
 
 void Init_curb_core() {
   // TODO we need to call curl_global_cleanup at exit!
-  curl_global_init(CURL_GLOBAL_ALL);
-  curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);
+  curl_version_info_data *ver;
   VALUE curlver, curllongver, curlvernum;
+
+  curl_global_init(CURL_GLOBAL_ALL);
+  ver = curl_version_info(CURLVERSION_NOW);
 
   mCurl = rb_define_module("Curl");
 

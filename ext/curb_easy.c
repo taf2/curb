@@ -58,11 +58,15 @@ static size_t read_data_handler(void *ptr,
   }
   else {
     ruby_curl_upload *rbcu;
+    VALUE str;
+    size_t len;
+    size_t remaining;
+    char *str_ptr;
     Data_Get_Struct(rbce->upload, ruby_curl_upload, rbcu);
-    VALUE str = rb_funcall(stream, rb_intern("to_s"), 0);
-    size_t len = RSTRING_LEN(str);
-    size_t remaining = len - rbcu->offset;
-    char *str_ptr = RSTRING_PTR(str);
+    str = rb_funcall(stream, rb_intern("to_s"), 0);
+    len = RSTRING_LEN(str);
+    remaining = len - rbcu->offset;
+    str_ptr = RSTRING_PTR(str);
     if( remaining < read_bytes ) {
       if( remaining > 0 ) {
         memcpy(ptr, str_ptr+rbcu->offset, remaining);
@@ -137,7 +141,7 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->header_data);
   rb_gc_mark(rbce->progress_proc);
   rb_gc_mark(rbce->debug_proc);
-  rb_gc_mark(rbce->interface);
+  rb_gc_mark(rbce->interface_hm);
   rb_gc_mark(rbce->userpwd);
   rb_gc_mark(rbce->proxypwd);
   rb_gc_mark(rbce->headers);
@@ -192,10 +196,11 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   CURLcode ecode;
   VALUE url, blk;
   VALUE new_curl;
+  ruby_curl_easy *rbce;
 
   rb_scan_args(argc, argv, "01&", &url, &blk);
 
-  ruby_curl_easy *rbce = ALLOC(ruby_curl_easy);
+  rbce = ALLOC(ruby_curl_easy);
 
   /* handler */
   rbce->curl = curl_easy_init();
@@ -209,7 +214,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->header_proc = Qnil;
   rbce->progress_proc = Qnil;
   rbce->debug_proc = Qnil;
-  rbce->interface = Qnil;
+  rbce->interface_hm = Qnil;
   rbce->userpwd = Qnil;
   rbce->proxypwd = Qnil;
   rbce->headers = rb_hash_new();
@@ -404,8 +409,8 @@ static VALUE ruby_curl_easy_headers_get(VALUE self) {
  * Set the interface name to use as the outgoing network interface.
  * The name can be an interface name, an IP address or a host name.
  */
-static VALUE ruby_curl_easy_interface_set(VALUE self, VALUE interface) {
-  CURB_OBJECT_SETTER(ruby_curl_easy, interface);
+static VALUE ruby_curl_easy_interface_set(VALUE self, VALUE interface_hm) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, interface_hm);
 }
 
 /*
@@ -416,7 +421,7 @@ static VALUE ruby_curl_easy_interface_set(VALUE self, VALUE interface) {
  * The name can be an interface name, an IP address or a host name.
  */
 static VALUE ruby_curl_easy_interface_get(VALUE self) {
-  CURB_OBJECT_GETTER(ruby_curl_easy, interface);
+  CURB_OBJECT_GETTER(ruby_curl_easy, interface_hm);
 }
 
 /*
@@ -716,10 +721,11 @@ static VALUE ruby_curl_easy_post_body_get(VALUE self) {
 static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   ruby_curl_easy *rbce;
   CURL *curl;
-  
+  VALUE upload;
+
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
-  VALUE upload = ruby_curl_upload_new(cCurlUpload);
+  upload = ruby_curl_upload_new(cCurlUpload);
   ruby_curl_upload_stream_set(upload,data);
 
   curl = rbce->curl;
@@ -745,10 +751,11 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   if (rb_respond_to(data, rb_intern("read"))) {
     VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
     if( stat ) {
+      VALUE size;
       if( rb_hash_aref(rbce->headers, rb_str_new2("Expect")) == Qnil ) {
         rb_hash_aset(rbce->headers, rb_str_new2("Expect"), rb_str_new2(""));
       }
-      VALUE size = rb_funcall(stat, rb_intern("size"), 0);
+      size = rb_funcall(stat, rb_intern("size"), 0);
       curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2INT(size));
     }
     else if( rb_hash_aref(rbce->headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
@@ -1474,6 +1481,7 @@ static VALUE cb_each_http_header(VALUE header, struct curl_slist **list) {
 VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *header_buffer, struct curl_slist **hdrs ) {
   // TODO this could do with a bit of refactoring...
   CURL *curl;
+  VALUE url;
 
   curl = rbce->curl;
 
@@ -1481,14 +1489,14 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
     rb_raise(eCurlErrError, "No URL supplied");
   }
 
-  VALUE url = rb_check_string_type(rbce->url);
+  url = rb_check_string_type(rbce->url);
 
   // Need to configure the handler as per settings in rbce
   curl_easy_setopt(curl, CURLOPT_URL, StringValuePtr(url));
 
   // network stuff and auth
-  if (rbce->interface != Qnil) {
-    curl_easy_setopt(curl, CURLOPT_INTERFACE, StringValuePtr(rbce->interface));
+  if (rbce->interface_hm != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_INTERFACE, StringValuePtr(rbce->interface_hm));
   } else {
     curl_easy_setopt(curl, CURLOPT_INTERFACE, NULL);
   }
@@ -1768,9 +1776,10 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, V
  */
 static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
+  VALUE ret;
   VALUE multi = ruby_curl_multi_new(cCurlMulti);
   ruby_curl_multi_add(multi, self);
-  VALUE ret = rb_funcall(multi, rb_intern("perform"), 0);
+  ret = rb_funcall(multi, rb_intern("perform"), 0);
 
   /* check for errors in the easy response and raise exceptions if anything went wrong and their is no on_failure handler */
   if( rbce->last_result != 0 && rbce->failure_proc == Qnil ) {
@@ -1811,13 +1820,14 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
 static VALUE ruby_curl_easy_perform_delete(VALUE self) {
   ruby_curl_easy *rbce;
   CURL *curl;
+  VALUE retval;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 
-  VALUE retval = handle_perform(self,rbce);
+  retval = handle_perform(self,rbce);
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
@@ -1921,13 +1931,14 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 static VALUE ruby_curl_easy_perform_head(VALUE self) {
   ruby_curl_easy *rbce;
   CURL *curl;
+  VALUE ret;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
-  VALUE ret = handle_perform(self,rbce);
+  ret = handle_perform(self,rbce);
 
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   return ret;
@@ -2748,10 +2759,11 @@ static VALUE ruby_curl_easy_class_perform_head(int argc, VALUE *argv, VALUE klas
  */
 static VALUE ruby_curl_easy_class_perform_post(int argc, VALUE *argv, VALUE klass) {
   VALUE url, fields;
+  VALUE c;
 
   rb_scan_args(argc, argv, "1*", &url, &fields);
 
-  VALUE c = ruby_curl_easy_new(1, &url, klass);
+  c = ruby_curl_easy_new(1, &url, klass);
 
   if (argc > 1) {
     ruby_curl_easy_perform_post(argc - 1, &argv[1], c);

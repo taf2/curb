@@ -28,7 +28,7 @@ typedef struct {
   VALUE header_data;    /* unless a block is supplied (they'll be nil)      */
   VALUE progress_proc;
   VALUE debug_proc;
-  VALUE interface;
+  VALUE interface_hm;
   VALUE userpwd;
   VALUE proxypwd;
   VALUE headers;        /* ruby array of strings with headers to set */

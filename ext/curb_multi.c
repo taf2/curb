@@ -45,13 +45,14 @@ static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) 
   //rb_curl_multi_remove(rbcm, easy);
   CURLMcode result;
   ruby_curl_easy *rbce;
+  VALUE r;
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
   result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
   if (result != 0) {
     raise_curl_multi_error_exception(result);
   }
   // XXX: easy handle may not be finished yet... so don't clean it GC pass will get it next time
-  VALUE r = rb_hash_delete( rbcm->requests, easy );
+  r = rb_hash_delete( rbcm->requests, easy );
   if( r != easy || r == Qnil ) {
     rb_raise(rb_eRuntimeError, "Critical:: Unable to remove easy from requests");
   }
@@ -114,10 +115,11 @@ static int ruby_curl_multi_requests_callback(VALUE key, VALUE value, VALUE resul
  */
 static VALUE ruby_curl_multi_requests(VALUE self) {
   ruby_curl_multi *rbcm;
-  
+  VALUE result_array;
+
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
   
-  VALUE result_array = rb_ary_new();
+  result_array = rb_ary_new();
   
   // iterate over the requests hash, and stuff references into the array.
   rb_hash_foreach( rbcm->requests, ruby_curl_multi_requests_callback, result_array );
@@ -242,10 +244,10 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
  */
 VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
   ruby_curl_multi *rbcm;
+  ruby_curl_easy *rbce;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
 
-  ruby_curl_easy *rbce;
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   rb_curl_multi_remove(rbcm,easy);
@@ -255,6 +257,8 @@ VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   CURLMcode result;
   ruby_curl_easy *rbce;
+  VALUE r;
+
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   rbcm->active--;
@@ -271,7 +275,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   rbce->bodybuf = Qnil;
 
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
-  VALUE r = rb_hash_delete( rbcm->requests, easy );
+  r = rb_hash_delete( rbcm->requests, easy );
   if( r != easy || r == Qnil ) {
     rb_raise(rb_eRuntimeError, "Critical:: Unable to remove easy from requests");
   }

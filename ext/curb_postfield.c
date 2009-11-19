@@ -480,6 +480,8 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
 
 /* =================== INIT LIB =====================*/
 void init_curb_postfield() {
+  VALUE sc;
+
   idCall = rb_intern("call");
   
   cCurlPostField = rb_define_class_under(mCurl, "PostField", rb_cObject);
@@ -488,7 +490,7 @@ void init_curb_postfield() {
   rb_define_singleton_method(cCurlPostField, "content", ruby_curl_postfield_new_content, -1);
   rb_define_singleton_method(cCurlPostField, "file", ruby_curl_postfield_new_file, -1);
   
-  VALUE sc = rb_singleton_class(cCurlPostField);
+  sc = rb_singleton_class(cCurlPostField);
   rb_undef(sc, rb_intern("new"));
   
   rb_define_method(cCurlPostField, "name=", ruby_curl_postfield_name_set, 1);
