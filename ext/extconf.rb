@@ -17,6 +17,17 @@ elsif !have_library('curl') or !have_header('curl/curl.h')
   EOM
 end
 
+# Check arch flags
+archs = $CFLAGS.scan(/-arch\s(.*?)\s/).first # get the first arch flag
+if archs and archs.size >= 1
+  # need to reduce the number of archs...
+  # guess the first one is correct... at least the first one is probably the ruby installed arch...
+  # this could lead to compiled binaries that crash at runtime...
+  $CFLAGS.gsub!(/-arch\s(.*?)\s/,' ')
+  $CFLAGS << " -arch #{archs.first}"
+  puts "Selected arch: #{archs.first}"
+end
+
 def define(s)
   $defs.push( format("-D HAVE_%s", s.to_s.upcase) )
 end
