@@ -145,6 +145,15 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     
     assert_not_equal c.last_effective_url, c.url
   end
+
+  def test_http_get_block
+    curl = Curl::Easy.http_get(TestServlet.url) do|c|
+      c.follow_location = true
+      c.max_redirects = 3
+    end
+    assert_equal curl.url, curl.last_effective_url
+    assert_equal 'GET', curl.body_str
+  end
   
   def test_local_port_01
     c = Curl::Easy.new($TEST_URL)
