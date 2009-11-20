@@ -157,7 +157,11 @@ else
     Gem::Builder.new(spec).build
   end
 
-  task :binary_gemspec => :compile do
+  task :static do
+    ENV['STATIC_BUILD'] = '1'
+  end
+
+  task :binary_gemspec => [:static, :compile] do
     require 'erb'
     ENV['BINARY_PACKAGE'] = '1'
     tspec = ERB.new(File.read(File.join(File.dirname(__FILE__),'lib','curb.gemspec.erb')))
@@ -167,8 +171,13 @@ else
     end
   end
 
+  desc 'Strip extra strings from Binary'
+  task :binary_strip do
+    sh '/usr/bin/strip ext/curb_core.so' if File.exist?("/usr/bin/strip")
+  end
+
   desc 'Build gem'
-  task :binary_package => :binary_gemspec do
+  task :binary_package => [:binary_gemspec, :binary_strip] do
     require 'rubygems/specification'
     spec_source = File.read File.join(File.dirname(__FILE__),'curb-binary.gemspec')
     spec = nil
