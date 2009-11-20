@@ -173,7 +173,10 @@ else
 
   desc 'Strip extra strings from Binary'
   task :binary_strip do
-    sh '/usr/bin/strip ext/curb_core.so' if File.exist?("/usr/bin/strip")
+    strip = '/usr/bin/strip'
+    if File.exist?(strip) and `#{strip} -h 2>&1`.match(/GNU/)
+      sh "#{strip} #{CURB_SO}"
+    end
   end
 
   desc 'Build gem'
