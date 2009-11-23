@@ -381,7 +381,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
   def test_remove_exception_is_descriptive
     m = Curl::Multi.new
-    c = Curl::Easy.new("http://blah.com")
+    c = Curl::Easy.new("http://127.9.9.9:999110")
     m.remove(c)
   rescue => e
     assert_equal 'Invalid easy handle', e.message
@@ -393,9 +393,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     tries = 2
 
-    c1 = Curl::Easy.new('http://127.9.9.9') do |curl|
+    c1 = Curl::Easy.new('http://127.1.1.1:99911') do |curl|
       curl.on_failure {|c,e|
-        assert_equal [Curl::Err::ConnectionFailedError, "Couldn't connect to server"], e
+        assert_equal [Curl::Err::MalformedURLError, "URL using bad/illegal format or missing URL"], e
         if tries > 0
           tries -= 1
           m.add(c)
@@ -410,6 +410,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       m.perform
     end
     assert_equal 0, tries
+    assert_equal 0, m.requests.size
   end
 
   include TestServerMethods
