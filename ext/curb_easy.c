@@ -1778,7 +1778,8 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
   VALUE ret;
   VALUE multi = ruby_curl_multi_new(cCurlMulti);
-  ruby_curl_multi_add(multi, self);
+
+  rb_funcall(multi, rb_intern("add"), 1, self );
   ret = rb_funcall(multi, rb_intern("perform"), 0);
 
   /* check for errors in the easy response and raise exceptions if anything went wrong and their is no on_failure handler */
