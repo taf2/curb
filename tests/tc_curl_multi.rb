@@ -379,6 +379,15 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert_equal "POST\nhello=world", e2.body_str
   end
 
+  def test_remove_exception_is_descriptive
+    m = Curl::Multi.new
+    c = Curl::Easy.new("http://blah.com")
+    m.remove(c)
+  rescue => e
+    assert_equal 'Invalid easy handle', e.message
+    assert_equal 0, m.requests.size
+  end
+
   include TestServerMethods 
 
   def setup
