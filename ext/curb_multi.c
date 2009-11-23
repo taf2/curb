@@ -214,16 +214,12 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
   ruby_curl_easy_setup( rbce, &(rbce->bodybuf), &(rbce->headerbuf), &(rbce->curl_headers) );
 
   rbcm->active++;
-  if (mcode == CURLM_CALL_MULTI_PERFORM) {
-    curl_multi_perform(rbcm->handle, &(rbcm->running));
-  }
+
+  /* Increase the running count, so that the perform loop keeps running.
+   * If this number is not correct, the next call to curl_multi_perform will correct it. */
+  rbcm->running++;
 
   rb_hash_aset( rbcm->requests, easy, easy );
-  // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
-
-  if (rbcm->active > rbcm->running) {
-    rb_curl_multi_read_info(self, rbcm->handle);
-  }
 
   return self;
 }
