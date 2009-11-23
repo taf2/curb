@@ -261,14 +261,12 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
 
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
-  rbcm->active--;
-
-  //printf( "calling rb_curl_multi_remove: 0x%X, active: %d\n", (long)easy, rbcm->active );
-
   result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
   if (result != 0) {
     raise_curl_multi_error_exception(result);
   }
+
+  rbcm->active--;
 
   ruby_curl_easy_cleanup( easy, rbce, rbce->bodybuf, rbce->headerbuf, rbce->curl_headers );
   rbce->headerbuf = Qnil;
