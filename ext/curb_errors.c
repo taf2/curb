@@ -490,6 +490,7 @@ VALUE rb_curl_multi_error(CURLMcode code) {
   results = rb_ary_new2(2);
   rb_ary_push(results, exclz);
   rb_ary_push(results, rb_str_new2(exmsg));
+
   return results;
 }
 void raise_curl_multi_error_exception(CURLMcode code) {
@@ -598,6 +599,14 @@ void init_curb_errors() {
   eCurlErrSSLIssuerError     = rb_define_class_under(mCurlErr, "SSLIssuerError", eCurlErrError);
   eCurlErrSSLShutdownFailed  = rb_define_class_under(mCurlErr, "SSLShutdownFailed", eCurlErrError);
   eCurlErrSSH                = rb_define_class_under(mCurlErr, "SSH", eCurlErrError);
+
+  mCurlErrCallMultiPerform   = rb_define_class_under(mCurlErr, "MultiPerform", eCurlErrError);
+  mCurlErrBadHandle          = rb_define_class_under(mCurlErr, "MultiBadHandle", eCurlErrError);
+  mCurlErrBadEasyHandle      = rb_define_class_under(mCurlErr, "MultiBadEasyHandle", eCurlErrError);
+  mCurlErrOutOfMemory        = rb_define_class_under(mCurlErr, "MultiOutOfMemory", eCurlErrError);
+  mCurlErrInternalError      = rb_define_class_under(mCurlErr, "MultiInternalError", eCurlErrError);
+  mCurlErrBadSocket          = rb_define_class_under(mCurlErr, "MultiBadSocket", eCurlErrError);
+  mCurlErrUnknownOption      = rb_define_class_under(mCurlErr, "MultiUnknownOption", eCurlErrError);
 
   eCurlErrLDAPInvalidURL = rb_define_class_under(mCurlErr, "InvalidLDAPURLError", eCurlErrLDAPError);
 
