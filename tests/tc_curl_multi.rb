@@ -388,6 +388,30 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert_equal 0, m.requests.size
   end
 
+  def test_retry_easy_handle
+    m = Curl::Multi.new
+
+    tries = 2
+
+    c1 = Curl::Easy.new('http://127.9.9.9') do |curl|
+      curl.on_failure {|c,e|
+        assert_equal [Curl::Err::ConnectionFailedError, "Couldn't connect to server"], e
+        if tries > 0
+          tries -= 1
+          m.add(c)
+        end
+      }
+    end
+
+    tries -= 1
+    m.add(c1)
+
+    while not m.requests.empty?
+      m.perform
+    end
+    assert_equal 0, tries
+  end
+
   include TestServerMethods 
 
   def setup

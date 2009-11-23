@@ -307,7 +307,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   long response_code = -1;
   ruby_curl_easy *rbce = NULL;
-
+  VALUE ref;
   CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
 
   if (ecode != 0) {
@@ -324,21 +324,24 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
 
+  ref = rbce->self;
+  /* break reference */
+  rbce->self = Qnil;
+
   if (result != 0) {
     if (rbce->failure_proc != Qnil) {
-      rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
+      rb_funcall( rbce->failure_proc, idCall, 2, ref, rb_curl_easy_error(result) );
     }
   }
   else if (rbce->success_proc != Qnil &&
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
     /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
-    rb_funcall( rbce->success_proc, idCall, 1, rbce->self );
+    rb_funcall( rbce->success_proc, idCall, 1, ref );
   }
   else if (rbce->failure_proc != Qnil &&
           (response_code >= 300 && response_code <= 999)) {
-    rb_funcall( rbce->failure_proc, idCall, 2, rbce->self, rb_curl_easy_error(result) );
+    rb_funcall( rbce->failure_proc, idCall, 2, ref, rb_curl_easy_error(result) );
   }
-  rbce->self = Qnil;
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
