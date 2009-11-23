@@ -25,7 +25,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.add( c2 )
 
     m.perform
-    
+
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, d1)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, d2)
 
@@ -49,7 +49,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c1.body_str)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c2.body_str)
-    
+
     m = nil
 
   end
@@ -74,7 +74,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     n.times do|i|
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
     end
-    
+
     m = nil
   end
 
@@ -98,52 +98,52 @@ class TestCurbCurlMulti < Test::Unit::TestCase
         assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
       end
     end
-    
+
     m = nil
 
   end
-  
+
   def test_idle_check
     m = Curl::Multi.new
     e = Curl::Easy.new($TEST_URL)
-    
+
     assert(m.idle?, 'A new Curl::Multi handle should be idle')
-    
+
     m.add(e)
-    
+
     assert((not m.idle?), 'A Curl::Multi handle with a request should not be idle')
-    
+
     m.perform
-    
+
     assert(m.idle?, 'A Curl::Multi handle should be idle after performing its requests')
   end
-  
+
   def test_requests
     m = Curl::Multi.new
-    
+
     assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests')
-    
+
     10.times do
       m.add(Curl::Easy.new($TEST_URL))
     end
-    
+
     assert_equal(10, m.requests.length, 'multi.requests should contain all the active requests')
-    
+
     m.perform
-    
+
     assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests after a perform')
   end
-  
+
   def test_cancel
     m = Curl::Multi.new
     m.cancel! # shouldn't raise anything
-    
+
     10.times do
       m.add(Curl::Easy.new($TEST_URL))
     end
-    
+
     m.cancel!
-    
+
     assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests after being canceled')
   end
 
@@ -152,7 +152,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     c2 = Curl::Easy.new($TEST_URL)
     success_called1 = false
     success_called2 = false
- 
+
     c1.on_success do|c|
       success_called1 = true
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
@@ -175,16 +175,16 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert success_called2
     assert success_called1
- 
+
     m = nil
   end
-  
+
   def test_with_success_cb_with_404
     c1 = Curl::Easy.new("#{$TEST_URL.gsub(/file:\/\//,'')}/not_here")
     c2 = Curl::Easy.new($TEST_URL)
     success_called1 = false
     success_called2 = false
-    
+
     c1.on_success do|c|
       success_called1 = true
       #puts "success 1 called: #{c.body_str.inspect}"
@@ -218,7 +218,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert success_called2
     assert !success_called1
- 
+
     m = nil
   end
 
@@ -280,7 +280,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
         curl.on_header{|data| responses["#{url}-header"] << data; data.size }
         curl.on_body{|data| responses[url] << data; data.size }
         curl.on_success {
-          puts curl.last_effective_url 
+          puts curl.last_effective_url
         }
       end
       m.add(c)
@@ -326,9 +326,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   end
 
   def test_multi_easy_put_01
-    urls = [{ :url => TestServlet.url, :method => :put, :put_data => "message", 
+    urls = [{ :url => TestServlet.url, :method => :put, :put_data => "message",
              :headers => {'Content-Type' => 'application/json' } },
-           { :url => TestServlet.url, :method => :put, :put_data => "message", 
+           { :url => TestServlet.url, :method => :put, :put_data => "message",
              :headers => {'Content-Type' => 'application/json' } }]
     Curl::Multi.put(urls, {}, {:pipeline => true}) do|easy|
       assert_match /PUT/, easy.body_str
@@ -341,7 +341,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       { :url => TestServlet.url + '?q=1', :method => :post, :post_fields => {'field1' => 'value1', 'k' => 'j'}},
       { :url => TestServlet.url + '?q=2', :method => :post, :post_fields => {'field2' => 'value2', 'foo' => 'bar', 'i' => 'j' }},
       { :url => TestServlet.url + '?q=3', :method => :post, :post_fields => {'field3' => 'value3', 'field4' => 'value4'}},
-      { :url => TestServlet.url, :method => :put, :put_data => "message", 
+      { :url => TestServlet.url, :method => :put, :put_data => "message",
         :headers => {'Content-Type' => 'application/json' } },
       { :url => TestServlet.url, :method => :get }
     ]
@@ -412,7 +412,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert_equal 0, tries
   end
 
-  include TestServerMethods 
+  include TestServerMethods
 
   def setup
     server_setup
