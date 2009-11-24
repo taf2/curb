@@ -92,7 +92,7 @@ VALUE ruby_curl_multi_new(VALUE klass) {
   return new_curlm;
 }
 
-// Hash#foreach callback for ruby_curl_multi_requests
+/* Hash#foreach callback for ruby_curl_multi_requests */
 static int ruby_curl_multi_requests_callback(VALUE key, VALUE value, VALUE result_array) {
   rb_ary_push(result_array, value);
   
@@ -113,8 +113,8 @@ static VALUE ruby_curl_multi_requests(VALUE self) {
   
   result_array = rb_ary_new();
   
-  // iterate over the requests hash, and stuff references into the array.
-  rb_hash_foreach( rbcm->requests, ruby_curl_multi_requests_callback, result_array );
+  /* iterate over the requests hash, and stuff references into the array. */
+  rb_hash_foreach(rbcm->requests, ruby_curl_multi_requests_callback, result_array);
   
   return result_array;
 }
