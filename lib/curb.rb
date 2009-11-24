@@ -1,6 +1,7 @@
 require 'curb_core'
 
 module Curl
+
   class Easy
     class << self
     
@@ -54,6 +55,7 @@ module Curl
       self.cert
     end
   end
+
   class Multi
     class << self
       # call-seq:
