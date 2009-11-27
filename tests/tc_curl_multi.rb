@@ -391,7 +391,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   def test_retry_easy_handle
     m = Curl::Multi.new
 
-    tries = 2
+    tries = 10
 
     c1 = Curl::Easy.new('http://127.1.1.1:99911') do |curl|
       curl.on_failure {|c,e|
@@ -406,11 +406,22 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     tries -= 1
     m.add(c1)
 
-    while not m.requests.empty?
-      m.perform
-    end
+    m.perform
     assert_equal 0, tries
     assert_equal 0, m.requests.size
+  end
+
+  def test_reusing_handle
+    m = Curl::Multi.new
+
+    c = Curl::Easy.new('http://127.0.0.1') do|easy|
+      easy.on_complete{|e,r| puts e.inspect }
+    end
+
+    m.add(c)
+    m.add(c)
+  rescue => e
+    assert_equal Curl::Err::MultiBadEasyHandle, e.class
   end
 
   include TestServerMethods
