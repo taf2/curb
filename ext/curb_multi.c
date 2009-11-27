@@ -263,11 +263,11 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
   r = rb_hash_delete( rbcm->requests, easy );
   if( r != easy || r == Qnil ) {
-    rb_raise(rb_eRuntimeError, "Critical:: Unable to remove easy from requests");
+    rb_warn("Critical:: Unable to remove easy from requests");
   }
 }
 
-// Hash#foreach callback for ruby_curl_multi_cancel
+/* Hash#foreach callback for ruby_curl_multi_cancel */
 static int ruby_curl_multi_cancel_callback(VALUE key, VALUE value, ruby_curl_multi *rbcm) {
   rb_curl_multi_remove(rbcm, value);
   
