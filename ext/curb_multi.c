@@ -263,7 +263,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
   r = rb_hash_delete( rbcm->requests, easy );
   if( r != easy || r == Qnil ) {
-    rb_warn("Critical:: Unable to remove easy from requests");
+    rb_warn("Possibly lost tack of Curl::Easy VALUE, it may not be reclaimed by GC");
   }
 }
 
