@@ -162,10 +162,6 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->bodybuf);
   rb_gc_mark(rbce->headerbuf);
 
-  if( rbce->self != Qnil ) {
-    rb_gc_mark(rbce->self);
-  }
-
   if( rbce->upload != Qnil ) {
     rb_gc_mark(rbce->upload);
   }
@@ -263,13 +259,12 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->headerbuf = Qnil;
   rbce->curl_headers = NULL;
 
-  rbce->self = Qnil;
   rbce->upload = Qnil;
 
   new_curl = Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
 
-  /* set the rbce pointer to the curl handle */
-  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)rbce);
+  /* set the new_curl pointer to the curl handle */
+  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)new_curl);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
   }

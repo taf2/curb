@@ -86,7 +86,7 @@ typedef struct {
   VALUE headerbuf;
   struct curl_slist *curl_headers;
 
-  VALUE self; /* pointer to self, used by multi interface */
+//  VALUE self; /* pointer to self, used by multi interface */
   VALUE upload; /* pointer to an active upload otherwise Qnil */
 
   int last_result; /* last result code from multi loop */

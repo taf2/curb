@@ -199,9 +199,6 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
     raise_curl_multi_error_exception(mcode);
   }
 
-  /* save a pointer to self */
-  rbce->self = easy;
-
   /* setup the easy handle */
   ruby_curl_easy_setup( rbce, &(rbce->bodybuf), &(rbce->headerbuf), &(rbce->curl_headers) );
 
@@ -287,16 +284,19 @@ static VALUE ruby_curl_multi_cancel(VALUE self) {
   
   rb_hash_foreach( rbcm->requests, ruby_curl_multi_cancel_callback, (VALUE)rbcm );
   
-  // for chaining
+  /* for chaining */
   return self;
 }
 
 static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result) {
 
   long response_code = -1;
+  VALUE easy;
   ruby_curl_easy *rbce = NULL;
-  VALUE ref;
-  CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
+
+  CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&easy);
+
+  Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   if (ecode != 0) {
     raise_curl_easy_error_exception(ecode);
@@ -304,31 +304,27 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   rbce->last_result = result; /* save the last easy result code */
 
-  ruby_curl_multi_remove( self, rbce->self );
+  ruby_curl_multi_remove( self, easy );
 
   if (rbce->complete_proc != Qnil) {
-    rb_funcall( rbce->complete_proc, idCall, 1, rbce->self );
+    rb_funcall( rbce->complete_proc, idCall, 1, easy );
   }
 
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
 
-  ref = rbce->self;
-  /* break reference */
-  rbce->self = Qnil;
-
   if (result != 0) {
     if (rbce->failure_proc != Qnil) {
-      rb_funcall( rbce->failure_proc, idCall, 2, ref, rb_curl_easy_error(result) );
+      rb_funcall( rbce->failure_proc, idCall, 2, easy, rb_curl_easy_error(result) );
     }
   }
   else if (rbce->success_proc != Qnil &&
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
     /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
-    rb_funcall( rbce->success_proc, idCall, 1, ref );
+    rb_funcall( rbce->success_proc, idCall, 1, easy );
   }
   else if (rbce->failure_proc != Qnil &&
           (response_code >= 300 && response_code <= 999)) {
-    rb_funcall( rbce->failure_proc, idCall, 2, ref, rb_curl_easy_error(result) );
+    rb_funcall( rbce->failure_proc, idCall, 2, easy, rb_curl_easy_error(result) );
   }
 }
 
