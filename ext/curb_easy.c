@@ -2631,7 +2631,7 @@ static VALUE ruby_curl_easy_escape(VALUE self, VALUE svalue) {
 
 /*
  * call-seq:
- *   easy.unescape("some text")                       => "some%20text"
+ *   easy.unescape("some%20text")                       => "some text"
  *
  * Convert the given URL encoded input string to a "plain string" and return
  * the result. All input characters that are URL encoded (%XX where XX is a
