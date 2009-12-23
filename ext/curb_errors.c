@@ -23,6 +23,7 @@ VALUE eCurlErrTelnetError;
 VALUE eCurlErrTFTPError;
 
 /* Specific libcurl errors */
+VALUE eCurlErrOK; /* not really an error but a return code */
 VALUE eCurlErrUnsupportedProtocol;
 VALUE eCurlErrFailedInit;
 VALUE eCurlErrMalformedURL;
@@ -127,6 +128,9 @@ VALUE rb_curl_easy_error(CURLcode code) {
   VALUE results;
 
   switch (code) {
+    case CURLE_OK:                      /* 0 */
+      exclz = eCurlErrOK;
+      break;
     case CURLE_UNSUPPORTED_PROTOCOL:    /* 1 */
       exclz = eCurlErrUnsupportedProtocol;
       break;
@@ -509,6 +513,7 @@ void init_curb_errors() {
   eCurlErrTelnetError = rb_define_class_under(mCurlErr, "TelnetError", eCurlErrError);
   eCurlErrTFTPError = rb_define_class_under(mCurlErr, "TFTPError", eCurlErrError);
 
+  eCurlErrOK = rb_define_class_under(mCurlErr, "CurlOK", eCurlErrError);
   eCurlErrUnsupportedProtocol = rb_define_class_under(mCurlErr, "UnsupportedProtocolError", eCurlErrError);
   eCurlErrFailedInit = rb_define_class_under(mCurlErr, "FailedInitError", eCurlErrError);
   eCurlErrMalformedURL = rb_define_class_under(mCurlErr, "MalformedURLError", eCurlErrError);
