@@ -659,10 +659,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl = Curl::Easy.new(TestServlet.url)
     curl.username = "foo"
     curl.password = "bar"
-    assert_equal "foo", curl.username
-    assert_equal "bar", curl.password
+    if !curl.username.nil?
+      assert_equal "foo", curl.username
+      assert_equal "bar", curl.password
+    else
+      curl.userpwd = "foo:bar"
+    end
     curl.http_auth_types = :basic
-    #curl.userpwd = "foo:bar"
     #curl.verbose = true
     curl.perform
     assert_equal 'Basic Zm9vOmJhcg==', $auth_header
@@ -673,6 +676,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl = Curl::Easy.new(TestServlet.url)
     curl.username = "foo"
     curl.password = "bar"
+    if curl.username.nil?
+      curl.userpwd = "foo:bar"
+    end
     curl.http_auth_types = :ntlm
     curl.perform
     assert_equal 'NTLM TlRMTVNTUAABAAAABoIIAAAAAAAAAAAAAAAAAAAAAAA=', $auth_header

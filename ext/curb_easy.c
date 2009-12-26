@@ -143,8 +143,12 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->debug_proc);
   rb_gc_mark(rbce->interface_hm);
   rb_gc_mark(rbce->userpwd);
+#if HAVE_CURLOPT_USERNAME
   rb_gc_mark(rbce->username);
+#endif
+#if HAVE_CURLOPT_PASSWORD
   rb_gc_mark(rbce->password);
+#endif
   rb_gc_mark(rbce->proxypwd);
   rb_gc_mark(rbce->headers);
   rb_gc_mark(rbce->cookies);
@@ -214,8 +218,12 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->debug_proc = Qnil;
   rbce->interface_hm = Qnil;
   rbce->userpwd = Qnil;
+#if HAVE_CURLOPT_USERNAME
   rbce->username = Qnil;
+#endif
+#if HAVE_CURLOPT_PASSWORD
   rbce->password = Qnil;
+#endif
   rbce->proxypwd = Qnil;
   rbce->headers = rb_hash_new();
   rbce->cookies = Qnil;
@@ -1096,20 +1104,37 @@ static VALUE ruby_curl_easy_ftp_response_timeout_get(VALUE self, VALUE ftp_respo
   CURB_IMMED_GETTER(ruby_curl_easy, ftp_response_timeout, 0);
 }
 
+
 static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
+#if HAVE_CURLOPT_USERNAME
   CURB_OBJECT_SETTER(ruby_curl_easy, username);
+#else
+  return Qnil;
+#endif
 }
 
 static VALUE ruby_curl_easy_username_get(VALUE self, VALUE username) {
+#if HAVE_CURLOPT_USERNAME
   CURB_OBJECT_GETTER(ruby_curl_easy, username);
+#else
+  return Qnil;
+#endif
 }
 
 static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
+#if HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_SETTER(ruby_curl_easy, password);
+#else
+  return Qnil;
+#endif
 }
 
 static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
+#if HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_GETTER(ruby_curl_easy, password);
+#else
+  return Qnil;
+#endif
 }
 
 /* ================== BOOL ATTRS ===================*/
@@ -1577,7 +1602,11 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
 
   if (rbce->userpwd != Qnil) {
     curl_easy_setopt(curl, CURLOPT_USERPWD, StringValuePtr(rbce->userpwd));
+#if HAVE_CURLOPT_USERNAME
   } else if (rbce->username == Qnil && rbce->password == Qnil) { /* don't set this even to NULL if we have set username and password */
+#else
+  } else {
+#endif
     curl_easy_setopt(curl, CURLOPT_USERPWD, NULL);
   }
 
