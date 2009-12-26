@@ -1400,7 +1400,7 @@ static VALUE ruby_curl_easy_on_body_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_success { ... }                 => &lt;old handler&gt;
+ *   easy.on_success { |easy| ... }                 => &lt;old handler&gt;
  *
  * Assign or remove the +on_success+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -1415,7 +1415,7 @@ static VALUE ruby_curl_easy_on_success_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_failure { ... }                 => &lt;old handler&gt;
+ *   easy.on_failure {|easy,code| ... }                 => &lt;old handler&gt;
  *
  * Assign or remove the +on_failure+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -1430,7 +1430,7 @@ static VALUE ruby_curl_easy_on_failure_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_complete { ... }                 => &lt;old handler&gt;
+ *   easy.on_complete {|easy| ... }                 => &lt;old handler&gt;
  *
  * Assign or remove the +on_complete+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -2710,7 +2710,7 @@ static VALUE ruby_curl_easy_escape(VALUE self, VALUE svalue) {
 
 /*
  * call-seq:
- *   easy.unescape("some text")                       => "some%20text"
+ *   easy.unescape("some%20text")                       => "some text"
  *
  * Convert the given URL encoded input string to a "plain string" and return
  * the result. All input characters that are URL encoded (%XX where XX is a
