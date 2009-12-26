@@ -655,6 +655,29 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert /ScrubDog$/,curl.useragent
   end
 
+  def test_username_password
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.username = "foo"
+    curl.password = "bar"
+    assert_equal "foo", curl.username
+    assert_equal "bar", curl.password
+    curl.http_auth_types = :basic
+    #curl.userpwd = "foo:bar"
+    #curl.verbose = true
+    curl.perform
+    assert_equal 'Basic Zm9vOmJhcg==', $auth_header
+
+    # curl checks the auth type supported by the server, so we have to create a 
+    # new easy handle if we're going to change the auth type...
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.username = "foo"
+    curl.password = "bar"
+    curl.http_auth_types = :ntlm
+    curl.perform
+    assert_equal 'NTLM TlRMTVNTUAABAAAABoIIAAAAAAAAAAAAAAAAAAAAAAA=', $auth_header
+  end
+
   include TestServerMethods 
 
   def setup

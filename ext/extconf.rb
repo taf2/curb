@@ -111,6 +111,13 @@ have_constant "curle_again"
 have_constant "curle_ssl_crl_badfile"
 have_constant "curle_ssl_issuer_error"
 
+# username/password added in 7.19.1
+have_constant "curlopt_username"
+have_constant "curlopt_password"
+
+# ie quirk added in 7.19.3
+have_constant "curlauth_digest_ie"
+
 # centos 4.5 build of libcurl
 have_constant "curlm_bad_socket"
 have_constant "curlm_unknown_option"

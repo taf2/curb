@@ -143,6 +143,8 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->debug_proc);
   rb_gc_mark(rbce->interface_hm);
   rb_gc_mark(rbce->userpwd);
+  rb_gc_mark(rbce->username);
+  rb_gc_mark(rbce->password);
   rb_gc_mark(rbce->proxypwd);
   rb_gc_mark(rbce->headers);
   rb_gc_mark(rbce->cookies);
@@ -212,6 +214,8 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->debug_proc = Qnil;
   rbce->interface_hm = Qnil;
   rbce->userpwd = Qnil;
+  rbce->username = Qnil;
+  rbce->password = Qnil;
   rbce->proxypwd = Qnil;
   rbce->headers = rb_hash_new();
   rbce->cookies = Qnil;
@@ -872,16 +876,61 @@ static VALUE ruby_curl_easy_proxy_type_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, proxy_type, -1);
 }
 
+#if defined(HAVE_CURLAUTH_DIGEST_IE)
+#define CURL_HTTPAUTH_STR_TO_NUM(node) \
+  (!strncmp("basic",node,5)) ? CURLAUTH_BASIC : \
+  (!strncmp("digest_ie",node,9)) ? CURLAUTH_DIGEST_IE : \
+  (!strncmp("digest",node,6)) ? CURLAUTH_DIGEST : \
+  (!strncmp("gssnegotiate",node,12)) ? CURLAUTH_GSSNEGOTIATE : \
+  (!strncmp("ntlm",node,4)) ? CURLAUTH_NTLM : \
+  (!strncmp("any",node,3)) ? CURLAUTH_ANY : \
+  (!strncmp("anysafe",node,7)) ? CURLAUTH_ANYSAFE : 0
+#else 
+#define CURL_HTTPAUTH_STR_TO_NUM(node) \
+  (!strncmp("basic",node,5)) ? CURLAUTH_BASIC : \
+  (!strncmp("digest",node,6)) ? CURLAUTH_DIGEST : \
+  (!strncmp("gssnegotiate",node,12)) ? CURLAUTH_GSSNEGOTIATE : \
+  (!strncmp("ntlm",node,4)) ? CURLAUTH_NTLM : \
+  (!strncmp("any",node,3)) ? CURLAUTH_ANY : \
+  (!strncmp("anysafe",node,7)) ? CURLAUTH_ANYSAFE : 0
+#endif
 /*
  * call-seq:
  *   easy.http_auth_types = fixnum or nil             => fixnum or nil
+ *   easy.http_auth_types = [:basic,:digest,:digest_ie,:gssnegotiate, :ntlm, :any, :anysafe]
  *
  * Set the HTTP authentication types that may be used for the following
  * +perform+ calls. This is a bitmap made by ORing together the
  * Curl::CURLAUTH constants.
  */
-static VALUE ruby_curl_easy_http_auth_types_set(VALUE self, VALUE http_auth_types) {
-  CURB_IMMED_SETTER(ruby_curl_easy, http_auth_types, 0);
+static VALUE ruby_curl_easy_http_auth_types_set(int argc, VALUE *argv, VALUE self) {//VALUE self, VALUE http_auth_types) {
+  ruby_curl_easy *rbce;
+  VALUE args_ary;
+  rb_scan_args(argc, argv, "*", &args_ary);
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  int i, len = RARRAY_LEN(args_ary);
+  char* node = NULL;
+  long mask = 0x000000;
+
+  if (len == 1 && (TYPE(rb_ary_entry(args_ary,0)) == T_FIXNUM || rb_ary_entry(args_ary,0) == Qnil)) {
+    if (rb_ary_entry(args_ary,0) == Qnil) { 
+      rbce->http_auth_types = 0;
+    }
+    else {
+      rbce->http_auth_types = NUM2INT(rb_ary_entry(args_ary,0));
+    }
+  }
+  else {
+    // we could have multiple values, but they should be symbols
+    node = RSTRING_PTR(rb_funcall(rb_ary_entry(args_ary,0),rb_intern("to_s"),0));
+    mask = CURL_HTTPAUTH_STR_TO_NUM(node);
+    for( i = 1; i < len; ++i ) {
+      node = RSTRING_PTR(rb_funcall(rb_ary_entry(args_ary,i),rb_intern("to_s"),0));
+      mask |= CURL_HTTPAUTH_STR_TO_NUM(node);
+    }
+    rbce->http_auth_types = mask;
+  }
+  return INT2NUM(rbce->http_auth_types);
 }
 
 /*
@@ -1045,6 +1094,22 @@ static VALUE ruby_curl_easy_ftp_response_timeout_set(VALUE self, VALUE ftp_respo
  */
 static VALUE ruby_curl_easy_ftp_response_timeout_get(VALUE self, VALUE ftp_response_timeout) {
   CURB_IMMED_GETTER(ruby_curl_easy, ftp_response_timeout, 0);
+}
+
+static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, username);
+}
+
+static VALUE ruby_curl_easy_username_get(VALUE self, VALUE username) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, username);
+}
+
+static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
+  CURB_OBJECT_SETTER(ruby_curl_easy, password);
+}
+
+static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
+  CURB_OBJECT_GETTER(ruby_curl_easy, password);
 }
 
 /* ================== BOOL ATTRS ===================*/
@@ -1496,9 +1561,23 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, VALUE *body_buffer, VALUE *hea
     curl_easy_setopt(curl, CURLOPT_INTERFACE, NULL);
   }
 
+#if HAVE_CURLOPT_USERNAME == 1 && HAVE_CURLOPT_PASSWORD == 1
+  if (rbce->username != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_USERNAME, StringValuePtr(rbce->username));
+  } else {
+    curl_easy_setopt(curl, CURLOPT_USERNAME, NULL);
+  }
+  if (rbce->password != Qnil) {
+    curl_easy_setopt(curl, CURLOPT_PASSWORD, StringValuePtr(rbce->password));
+  }
+  else {
+    curl_easy_setopt(curl, CURLOPT_PASSWORD, NULL);
+  }
+#endif
+
   if (rbce->userpwd != Qnil) {
     curl_easy_setopt(curl, CURLOPT_USERPWD, StringValuePtr(rbce->userpwd));
-  } else {
+  } else if (rbce->username == Qnil && rbce->password == Qnil) { /* don't set this even to NULL if we have set username and password */
     curl_easy_setopt(curl, CURLOPT_USERPWD, NULL);
   }
 
@@ -2832,7 +2911,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "proxy_port", ruby_curl_easy_proxy_port_get, 0);
   rb_define_method(cCurlEasy, "proxy_type=", ruby_curl_easy_proxy_type_set, 1);
   rb_define_method(cCurlEasy, "proxy_type", ruby_curl_easy_proxy_type_get, 0);
-  rb_define_method(cCurlEasy, "http_auth_types=", ruby_curl_easy_http_auth_types_set, 1);
+  rb_define_method(cCurlEasy, "http_auth_types=", ruby_curl_easy_http_auth_types_set, -1);
   rb_define_method(cCurlEasy, "http_auth_types", ruby_curl_easy_http_auth_types_get, 0);
   rb_define_method(cCurlEasy, "proxy_auth_types=", ruby_curl_easy_proxy_auth_types_set, 1);
   rb_define_method(cCurlEasy, "proxy_auth_types", ruby_curl_easy_proxy_auth_types_get, 0);
@@ -2846,6 +2925,11 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "dns_cache_timeout", ruby_curl_easy_dns_cache_timeout_get, 0);
   rb_define_method(cCurlEasy, "ftp_response_timeout=", ruby_curl_easy_ftp_response_timeout_set, 1);
   rb_define_method(cCurlEasy, "ftp_response_timeout", ruby_curl_easy_ftp_response_timeout_get, 0);
+
+  rb_define_method(cCurlEasy, "username=", ruby_curl_easy_username_set, 1);
+  rb_define_method(cCurlEasy, "username", ruby_curl_easy_username_get, 0);
+  rb_define_method(cCurlEasy, "password=", ruby_curl_easy_password_set, 1);
+  rb_define_method(cCurlEasy, "password", ruby_curl_easy_password_get, 0);
 
   rb_define_method(cCurlEasy, "proxy_tunnel=", ruby_curl_easy_proxy_tunnel_set, 1);
   rb_define_method(cCurlEasy, "proxy_tunnel?", ruby_curl_easy_proxy_tunnel_q, 0);

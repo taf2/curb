@@ -59,6 +59,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
 
   def respond_with(method,req,res)
     res.body = method.to_s
+    $auth_header = req['Authorization']
     res['Content-Type'] = "text/plain"
   end
 

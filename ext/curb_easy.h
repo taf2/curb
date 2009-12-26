@@ -91,6 +91,13 @@ typedef struct {
 
   int last_result; /* last result code from multi loop */
 
+#if HAVE_CURLOPT_USERNAME == 1
+  VALUE username;
+#endif
+#if HAVE_CURLOPT_PASSWORD == 1
+  VALUE password;
+#endif
+
 } ruby_curl_easy;
 
 extern VALUE cCurlEasy;
