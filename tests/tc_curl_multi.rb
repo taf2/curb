@@ -44,7 +44,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     m.perform do
       # idle
-      puts "idling..."
+      #puts "idling..."
     end
 
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c1.body_str)
