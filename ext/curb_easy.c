@@ -214,7 +214,6 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->opts = rb_hash_new();
 
   rb_easy_set("url", url);
-//  rb_easy_set("headers", rb_hash_new());
 
   rbce->curl_headers = NULL;
 
