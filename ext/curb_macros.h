@@ -8,11 +8,12 @@
 #ifndef __CURB_MACROS_H
 #define __CURB_MACROS_H
 
-#define rb_easy_set(key,val) rb_hash_aset(rbce->opts, rb_intern(key), val)
-#define rb_easy_get(key) rb_hash_aref(rbce->opts, rb_intern(key))
-#define rb_easy_del(key) rb_hash_delete(rbce->opts, rb_intern(key))
-#define rb_easy_nil(key) (rb_hash_lookup(rbce->opts, rb_intern(key)) == Qnil)
-#define rb_easy_type_check(key,type) (rb_type(rb_hash_aref(rbce->opts, rb_intern(key))) == type)
+#define rb_easy_hkey(key) ID2SYM(rb_intern(key))
+#define rb_easy_set(key,val) rb_hash_aset(rbce->opts, rb_easy_hkey(key) , val)
+#define rb_easy_get(key) rb_hash_aref(rbce->opts, rb_easy_hkey(key))
+#define rb_easy_del(key) rb_hash_delete(rbce->opts, rb_easy_hkey(key))
+#define rb_easy_nil(key) (rb_hash_lookup(rbce->opts, rb_easy_hkey(key)) == Qnil)
+#define rb_easy_type_check(key,type) (rb_type(rb_hash_aref(rbce->opts, rb_easy_hkey(key))) == type)
 
 // TODO: rb_sym_to_s may not be defined?
 #define rb_easy_get_str(key) \
@@ -40,7 +41,7 @@
             type *ptr;                                              \
                                                                     \
             Data_Get_Struct(self, type, ptr);                       \
-            rb_hash_aset(ptr->opts, rb_intern(#attr), attr);       \
+            rb_hash_aset(ptr->opts, rb_easy_hkey(#attr), attr);       \
                                                                     \
             return attr;
 
@@ -49,7 +50,7 @@
             type *ptr;                                              \
                                                                     \
             Data_Get_Struct(self, type, ptr);                       \
-            return rb_hash_aref(ptr->opts, rb_intern(#attr)); 
+            return rb_hash_aref(ptr->opts, rb_easy_hkey(#attr)); 
 
 /* setter for bool flags */
 #define CURB_BOOLEAN_SETTER(type, attr)                             \
@@ -90,10 +91,10 @@
                                                                         \
             Data_Get_Struct(self, type, ptr);                           \
                                                                         \
-            oldproc = rb_hash_aref(ptr->opts, rb_intern(#handler));   \
+            oldproc = rb_hash_aref(ptr->opts, rb_easy_hkey(#handler));   \
             rb_scan_args(argc, argv, "0&", &newproc);                   \
                                                                         \
-            rb_hash_aset(ptr->opts, rb_intern(#handler), newproc);    \
+            rb_hash_aset(ptr->opts, rb_easy_hkey(#handler), newproc);    \
                                                                         \
             return oldproc;
 
