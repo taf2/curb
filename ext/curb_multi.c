@@ -200,7 +200,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
   }
 
   /* setup the easy handle */
-  ruby_curl_easy_setup( rbce, &(rbce->bodybuf), &(rbce->headerbuf), &(rbce->curl_headers) );
+  ruby_curl_easy_setup( rbce, &(rbce->curl_headers) );
 
   rbcm->active++;
 
@@ -253,9 +253,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
 
   rbcm->active--;
 
-  ruby_curl_easy_cleanup( easy, rbce, rbce->bodybuf, rbce->headerbuf, rbce->curl_headers );
-  rbce->headerbuf = Qnil;
-  rbce->bodybuf = Qnil;
+  ruby_curl_easy_cleanup( easy, rbce, rbce->curl_headers );
 
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
   r = rb_hash_delete( rbcm->requests, easy );
@@ -306,25 +304,25 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   ruby_curl_multi_remove( self, easy );
 
-  if (rbce->complete_proc != Qnil) {
-    rb_funcall( rbce->complete_proc, idCall, 1, easy );
+  if (!rb_easy_nil("complete_proc")) {
+    rb_funcall( rb_easy_get("complete_proc"), idCall, 1, easy );
   }
 
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
 
   if (result != 0) {
-    if (rbce->failure_proc != Qnil) {
-      rb_funcall( rbce->failure_proc, idCall, 2, easy, rb_curl_easy_error(result) );
+    if (!rb_easy_nil("failure_proc")) {
+      rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
     }
   }
-  else if (rbce->success_proc != Qnil &&
+  else if (!rb_easy_nil("success_proc") &&
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
     /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
-    rb_funcall( rbce->success_proc, idCall, 1, easy );
+    rb_funcall( rb_easy_get("success_proc"), idCall, 1, easy );
   }
-  else if (rbce->failure_proc != Qnil &&
+  else if (!rb_easy_nil("failure_proc") &&
           (response_code >= 300 && response_code <= 999)) {
-    rb_funcall( rbce->failure_proc, idCall, 2, easy, rb_curl_easy_error(result) );
+    rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
   }
 }
 

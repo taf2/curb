@@ -18,33 +18,7 @@ typedef struct {
   /* The handler */
   CURL *curl;
 
-  /* Objects we associate */
-  VALUE url;
-  VALUE proxy_url;
-
-  VALUE body_proc;
-  VALUE header_proc;
-  VALUE body_data;      /* Holds the response body from the last call to curl_easy_perform */
-  VALUE header_data;    /* unless a block is supplied (they'll be nil)      */
-  VALUE progress_proc;
-  VALUE debug_proc;
-  VALUE interface_hm;
-  VALUE userpwd;
-  VALUE proxypwd;
-  VALUE headers;        /* ruby array of strings with headers to set */
-  VALUE cookies;        /* string */
-  VALUE cookiefile;     /* filename */
-  VALUE cookiejar;      /* filename */
-  VALUE cert;
-  VALUE cacert;
-  VALUE certpassword;
-  VALUE certtype;
-  VALUE encoding;
-  VALUE useragent;
-
-  VALUE success_proc;
-  VALUE failure_proc;
-  VALUE complete_proc;
+  VALUE opts; /* rather then allocate everything we might need to store, allocate a Hash and only store objects we actually use... */
 
   /* Other opts */
   unsigned short local_port;       // 0 is no port
@@ -71,39 +45,16 @@ typedef struct {
   char verbose;
   char multipart_form_post;
   char enable_cookies;
-
-  /* this is sometimes used as a buffer for a form data string,
-   * which we alloc in C and need to hang around for the call,
-   * and in case it's asked for before the next call.
-   */
-  VALUE postdata_buffer;
-
-  /* when added to a multi handle these buffers are needed
-   * when the easy handle isn't supplied the body proc
-   * or a custom http header is passed.
-   */
-  VALUE bodybuf;
-  VALUE headerbuf;
   struct curl_slist *curl_headers;
 
-//  VALUE self; /* pointer to self, used by multi interface */
-  VALUE upload; /* pointer to an active upload otherwise Qnil */
-
   int last_result; /* last result code from multi loop */
-
-#if HAVE_CURLOPT_USERNAME == 1
-  VALUE username;
-#endif
-#if HAVE_CURLOPT_PASSWORD == 1
-  VALUE password;
-#endif
 
 } ruby_curl_easy;
 
 extern VALUE cCurlEasy;
 
-VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce, VALUE *bodybuf, VALUE *headerbuf, struct curl_slist **headers);
-VALUE ruby_curl_easy_cleanup(VALUE self, ruby_curl_easy *rbce, VALUE bodybuf, VALUE headerbuf, struct curl_slist *headers);
+VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce, struct curl_slist **headers);
+VALUE ruby_curl_easy_cleanup(VALUE self, ruby_curl_easy *rbce, struct curl_slist *headers);
 
 void init_curb_easy();
 
