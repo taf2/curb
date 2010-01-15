@@ -41,7 +41,7 @@ void append_to_form(VALUE self,
       // is a file upload field
       if (rbcpf->content_proc != Qnil) {
         // with content proc
-        rbcpf->buffer_str = rb_funcall(rbcpf->content_proc, idCall, self);
+        rbcpf->buffer_str = rb_funcall(rbcpf->content_proc, idCall, 1, self);
         
         if (rbcpf->remote_file == Qnil) {
           rb_raise(eCurlErrInvalidPostField, "Cannot post file upload field with no filename");
@@ -468,10 +468,10 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
         }            
       }
     } else {
-      rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string");
+      rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d", __FILE__, __LINE__);
     }      
   } else {
-    rb_raise(eCurlErrInvalidPostField, "Cannot convert non-content field to string");
+    rb_raise(eCurlErrInvalidPostField, "Cannot convert non-content field to string %s:%d", __FILE__, __LINE__);
   }  
   
   return result;
