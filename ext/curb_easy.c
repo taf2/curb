@@ -1086,7 +1086,12 @@ static VALUE ruby_curl_easy_ftp_response_timeout_get(VALUE self, VALUE ftp_respo
   CURB_IMMED_GETTER(ruby_curl_easy, ftp_response_timeout, 0);
 }
 
-
+/*
+ * call-seq:
+ *   easy.username = "foo"  => String
+ *
+ * Set the HTTP Authentication username.
+ */
 static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
 #if HAVE_CURLOPT_USERNAME
   CURB_OBJECT_HSETTER(ruby_curl_easy, username);
@@ -1095,6 +1100,12 @@ static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
 #endif
 }
 
+/*
+ * call-seq:
+ *   easy.username   => String
+ * 
+ * Get the current username
+ */
 static VALUE ruby_curl_easy_username_get(VALUE self, VALUE username) {
 #if HAVE_CURLOPT_USERNAME
   CURB_OBJECT_HGETTER(ruby_curl_easy, username);
@@ -1103,6 +1114,12 @@ static VALUE ruby_curl_easy_username_get(VALUE self, VALUE username) {
 #endif
 }
 
+/*
+ * call-seq:
+ *   easy.password = "foo"  => String
+ *
+ * Set the HTTP Authentication password.
+ */
 static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
 #if HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_HSETTER(ruby_curl_easy, password);
@@ -1111,6 +1128,12 @@ static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
 #endif
 }
 
+/*
+ * call-seq:
+ *   easy.password   => String
+ * 
+ * Get the current password
+ */
 static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
 #if HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_HGETTER(ruby_curl_easy, password);
