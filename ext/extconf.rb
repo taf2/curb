@@ -4,7 +4,7 @@ puts $CFLAGS.inspect
 dir_config('curl')
 
 if find_executable('curl-config')
-  $CFLAGS << " #{`curl-config --cflags`.strip}"
+  $CFLAGS << " #{`curl-config --cflags`.strip} -g"
   if ENV['STATIC_BUILD']
     $LIBS << " #{`curl-config --static-libs`.strip}"
   else

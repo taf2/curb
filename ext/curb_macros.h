@@ -12,7 +12,7 @@
 #define rb_easy_set(key,val) rb_hash_aset(rbce->opts, rb_easy_hkey(key) , val)
 #define rb_easy_get(key) rb_hash_aref(rbce->opts, rb_easy_hkey(key))
 #define rb_easy_del(key) rb_hash_delete(rbce->opts, rb_easy_hkey(key))
-#define rb_easy_nil(key) (rb_hash_lookup(rbce->opts, rb_easy_hkey(key)) == Qnil)
+#define rb_easy_nil(key) (rb_hash_aref(rbce->opts, rb_easy_hkey(key)) == Qnil)
 #define rb_easy_type_check(key,type) (rb_type(rb_hash_aref(rbce->opts, rb_easy_hkey(key))) == type)
 
 // TODO: rb_sym_to_s may not be defined?
