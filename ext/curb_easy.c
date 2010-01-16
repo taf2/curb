@@ -666,6 +666,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   ruby_curl_easy *rbce;
   CURL *curl;
   VALUE upload;
+  VALUE headers;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
@@ -692,7 +693,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
     }
   }
 
-  VALUE headers = rb_easy_get("headers");
+  headers = rb_easy_get("headers");
   if( headers == Qnil ) { 
     headers = rb_hash_new();
   }
@@ -856,11 +857,13 @@ static VALUE ruby_curl_easy_proxy_type_get(VALUE self) {
 static VALUE ruby_curl_easy_http_auth_types_set(int argc, VALUE *argv, VALUE self) {//VALUE self, VALUE http_auth_types) {
   ruby_curl_easy *rbce;
   VALUE args_ary;
-  rb_scan_args(argc, argv, "*", &args_ary);
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  int i, len = RARRAY_LEN(args_ary);
+  int i, len;
   char* node = NULL;
   long mask = 0x000000;
+
+  rb_scan_args(argc, argv, "*", &args_ary);
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  len = RARRAY_LEN(args_ary);
 
   if (len == 1 && (TYPE(rb_ary_entry(args_ary,0)) == T_FIXNUM || rb_ary_entry(args_ary,0) == Qnil)) {
     if (rb_ary_entry(args_ary,0) == Qnil) { 
