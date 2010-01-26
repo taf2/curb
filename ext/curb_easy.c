@@ -656,7 +656,7 @@ static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
   
   char *data;
   long len;
-  
+
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   
   curl = rbce->curl;
@@ -1988,12 +1988,16 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
     return ret;
   } else {
-    VALUE post_body;
+    VALUE post_body = Qnil;
     if ((post_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp)) == Qnil) {
       rb_raise(eCurlErrError, "Failed to join arguments");
       return Qnil;
     } else {
-      ruby_curl_easy_post_body_set(self, post_body);
+      /* if the function call above returns an empty string because no additional arguments were passed this makes sure
+         a previously set easy.post_body = "arg=foo&bar=bin"  will be honored */
+      if( post_body != Qnil && rb_type(post_body) == T_STRING && RSTRING_LEN(post_body) > 0 ) {
+        ruby_curl_easy_post_body_set(self, post_body);
+      }
 
       return handle_perform(self,rbce);
     }
