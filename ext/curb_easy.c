@@ -1999,6 +1999,11 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
         ruby_curl_easy_post_body_set(self, post_body);
       }
 
+      /* if post body is not defined, set it so we enable POST header, even though the request body is empty */
+      if( rb_easy_nil("postdata_buffer") ) {
+        ruby_curl_easy_post_body_set(self, post_body);
+      }
+
       return handle_perform(self,rbce);
     }
   }
