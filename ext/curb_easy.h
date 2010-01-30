@@ -53,8 +53,8 @@ typedef struct {
 
 extern VALUE cCurlEasy;
 
-VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce, struct curl_slist **headers);
-VALUE ruby_curl_easy_cleanup(VALUE self, ruby_curl_easy *rbce, struct curl_slist *headers);
+VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce);
+VALUE ruby_curl_easy_cleanup(VALUE self, ruby_curl_easy *rbce);
 
 void init_curb_easy();
 

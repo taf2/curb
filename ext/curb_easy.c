@@ -134,46 +134,6 @@ static int proc_debug_handler(CURL *curl,
 
 /* ================== MARK/FREE FUNC ==================*/
 void curl_easy_mark(ruby_curl_easy *rbce) {
-#if 0
-  rb_gc_mark(rbce->url);
-  rb_gc_mark(rbce->proxy_url);
-  rb_gc_mark(rbce->body_proc);
-  rb_gc_mark(rbce->body_data);
-  rb_gc_mark(rbce->header_proc);
-  rb_gc_mark(rbce->header_data);
-  rb_gc_mark(rbce->progress_proc);
-  rb_gc_mark(rbce->debug_proc);
-  rb_gc_mark(rbce->interface_hm);
-  rb_gc_mark(rbce->userpwd);
-#if HAVE_CURLOPT_USERNAME
-  rb_gc_mark(rbce->username);
-#endif
-#if HAVE_CURLOPT_PASSWORD
-  rb_gc_mark(rbce->password);
-#endif
-  rb_gc_mark(rbce->proxypwd);
-  rb_gc_mark(rbce->headers);
-  rb_gc_mark(rbce->cookies);
-  rb_gc_mark(rbce->cookiefile);
-  rb_gc_mark(rbce->cookiejar);
-  rb_gc_mark(rbce->cert);
-  rb_gc_mark(rbce->cacert);
-  rb_gc_mark(rbce->certpassword);
-  rb_gc_mark(rbce->certtype);
-  rb_gc_mark(rbce->encoding);
-  rb_gc_mark(rbce->useragent);
-  rb_gc_mark(rbce->success_proc);
-  rb_gc_mark(rbce->failure_proc);
-  rb_gc_mark(rbce->complete_proc);
-
-  rb_gc_mark(rbce->postdata_buffer);
-  rb_gc_mark(rbce->bodybuf);
-  rb_gc_mark(rbce->headerbuf);
-
-  if( rbce->upload != Qnil ) {
-    rb_gc_mark(rbce->upload);
-  }
-#endif
   rb_gc_mark(rbce->opts);
 }
 
@@ -1568,10 +1528,11 @@ static VALUE cb_each_http_header(VALUE header, struct curl_slist **list) {
  *
  * Always returns Qtrue, rb_raise on error.
  */
-VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, struct curl_slist **hdrs ) {
+VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   // TODO this could do with a bit of refactoring...
   CURL *curl;
   VALUE url, _url = rb_easy_get("url");
+  struct curl_slist **hdrs = &(rbce->curl_headers);
 
   curl = rbce->curl;
 
@@ -1823,10 +1784,10 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce, struct curl_slist **hdrs ) {
  *
  * Always returns Qtrue.
  */
-VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce, struct curl_slist *headers ) {
+VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 
   CURL *curl = rbce->curl;
-  
+  struct curl_slist *headers = rbce->curl_headers;
   // Free everything up
   if (headers) {
     curl_slist_free_all(headers);
