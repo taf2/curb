@@ -100,7 +100,7 @@ Rake::TestTask.new(:bugtests) do |t|
   t.test_files = FileList['tests/bug_*.rb']
   t.verbose = false
 end
-                          
+ 
 #Rake::TestTask.new(:funtests) do |t|
   #  t.test_files = FileList['test/func_*.rb']
   #t.warning = true
