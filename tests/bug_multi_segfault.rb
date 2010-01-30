@@ -6,5 +6,9 @@
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','ext'))
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 require 'curb'
-multi = Curl::Multi.new
-exit
+
+class BugMultiSegfault < Test::Unit::TestCase
+  def test_bug
+    multi = Curl::Multi.new
+  end
+end
