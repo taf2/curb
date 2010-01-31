@@ -424,6 +424,13 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert_equal Curl::Err::MultiBadEasyHandle, e.class
   end
 
+  def test_multi_default_timeout
+    assert_equal 100, Curl::Multi.default_timeout
+    Curl::Multi.default_timeout = 12
+    assert_equal 12, Curl::Multi.default_timeout
+    assert_equal 100, (Curl::Multi.default_timeout = 100)
+  end
+
   include TestServerMethods
 
   def setup
