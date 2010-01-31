@@ -28,6 +28,8 @@ static VALUE idCall;
 
 VALUE cCurlMulti;
 
+static long cCurlMutiDefaulttimeout = 100; /* milliseconds */
+
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 
@@ -90,6 +92,30 @@ VALUE ruby_curl_multi_new(VALUE klass) {
   new_curlm = Data_Wrap_Struct(klass, curl_multi_mark, curl_multi_free, rbcm);
 
   return new_curlm;
+}
+
+/*
+ * call-seq:
+ *   Curl::Multi.default_timeout = 4 => 4
+ *
+ * Set the global default time out for all Curl::Multi Handles.  This value is used
+ * when libcurl cannot determine a timeout value when calling curl_multi_timeout.
+ *
+ */
+VALUE ruby_curl_multi_set_default_timeout(VALUE klass, VALUE timeout) {
+  cCurlMutiDefaulttimeout = FIX2LONG(timeout);
+  return timeout;
+}
+
+/*
+ * call-seq:
+ *   Curl::Multi.default_timeout = 4 => 4
+ *
+ * Get the global default time out for all Curl::Multi Handles.
+ *
+ */
+VALUE ruby_curl_multi_get_default_timeout(VALUE klass) {
+  return INT2FIX(cCurlMutiDefaulttimeout);
 }
 
 /* Hash#foreach callback for ruby_curl_multi_requests */
@@ -417,11 +443,11 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       continue;
     }
     else if(timeout_milliseconds < 0) {
-      timeout_milliseconds = 500; /* wait half a second, libcurl doesn't know how long to wait */
+      timeout_milliseconds = cCurlMutiDefaulttimeout; /* wait half a second, libcurl doesn't know how long to wait */
     }
 #ifdef __APPLE_CC__
     if(timeout_milliseconds > 1000) {
-      timeout_milliseconds = 1000; /* apple libcurl sometimes reports huge timeouts... let's cap it */
+      timeout_milliseconds = cCurlMutiDefaulttimeout; /* apple libcurl sometimes reports huge timeouts... let's cap it */
     }
 #endif
 
@@ -458,6 +484,8 @@ void init_curb_multi() {
 
   /* Class methods */
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
+  rb_define_singleton_method(cCurlMulti, "default_timeout=", ruby_curl_multi_set_default_timeout, 1);
+  rb_define_singleton_method(cCurlMulti, "default_timeout", ruby_curl_multi_get_default_timeout, 0);
   
   /* "Attributes" */
   rb_define_method(cCurlMulti, "requests", ruby_curl_multi_requests, 0);
