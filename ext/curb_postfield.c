@@ -430,7 +430,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
   if ((rbcpf->local_file == Qnil) && (rbcpf->remote_file == Qnil)) {
     if (rbcpf->name != Qnil) {
 
-      char *tmpchrs = curl_escape(RSTRING_PTR(rbcpf->name), RSTRING_LEN(rbcpf->name));
+      char *tmpchrs = curl_escape(StringValuePtr(rbcpf->name), RSTRING_LEN(StringValue(rbcpf->name)));
       
       if (!tmpchrs) {
         rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
