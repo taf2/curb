@@ -93,6 +93,10 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
     respond_with(:DELETE,req,res)
   end
 
+  def do_PURGE(req,res)
+    respond_with(:PURGE,req,res)
+  end
+
 end
 
 module TestServerMethods

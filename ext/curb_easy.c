@@ -1853,6 +1853,26 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
 }
 
 /*
+ * Common implementation of easy.http(verb) and easy.http_delete
+ */
+static VALUE ruby_curl_easy_perform_verb_str(VALUE self, char *verb) {
+  ruby_curl_easy *rbce;
+  CURL *curl;
+  VALUE retval;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl = rbce->curl;
+
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
+
+  retval = handle_perform(self,rbce);
+
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
+
+  return retval;
+}
+
+/*
  * call-seq:
  *   easy.http_delete
  *
@@ -1861,20 +1881,18 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
  * an exception (defined under Curl::Err) on error.
  */
 static VALUE ruby_curl_easy_perform_delete(VALUE self) {
-  ruby_curl_easy *rbce;
-  CURL *curl;
-  VALUE retval;
+  return ruby_curl_easy_perform_verb_str(self, "DELETE");
+}
 
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = rbce->curl;
-
-  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-
-  retval = handle_perform(self,rbce);
-
-  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
-
-  return retval;
+/*
+ * call-seq:
+ *   easy.http(verb)
+ *
+ * Send an HTTP request with method set to verb, using the current options set for this Curl::Easy instance.
+ * This method always returns true or raises an exception (defined under Curl::Err) on error.
+ */
+static VALUE ruby_curl_easy_perform_verb(VALUE self, VALUE verb) {
+  return ruby_curl_easy_perform_verb_str(self, RSTRING_PTR(verb));
 }
 
 /*
@@ -2941,6 +2959,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
 
   rb_define_method(cCurlEasy, "perform", ruby_curl_easy_perform, 0);
+  rb_define_method(cCurlEasy, "http", ruby_curl_easy_perform_verb, 1);
   rb_define_method(cCurlEasy, "http_delete", ruby_curl_easy_perform_delete, 0);
   rb_define_method(cCurlEasy, "http_get", ruby_curl_easy_perform_get, 0);
   rb_define_method(cCurlEasy, "http_post", ruby_curl_easy_perform_post, -1);

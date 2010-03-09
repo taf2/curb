@@ -554,6 +554,12 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'DELETE', curl.body_str
   end
 
+  def test_arbitrary_http_verb
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http('PURGE')
+    assert_equal 'PURGE', curl.body_str
+  end
+
   def test_head_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_head
