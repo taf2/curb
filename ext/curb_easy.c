@@ -141,6 +141,11 @@ void curl_easy_free(ruby_curl_easy *rbce) {
   if (rbce->curl_headers) {
     curl_slist_free_all(rbce->curl_headers);
   }
+
+  if (rbce->curl_ftp_commands) {
+    curl_slist_free_all(rbce->curl_ftp_commands);
+  }
+
   curl_easy_cleanup(rbce->curl);
   free(rbce);
 }
@@ -176,6 +181,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rb_easy_set("url", url);
 
   rbce->curl_headers = NULL;
+  rbce->curl_ftp_commands = NULL;
 
   /* various-typed opts */
   rbce->local_port = 0;
@@ -235,6 +241,7 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   memcpy(newrbce, rbce, sizeof(ruby_curl_easy));
   newrbce->curl = curl_easy_duphandle(rbce->curl);
   newrbce->curl_headers = NULL;
+  newrbce->curl_ftp_commands = NULL;
 
   return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
 }
@@ -746,6 +753,24 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   
   // if we made it this far, all should be well.
   return data;
+}
+
+/*
+ * call-seq:
+ *   easy.ftp_commands = ["CWD /", "MKD directory"]   => ["CWD /", ...]
+ *
+ * Explicitly sets the list of commands to execute on the FTP server when calling perform
+ */
+static VALUE ruby_curl_easy_ftp_commands_set(VALUE self, VALUE ftp_commands) {
+  CURB_OBJECT_HSETTER(ruby_curl_easy, ftp_commands);
+}
+
+/*
+ * call-seq
+ *   easy.ftp_commands                                => array or nil
+ */
+static VALUE ruby_curl_easy_ftp_commands_get(VALUE self) {
+  CURB_OBJECT_HGETTER(ruby_curl_easy, ftp_commands);
 }
 
 /* ================== IMMED ATTRS ==================*/
@@ -1548,6 +1573,16 @@ static VALUE cb_each_http_header(VALUE header, struct curl_slist **list) {
 }
 
 /***********************************************
+ * This is an rb_iterate callback used to set up ftp commands.
+ */
+static VALUE cb_each_ftp_command(VALUE ftp_command, struct curl_slist **list) {
+  VALUE ftp_command_string = rb_obj_as_string(ftp_command);
+  *list = curl_slist_append(*list, StringValuePtr(ftp_command));
+
+  return ftp_command_string;
+}
+
+/***********************************************
  *
  * Setup a connection
  *
@@ -1558,6 +1593,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   CURL *curl;
   VALUE url, _url = rb_easy_get("url");
   struct curl_slist **hdrs = &(rbce->curl_headers);
+  struct curl_slist **cmds = &(rbce->curl_ftp_commands);
 
   curl = rbce->curl;
 
@@ -1804,6 +1840,17 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
     }
   }
 
+  /* Setup FTP commands if necessary */
+  if (!rb_easy_nil("ftp_commands")) {
+    if (rb_easy_type_check("ftp_commands", T_ARRAY)) {
+      rb_iterate(rb_each, rb_easy_get("ftp_commands"), cb_each_ftp_command, (VALUE)cmds);
+    }
+
+    if (*cmds) {
+      curl_easy_setopt(curl, CURLOPT_QUOTE, *cmds);
+    }
+  }
+
   return Qnil;
 }
 /***********************************************
@@ -1820,6 +1867,12 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
   if (headers) {
     curl_slist_free_all(headers);
     rbce->curl_headers = NULL;
+  }
+
+  struct curl_slist *ftp_commands = rbce->curl_ftp_commands;
+  if (ftp_commands) {
+    curl_slist_free_all(ftp_commands);
+    rbce->curl_ftp_commands = NULL;
   }
 
   // clean up a PUT request's curl options.
@@ -2950,6 +3003,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "post_body=", ruby_curl_easy_post_body_set, 1);
   rb_define_method(cCurlEasy, "post_body", ruby_curl_easy_post_body_get, 0);
   rb_define_method(cCurlEasy, "put_data=", ruby_curl_easy_put_data_set, 1);
+  rb_define_method(cCurlEasy, "ftp_commands=", ruby_curl_easy_ftp_commands_set, 1);
+  rb_define_method(cCurlEasy, "ftp_commands", ruby_curl_easy_ftp_commands_get, 0);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);
