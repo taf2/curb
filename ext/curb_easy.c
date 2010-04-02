@@ -195,6 +195,8 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->connect_timeout = 0;
   rbce->dns_cache_timeout = 60;
   rbce->ftp_response_timeout = 0;
+  rbce->ssl_version = -1;
+  rbce->use_ssl = -1;
 
   /* bool opts */
   rbce->proxy_tunnel = 0;
@@ -1152,6 +1154,49 @@ static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
 #endif
 }
 
+/*
+ * call-seq:
+ *   easy.ssl_version = value                         => value
+ *
+ * Sets the version of SSL/TLS that libcurl will attempt to use. Valid
+ * options are Curl::CURL_SSLVERSION_TLSv1, Curl::CURL_SSLVERSION::SSLv2,
+ * Curl::CURL_SSLVERSION_SSLv3 and Curl::CURL_SSLVERSION_DEFAULT
+ */
+static VALUE ruby_curl_easy_ssl_version_set(VALUE self, VALUE ssl_version) {
+  CURB_IMMED_SETTER(ruby_curl_easy, ssl_version, -1);
+}
+
+/*
+ * call-seq:
+ *   easy.ssl_version                                 => fixnum or nil
+ *
+ * Get the version of SSL/TLS that libcurl will attempt to use.
+ */
+static VALUE ruby_curl_easy_ssl_version_get(VALUE self, VALUE ssl_version) {
+  CURB_IMMED_GETTER(ruby_curl_easy, ssl_version, -1);
+}
+
+/*
+ * call-seq:
+ *   easy.use_ssl = value                             => fixnum or nil
+ * 
+ * Ensure libcurl uses SSL for FTP connections. Valid options are Curl::CURL_USESSL_NONE,
+ * Curl::CURL_USESSL_TRY, Curl::CURL_USESSL_CONTROL, and Curl::CURL_USESSL_ALL.
+ */
+static VALUE ruby_curl_easy_use_ssl_set(VALUE self, VALUE use_ssl) {
+  CURB_IMMED_SETTER(ruby_curl_easy, use_ssl, -1);
+}
+
+/*
+ * call-seq:
+ *   easy.use_ssl                                     => fixnum or nil
+ *
+ * Get the desired level for using SSL on FTP connections.
+ */
+static VALUE ruby_curl_easy_use_ssl_get(VALUE self, VALUE use_ssl) {
+  CURB_IMMED_GETTER(ruby_curl_easy, use_ssl, -1);
+}
+
 /* ================== BOOL ATTRS ===================*/
 
 /*
@@ -1818,6 +1863,20 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
     curl_easy_setopt(curl, CURLOPT_CAINFO, "/usr/local/share/curl/curl-ca-bundle.crt");
 #endif
   }
+
+#ifdef CURL_VERSION_SSL
+  if (rbce->ssl_version > 0) {
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, rbce->ssl_version);
+  }
+
+  if (rbce->use_ssl > 0) {
+    curl_easy_setopt(curl, CURB_FTPSSL, rbce->use_ssl);
+  }
+#else
+  if (rbce->ssl_version > 0 || rbce->use_ssl > 0) {
+    rb_warn("libcurl is not configured with SSL support");
+  }
+#endif
   
   /* Set the user-agent string if specified */
   if (!rb_easy_nil("useragent")) {
@@ -3028,6 +3087,10 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "dns_cache_timeout", ruby_curl_easy_dns_cache_timeout_get, 0);
   rb_define_method(cCurlEasy, "ftp_response_timeout=", ruby_curl_easy_ftp_response_timeout_set, 1);
   rb_define_method(cCurlEasy, "ftp_response_timeout", ruby_curl_easy_ftp_response_timeout_get, 0);
+  rb_define_method(cCurlEasy, "ssl_version=", ruby_curl_easy_ssl_version_set, 1);
+  rb_define_method(cCurlEasy, "ssl_version", ruby_curl_easy_ssl_version_get, 0);
+  rb_define_method(cCurlEasy, "use_ssl=", ruby_curl_easy_use_ssl_set, 1);
+  rb_define_method(cCurlEasy, "use_ssl", ruby_curl_easy_use_ssl_get, 0);
 
   rb_define_method(cCurlEasy, "username=", ruby_curl_easy_username_set, 1);
   rb_define_method(cCurlEasy, "username", ruby_curl_easy_username_get, 0);

@@ -11,6 +11,24 @@
 
 #include <curl/easy.h>
 
+#ifdef CURL_VERSION_SSL
+#if LIBCURL_VERSION_NUM >= 0x070b00
+#  if LIBCURL_VERSION_NUM <= 0x071004
+#    define CURB_FTPSSL         CURLOPT_FTP_SSL
+#    define CURB_FTPSSL_ALL     CURLFTPSSL_ALL
+#    define CURB_FTPSSL_TRY     CURLFTPSSL_TRY
+#    define CURB_FTPSSL_CONTROL CURLFTPSSL_CONTROL
+#    define CURB_FTPSSL_NONE    CURLFTPSSL_NONE
+#  else
+#    define CURB_FTPSSL         CURLOPT_USE_SSL
+#    define CURB_FTPSSL_ALL     CURLUSESSL_ALL
+#    define CURB_FTPSSL_TRY     CURLUSESSL_TRY
+#    define CURB_FTPSSL_CONTROL CURLUSESSL_CONTROL
+#    define CURB_FTPSSL_NONE    CURLUSESSL_NONE
+#  endif
+#endif
+#endif
+
 /* a lot of this *could* be kept in the handler itself,
  * but then we lose the ability to query it's status.
  */
@@ -32,6 +50,8 @@ typedef struct {
   unsigned long connect_timeout;
   long dns_cache_timeout;
   unsigned long ftp_response_timeout;
+  long ssl_version;
+  long use_ssl;
 
   /* bool flags */
   char proxy_tunnel;
@@ -46,6 +66,7 @@ typedef struct {
   char multipart_form_post;
   char enable_cookies;
   struct curl_slist *curl_headers;
+  struct curl_slist *curl_ftp_commands;
 
   int last_result; /* last result code from multi loop */
 
