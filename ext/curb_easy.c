@@ -197,6 +197,7 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->ftp_response_timeout = 0;
   rbce->ssl_version = -1;
   rbce->use_ssl = -1;
+  rbce->ftp_filemethod = -1;
 
   /* bool opts */
   rbce->proxy_tunnel = 0;
@@ -1156,7 +1157,7 @@ static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
 
 /*
  * call-seq:
- *   easy.ssl_version = value                         => value
+ *   easy.ssl_version = value                         => fixnum or nil
  *
  * Sets the version of SSL/TLS that libcurl will attempt to use. Valid
  * options are Curl::CURL_SSLVERSION_TLSv1, Curl::CURL_SSLVERSION::SSLv2,
@@ -1168,7 +1169,7 @@ static VALUE ruby_curl_easy_ssl_version_set(VALUE self, VALUE ssl_version) {
 
 /*
  * call-seq:
- *   easy.ssl_version                                 => fixnum or nil
+ *   easy.ssl_version                                 => fixnum
  *
  * Get the version of SSL/TLS that libcurl will attempt to use.
  */
@@ -1189,12 +1190,33 @@ static VALUE ruby_curl_easy_use_ssl_set(VALUE self, VALUE use_ssl) {
 
 /*
  * call-seq:
- *   easy.use_ssl                                     => fixnum or nil
+ *   easy.use_ssl                                     => fixnum
  *
  * Get the desired level for using SSL on FTP connections.
  */
 static VALUE ruby_curl_easy_use_ssl_get(VALUE self, VALUE use_ssl) {
   CURB_IMMED_GETTER(ruby_curl_easy, use_ssl, -1);
+}
+
+/*
+ * call-seq:
+ *   easy.ftp_filemethod = value                      => fixnum or nil
+ *
+ * Controls how libcurl reaches files on the server. Valid options are Curl::CURL_MULTICWD,
+ * Curl::CURL_NOCWD, and Curl::CURL_SINGLECWD (see libcurl docs for CURLOPT_FTP_METHOD).
+ */
+static VALUE ruby_curl_easy_ftp_filemethod_set(VALUE self, VALUE ftp_filemethod) {
+  CURB_IMMED_SETTER(ruby_curl_easy, ftp_filemethod, -1);
+}
+
+/*
+ * call-seq
+ *   easy.ftp_filemethod                              => fixnum
+ *
+ * Get the configuration for how libcurl will reach files on the server.
+ */
+static VALUE ruby_curl_easy_ftp_filemethod_get(VALUE self, VALUE ftp_filemethod) {
+  CURB_IMMED_GETTER(ruby_curl_easy, ftp_filemethod, -1);
 }
 
 /* ================== BOOL ATTRS ===================*/
@@ -1878,6 +1900,10 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   }
 #endif
   
+  if (rbce->ftp_filemethod > 0) {
+    curl_easy_setopt(curl, CURLOPT_FTP_FILEMETHOD, rbce->ftp_filemethod);
+  }
+
   /* Set the user-agent string if specified */
   if (!rb_easy_nil("useragent")) {
     curl_easy_setopt(curl, CURLOPT_USERAGENT, rb_easy_get_str("useragent"));
@@ -3091,6 +3117,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "ssl_version", ruby_curl_easy_ssl_version_get, 0);
   rb_define_method(cCurlEasy, "use_ssl=", ruby_curl_easy_use_ssl_set, 1);
   rb_define_method(cCurlEasy, "use_ssl", ruby_curl_easy_use_ssl_get, 0);
+  rb_define_method(cCurlEasy, "ftp_filemethod=", ruby_curl_easy_ftp_filemethod_set, 1);
+  rb_define_method(cCurlEasy, "ftp_filemethod", ruby_curl_easy_ftp_filemethod_get, 0);
 
   rb_define_method(cCurlEasy, "username=", ruby_curl_easy_username_set, 1);
   rb_define_method(cCurlEasy, "username", ruby_curl_easy_username_get, 0);

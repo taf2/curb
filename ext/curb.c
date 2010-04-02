@@ -255,6 +255,10 @@ void Init_curb_core() {
   /* Passed to on_debug handler to indicate that the data is protocol data sent to the peer. */
   rb_define_const(mCurl, "CURLINFO_DATA_OUT", INT2FIX(CURLINFO_DATA_OUT));
 
+  rb_define_const(mCurl, "CURL_MULTICWD",  INT2FIX(CURLFTPMETHOD_MULTICWD));
+  rb_define_const(mCurl, "CURL_NOCWD",     INT2FIX(CURLFTPMETHOD_NOCWD));
+  rb_define_const(mCurl, "CURL_SINGLECWD", INT2FIX(CURLFTPMETHOD_SINGLECWD));
+
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is an HTTP proxy. (libcurl >= 7.10) */
 #ifdef HAVE_CURLPROXY_HTTP
   rb_define_const(mCurl, "CURLPROXY_HTTP", INT2FIX(CURLPROXY_HTTP));
