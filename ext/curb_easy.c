@@ -506,6 +506,28 @@ static VALUE ruby_curl_easy_cert_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.cert_key = "cert_key.file"                  => ""
+ *
+ * Set a cert key to use for this Curl::Easy instance. This file
+ * will be used to validate SSL certificates.
+ *
+ */
+static VALUE ruby_curl_easy_cert_key_set(VALUE self, VALUE cert_key) {
+  CURB_OBJECT_HSETTER(ruby_curl_easy, cert_key);
+}
+
+/*
+ * call-seq:
+ *   easy.cert_key                                    => "cert_key.file"
+ *
+ * Obtain the cert key file to use for this Curl::Easy instance.
+ */
+static VALUE ruby_curl_easy_cert_key_get(VALUE self) {
+  CURB_OBJECT_HGETTER(ruby_curl_easy, cert_key);
+}
+
+/*
+ * call-seq:
  *   easy.cacert = "cacert.file"                      => ""
  *
  * Set a cacert bundle to use for this Curl::Easy instance. This file
@@ -1749,6 +1771,9 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
     if (!rb_easy_nil("certpassword")) {
       curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, rb_easy_get_str("certpassword"));
     }
+    if (!rb_easy_nil("cert_key")) {
+      curl_easy_setopt(curl, CURLOPT_SSLKEY, rb_easy_get_str("cert_key"));
+    }
   }
   if (!rb_easy_nil("cacert")) {
 #ifdef HAVE_CURL_CONFIG_CA
@@ -2889,6 +2914,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "cookiejar", ruby_curl_easy_cookiejar_get, 0);
   rb_define_method(cCurlEasy, "cert=", ruby_curl_easy_cert_set, 1);
   rb_define_method(cCurlEasy, "cert", ruby_curl_easy_cert_get, 0);
+  rb_define_method(cCurlEasy, "cert_key=", ruby_curl_easy_cert_key_set, 1);
+  rb_define_method(cCurlEasy, "cert_key", ruby_curl_easy_cert_key_get, 0);
   rb_define_method(cCurlEasy, "cacert=", ruby_curl_easy_cacert_set, 1);
   rb_define_method(cCurlEasy, "cacert", ruby_curl_easy_cacert_get, 0);
   rb_define_method(cCurlEasy, "certpassword=", ruby_curl_easy_certpassword_set, 1);
