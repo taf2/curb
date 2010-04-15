@@ -2194,9 +2194,11 @@ static VALUE ruby_curl_easy_response_code_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.primary_ip                                  => "xx.xx.xx.xx"
+ *   easy.primary_ip                                  => "xx.xx.xx.xx" or nil
  *
- *   Retrieve the resolved IP of the last request.
+ *   Retrieve the resolved IP of the most recent connection
+ *   done with this curl handle. This string may be  IPv6 if
+ *   that's enabled.
  */
 static VALUE ruby_curl_easy_primary_ip_get(VALUE self) {
   ruby_curl_easy *rbce;
