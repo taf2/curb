@@ -2194,6 +2194,26 @@ static VALUE ruby_curl_easy_response_code_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.primary_ip                                  => "xx.xx.xx.xx"
+ *
+ *   Retrieve the resolved IP of the last request.
+ */
+static VALUE ruby_curl_easy_primary_ip_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  char* ip;
+  
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl_easy_getinfo(rbce->curl, CURLINFO_PRIMARY_IP, &ip);
+
+  if (ip && ip[0]) {    // curl returns empty string if none
+    return rb_str_new2(ip);
+  } else {
+    return Qnil;
+  }
+}
+
+/*
+ * call-seq:
  *   easy.http_connect_code                           => fixnum
  *
  * Retrieve the last received proxy response code to a CONNECT request.
@@ -3004,6 +3024,7 @@ void init_curb_easy() {
 
   rb_define_method(cCurlEasy, "last_effective_url", ruby_curl_easy_last_effective_url_get, 0);
   rb_define_method(cCurlEasy, "response_code", ruby_curl_easy_response_code_get, 0);
+  rb_define_method(cCurlEasy, "primary_ip", ruby_curl_easy_primary_ip_get, 0);
   rb_define_method(cCurlEasy, "http_connect_code", ruby_curl_easy_http_connect_code_get, 0);
   rb_define_method(cCurlEasy, "file_time", ruby_curl_easy_file_time_get, 0);
   rb_define_method(cCurlEasy, "total_time", ruby_curl_easy_total_time_get, 0);
