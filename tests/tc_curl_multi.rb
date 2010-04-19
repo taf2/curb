@@ -308,6 +308,27 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_multi_easy_download_01
+    # test collecting response buffers to file e.g. on_body
+    root_uri = 'http://127.0.0.1:9129/ext/'
+    urls = []
+    downloads = []
+    file_info = {}
+    FileUtils.mkdir("tmp/")
+    Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
+      urls << (root_uri + File.basename(path))
+      downloads << "tmp/" + File.basename(path)
+      file_info[File.basename(path)] = {:size => File.size(path)}
+    end
+    Curl::Multi.download(urls,{},{},downloads) do|curl,download_path|
+      assert_equal 200, curl.response_code
+      assert File.exist?(download_path)
+      assert file_info[File.basename(download_path)][:size], File.size(download_path)
+    end
+  ensure
+    FileUtils.rm_rf("tmp/")
+  end
+
   def test_multi_easy_post_01
     urls = [
       { :url => TestServlet.url + '?q=1', :post_fields => {'field1' => 'value1', 'k' => 'j'}},

@@ -142,6 +142,7 @@ module Curl
         m = Curl::Multi.new
         # configure the multi handle
         multi_options.each { |k,v| m.send("#{k}=", v) }
+        callbacks = [:on_progress,:on_debug,:on_failure,:on_success,:on_body,:on_header]
 
         urls_with_config.each do|conf|
           c = conf.dup # avoid being destructive to input
@@ -150,6 +151,12 @@ module Curl
           headers = c.delete(:headers)
 
           easy    = Curl::Easy.new(url)
+
+          # assign callbacks
+          callbacks.each do |cb|
+            cbproc = c.delete(cb)
+            easy.send(cb,&cbproc) if cbproc
+          end
 
           case method
           when :post
@@ -181,6 +188,64 @@ module Curl
         end
         m.perform
       end
+
+      # call-seq:
+      #
+      # Curl::Multi.download(['http://example.com/p/a/t/h/file1.txt','http://example.com/p/a/t/h/file2.txt'])
+      #
+      # will create 2 new files file1.txt and file2.txt
+      # 
+      # 2 files will be opened, and remain open until the call completes
+      #
+      # when using the :post or :put method, urls should be a hash, including the individual post fields per post
+      #
+      def download(urls,easy_options={},multi_options={},download_paths=nil,&blk)
+        procs = []
+        files = []
+        urls_with_config = []
+        url_to_download_paths = {}
+
+        urls.each_with_index do|urlcfg,i|
+          if urlcfg.is_a?(Hash)
+            url = url[:url]
+          else
+            url = urlcfg
+          end
+
+          if download_paths and download_paths[i]
+            download_path = download_paths[i]
+          else
+            download_path = File.basename(url)
+          end
+
+          lambda do|dp|
+            file = File.open(dp,"wb")
+            procs << (lambda {|data| file.write data; data.size })
+            files << file
+          end.call(download_path)
+
+          if urlcfg.is_a?(Hash)
+            urls_with_config << urlcfg.merge({:on_body => procs.last}.merge(easy_options))
+          else
+            urls_with_config << {:url => url, :on_body => procs.last, :method => :get}.merge(easy_options)
+          end
+          url_to_download_paths[url] = download_path # store for later
+        end
+
+        Curl::Multi.http(urls_with_config, multi_options) {|c,code,method| blk.call(c,url_to_download_paths[c.url]) }
+
+      ensure
+        errors = []
+        files.each {|f|
+          begin
+            f.close
+          rescue => e
+            errors << e
+          end
+        }
+        raise errors unless errors.empty?
+      end
+
     end
   end
 end
