@@ -114,6 +114,7 @@ have_constant "curle_ssl_issuer_error"
 # username/password added in 7.19.1
 have_constant "curlopt_username"
 have_constant "curlopt_password"
+have_constant "curlinfo_primary_ip"
 
 # ie quirk added in 7.19.3
 have_constant "curlauth_digest_ie"

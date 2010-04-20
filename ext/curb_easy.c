@@ -2330,13 +2330,14 @@ static VALUE ruby_curl_easy_response_code_get(VALUE self) {
   return LONG2NUM(code);
 }
 
+#if defined(HAVE_CURLINFO_PRIMARY_IP)
 /*
  * call-seq:
  *   easy.primary_ip                                  => "xx.xx.xx.xx" or nil
  *
  *   Retrieve the resolved IP of the most recent connection
  *   done with this curl handle. This string may be  IPv6 if
- *   that's enabled.
+ *   that's enabled. This feature requires curl 7.19.x and above
  */
 static VALUE ruby_curl_easy_primary_ip_get(VALUE self) {
   ruby_curl_easy *rbce;
@@ -2351,6 +2352,7 @@ static VALUE ruby_curl_easy_primary_ip_get(VALUE self) {
     return Qnil;
   }
 }
+#endif
 
 /*
  * call-seq:
@@ -3172,7 +3174,9 @@ void init_curb_easy() {
 
   rb_define_method(cCurlEasy, "last_effective_url", ruby_curl_easy_last_effective_url_get, 0);
   rb_define_method(cCurlEasy, "response_code", ruby_curl_easy_response_code_get, 0);
+#if defined(HAVE_CURLINFO_PRIMARY_IP)
   rb_define_method(cCurlEasy, "primary_ip", ruby_curl_easy_primary_ip_get, 0);
+#endif
   rb_define_method(cCurlEasy, "http_connect_code", ruby_curl_easy_http_connect_code_get, 0);
   rb_define_method(cCurlEasy, "file_time", ruby_curl_easy_file_time_get, 0);
   rb_define_method(cCurlEasy, "total_time", ruby_curl_easy_total_time_get, 0);

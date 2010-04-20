@@ -690,6 +690,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'NTLM TlRMTVNTUAABAAAABoIIAAAAAAAAAAAAAAAAAAAAAAA=', $auth_header
   end
 
+  def test_primary_ip
+    curl = Curl::Easy.new(TestServlet.url)
+    if curl.respond_to?(:primary_ip)
+      curl.perform
+      assert_equal '127.0.0.1', curl.primary_ip
+    end
+  end
+
   include TestServerMethods 
 
   def setup
