@@ -698,6 +698,17 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     end
   end
 
+  def test_post_streaming
+    readme = File.expand_path(File.join(File.dirname(__FILE__),'..','README'))
+    buffer = File.read(readme)
+
+    pf = Curl::PostField.file("filename", readme)
+    easy = Curl::Easy.new(TestServlet.url){|c| c.multipart_form_post = true }
+    easy.http_post(pf)
+
+    assert_equal(easy.body_str,buffer)
+  end
+
   include TestServerMethods 
 
   def setup

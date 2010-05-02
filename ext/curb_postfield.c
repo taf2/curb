@@ -281,7 +281,7 @@ static VALUE ruby_curl_postfield_new_file(int argc, VALUE *argv, VALUE klass) {
   rbcpf->content = Qnil;
   rbcpf->content_type = Qnil;
   rbcpf->buffer_str = Qnil;
-  
+ 
   return Data_Wrap_Struct(cCurlPostField, curl_postfield_mark, curl_postfield_free, rbcpf);
 }
 
@@ -465,14 +465,14 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
           result = escd_name;
           rb_str_cat(result, "=", 1);
           rb_str_concat(result, escd_content); 
-        }            
+        }
       }
     } else {
       rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d", __FILE__, __LINE__);
-    }      
+    }
   } else {
     rb_raise(eCurlErrInvalidPostField, "Cannot convert non-content field to string %s:%d", __FILE__, __LINE__);
-  }  
+  }
   
   return result;
 }

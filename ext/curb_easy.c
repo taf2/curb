@@ -2134,6 +2134,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
     return ret;
   } else {
     VALUE post_body = Qnil;
+    /* TODO: check for PostField.file and raise error before to_s fails */
     if ((post_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp)) == Qnil) {
       rb_raise(eCurlErrError, "Failed to join arguments");
       return Qnil;
