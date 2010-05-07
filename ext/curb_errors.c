@@ -110,6 +110,7 @@ VALUE eCurlErrSSLCRLBadfile;
 VALUE eCurlErrSSLIssuerError;
 
 /* multi errors */
+VALUE mCurlErrFailedInit;
 VALUE mCurlErrCallMultiPerform;
 VALUE mCurlErrBadHandle;
 VALUE mCurlErrBadEasyHandle;
@@ -605,6 +606,7 @@ void init_curb_errors() {
   eCurlErrSSLShutdownFailed  = rb_define_class_under(mCurlErr, "SSLShutdownFailed", eCurlErrError);
   eCurlErrSSH                = rb_define_class_under(mCurlErr, "SSH", eCurlErrError);
 
+  mCurlErrFailedInit         = rb_define_class_under(mCurlErr, "MultiInitError", eCurlErrError);
   mCurlErrCallMultiPerform   = rb_define_class_under(mCurlErr, "MultiPerform", eCurlErrError);
   mCurlErrBadHandle          = rb_define_class_under(mCurlErr, "MultiBadHandle", eCurlErrError);
   mCurlErrBadEasyHandle      = rb_define_class_under(mCurlErr, "MultiBadEasyHandle", eCurlErrError);

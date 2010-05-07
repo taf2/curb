@@ -175,6 +175,9 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
 
   /* handler */
   rbce->curl = curl_easy_init();
+  if (!rbce->curl) {
+    rb_raise(eCurlErrFailedInit, "Failed to initialize easy handle");
+  }
 
   rbce->opts = rb_hash_new();
 

@@ -83,6 +83,9 @@ VALUE ruby_curl_multi_new(VALUE klass) {
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
 
   rbcm->handle = curl_multi_init();
+  if (!rbcm->handle) {
+    rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+  }
 
   rbcm->requests = rb_hash_new();
 

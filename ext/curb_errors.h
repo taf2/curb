@@ -108,6 +108,7 @@ extern VALUE eCurlErrSSLCRLBadfile;
 extern VALUE eCurlErrSSLIssuerError;
 
 /* multi errors */
+extern VALUE mCurlErrFailedInit;
 extern VALUE mCurlErrCallMultiPerform;
 extern VALUE mCurlErrBadHandle;
 extern VALUE mCurlErrBadEasyHandle;
