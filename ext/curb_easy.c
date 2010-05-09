@@ -135,9 +135,10 @@ static int proc_debug_handler(CURL *curl,
 /* ================== MARK/FREE FUNC ==================*/
 void curl_easy_mark(ruby_curl_easy *rbce) {
   rb_gc_mark(rbce->opts);
+  if (!NIL_P(rbce->multi)) { rb_gc_mark(rbce->multi); }
 }
 
-void curl_easy_free(ruby_curl_easy *rbce) {
+static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
   if (rbce->curl_headers) {
     curl_slist_free_all(rbce->curl_headers);
   }
@@ -146,42 +147,21 @@ void curl_easy_free(ruby_curl_easy *rbce) {
     curl_slist_free_all(rbce->curl_ftp_commands);
   }
 
-  curl_easy_cleanup(rbce->curl);
+  if (rbce->curl) {
+    curl_easy_cleanup(rbce->curl);
+  }
+}
+
+void curl_easy_free(ruby_curl_easy *rbce) {
+  ruby_curl_easy_free(rbce);
   free(rbce);
 }
 
 
 /* ================= ALLOC METHODS ====================*/
 
-/*
- * call-seq:
- *   Curl::Easy.new                                   => #&lt;Curl::Easy...&gt;
- *   Curl::Easy.new(url = nil)                        => #&lt;Curl::Easy...&gt;
- *   Curl::Easy.new(url = nil) { |self| ... }         => #&lt;Curl::Easy...&gt;
- *
- * Create a new Curl::Easy instance, optionally supplying the URL.
- * The block form allows further configuration to be supplied before
- * the instance is returned.
- */
-static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
-  CURLcode ecode;
-  VALUE url, blk;
-  VALUE new_curl;
-  ruby_curl_easy *rbce;
-
-  rb_scan_args(argc, argv, "01&", &url, &blk);
-
-  rbce = ALLOC(ruby_curl_easy);
-
-  /* handler */
-  rbce->curl = curl_easy_init();
-  if (!rbce->curl) {
-    rb_raise(eCurlErrFailedInit, "Failed to initialize easy handle");
-  }
-
+static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->opts = rb_hash_new();
-
-  rb_easy_set("url", url);
 
   rbce->curl_headers = NULL;
   rbce->curl_ftp_commands = NULL;
@@ -214,6 +194,39 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
   rbce->verbose = 0;
   rbce->multipart_form_post = 0;
   rbce->enable_cookies = 0;
+}
+
+/*
+ * call-seq:
+ *   Curl::Easy.new                                   => #&lt;Curl::Easy...&gt;
+ *   Curl::Easy.new(url = nil)                        => #&lt;Curl::Easy...&gt;
+ *   Curl::Easy.new(url = nil) { |self| ... }         => #&lt;Curl::Easy...&gt;
+ *
+ * Create a new Curl::Easy instance, optionally supplying the URL.
+ * The block form allows further configuration to be supplied before
+ * the instance is returned.
+ */
+static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
+  CURLcode ecode;
+  VALUE url, blk;
+  VALUE new_curl;
+  ruby_curl_easy *rbce;
+
+  rb_scan_args(argc, argv, "01&", &url, &blk);
+
+  rbce = ALLOC(ruby_curl_easy);
+
+  /* handler */
+  rbce->curl = curl_easy_init();
+  if (!rbce->curl) {
+    rb_raise(eCurlErrFailedInit, "Failed to initialize easy handle");
+  }
+
+  rbce->multi = Qnil;
+
+  ruby_curl_easy_zero(rbce);
+
+  rb_easy_set("url", url);
 
   new_curl = Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
 
@@ -250,6 +263,72 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   newrbce->curl_ftp_commands = NULL;
 
   return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
+}
+
+/*
+ * call-seq:
+ *   easy.close                                      => nil
+ *
+ * Close the Curl::Easy instance. Any open connections are closed
+ * The easy handle is reinitialized.  If a previous multi handle was 
+ * open it is set to nil and will be cleared after a GC.
+ */
+static VALUE ruby_curl_easy_close(VALUE self) {
+  CURLcode ecode;
+  ruby_curl_easy *rbce;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  ruby_curl_easy_free(rbce);
+
+  /* reinit the handle */
+  rbce->curl = curl_easy_init();
+  if (!rbce->curl) {
+    rb_raise(eCurlErrFailedInit, "Failed to initialize easy handle");
+  }
+
+  rbce->multi = Qnil;
+
+  ruby_curl_easy_zero(rbce);
+
+  /* give the new curl handle a reference back to the ruby object */
+  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
+  if (ecode != CURLE_OK) {
+    raise_curl_easy_error_exception(ecode);
+  }
+
+  return Qnil;
+}
+
+/*
+ * call-seq:
+ *   easy.reset                                      => Hash
+ *
+ * Reset the Curl::Easy instance, clears out all settings.
+ *
+ * from http://curl.haxx.se/libcurl/c/curl_easy_reset.html
+ * Re-initializes all options previously set on a specified CURL handle to the default values. This puts back the handle to the same state as it was in when it was just created with curl_easy_init(3).
+ * It does not change the following information kept in the handle: live connections, the Session ID cache, the DNS cache, the cookies and shares.
+ *
+ * The return value contains all settings stored.
+ */
+static VALUE ruby_curl_easy_reset(VALUE self) {
+  CURLcode ecode;
+  ruby_curl_easy *rbce;
+  VALUE opts_dup;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  opts_dup = rb_funcall(rbce->opts, rb_intern("dup"), 0);
+
+  curl_easy_reset(rbce->curl);
+  ruby_curl_easy_zero(rbce);
+
+  /* rest clobbers the private setting, so reset it to self */
+  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
+  if (ecode != CURLE_OK) {
+    raise_curl_easy_error_exception(ecode);
+  }
+
+  return opts_dup;
 }
 
 
@@ -1988,10 +2067,13 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
 
   VALUE ret;
-  VALUE multi = ruby_curl_multi_new(cCurlMulti);
 
-  rb_funcall(multi, rb_intern("add"), 1, self );
-  ret = rb_funcall(multi, rb_intern("perform"), 0);
+  /* reuse existing multi handle for this easy handle */
+  if (NIL_P(rbce->multi)) {
+    rbce->multi = ruby_curl_multi_new(cCurlMulti);
+  }
+  rb_funcall(rbce->multi, rb_intern("add"), 1, self );
+  ret = rb_funcall(rbce->multi, rb_intern("perform"), 0);
 
   /* check for errors in the easy response and raise exceptions if anything went wrong and their is no on_failure handler */
   if (rbce->last_result != 0 && rb_easy_nil("failure_proc")) {
@@ -3203,7 +3285,9 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "os_errno", ruby_curl_easy_os_errno_get, 0);
   rb_define_method(cCurlEasy, "num_connects", ruby_curl_easy_num_connects_get, 0);
   rb_define_method(cCurlEasy, "ftp_entry_path", ruby_curl_easy_ftp_entry_path_get, 0);
-  rb_define_method(cCurlEasy, "inspect", ruby_curl_easy_inspect, 0);
+
+  rb_define_method(cCurlEasy, "close", ruby_curl_easy_close, 0);
+  rb_define_method(cCurlEasy, "reset", ruby_curl_easy_reset, 0);
 
   /* Curl utils */
   rb_define_method(cCurlEasy, "escape", ruby_curl_easy_escape, 1);
@@ -3212,4 +3296,5 @@ void init_curb_easy() {
   /* Runtime support */
   rb_define_method(cCurlEasy, "clone", ruby_curl_easy_clone, 0);
   rb_define_alias(cCurlEasy, "dup", "clone");
+  rb_define_method(cCurlEasy, "inspect", ruby_curl_easy_inspect, 0);
 }

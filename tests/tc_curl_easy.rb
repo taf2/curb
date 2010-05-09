@@ -57,8 +57,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal nil, c.on_body
   end
 
-  class Foo < Curl::Easy
-  end
+  class Foo < Curl::Easy ; end
   def test_new_05
     # can use Curl::Easy as a base class
     c = Foo.new
@@ -700,13 +699,36 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_post_streaming
     readme = File.expand_path(File.join(File.dirname(__FILE__),'..','README'))
-    buffer = File.read(readme)
-
+    
     pf = Curl::PostField.file("filename", readme)
-    easy = Curl::Easy.new(TestServlet.url){|c| c.multipart_form_post = true }
+
+    easy = Curl::Easy.new
+
+    easy.url = TestServlet.url
+    easy.multipart_form_post = true
     easy.http_post(pf)
 
-    assert_equal(easy.body_str,buffer)
+    assert_not_equal(0,easy.body_str.size)
+    assert_equal(easy.body_str,File.read(readme))
+  end
+
+  def test_easy_close
+    easy = Curl::Easy.new
+    easy.close
+    easy.url = TestServlet.url
+    easy.http_get
+  end
+
+  def test_easy_reset
+    easy = Curl::Easy.new
+    easy.url = TestServlet.url + "?query=foo"
+    easy.http_get
+    settings = easy.reset
+    assert settings.key?(:url)
+    assert settings.key?(:body_data)
+    assert settings.key?(:header_data)
+    easy.url = TestServlet.url
+    easy.http_get
   end
 
   include TestServerMethods 
