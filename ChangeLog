@@ -1,0 +1,5 @@
+0.7.2
+  * Start tracking high level changes
+  * Add Curl::Easy#close - hard close an easy handle
+  * Add Curl::Easy#reset - reset all settings but keep connections alive
+  * Maintain persistent connections for single easy handles
