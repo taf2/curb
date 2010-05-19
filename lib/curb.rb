@@ -191,7 +191,7 @@ module Curl
 
       # call-seq:
       #
-      # Curl::Multi.download(['http://example.com/p/a/t/h/file1.txt','http://example.com/p/a/t/h/file2.txt'])
+      # Curl::Multi.download(['http://example.com/p/a/t/h/file1.txt','http://example.com/p/a/t/h/file2.txt']){|c|}
       #
       # will create 2 new files file1.txt and file2.txt
       # 
@@ -232,7 +232,11 @@ module Curl
           url_to_download_paths[url] = download_path # store for later
         end
 
-        Curl::Multi.http(urls_with_config, multi_options) {|c,code,method| blk.call(c,url_to_download_paths[c.url]) }
+        if blk
+          Curl::Multi.http(urls_with_config, multi_options) {|c,code,method| blk.call(c,url_to_download_paths[c.url]) }
+        else
+          Curl::Multi.http(urls_with_config, multi_options)
+        end
 
       ensure
         errors = []
