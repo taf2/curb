@@ -428,9 +428,9 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
   Data_Get_Struct(self, ruby_curl_postfield, rbcpf);
 
   if ((rbcpf->local_file == Qnil) && (rbcpf->remote_file == Qnil)) {
-    if (rbcpf->name != Qnil) {
+    if (rbcpf->name != Qnil && rb_type(rbcpf->name) == T_STRING) {
 
-      char *tmpchrs = curl_escape(StringValuePtr(rbcpf->name), RSTRING_LEN(StringValue(rbcpf->name)));
+      char *tmpchrs = curl_escape(StringValuePtr(rbcpf->name), RSTRING_LEN(rbcpf->name));
       
       if (!tmpchrs) {
         rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
@@ -471,7 +471,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
       rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d", __FILE__, __LINE__);
     }
   } else {
-    rb_raise(eCurlErrInvalidPostField, "Cannot convert non-content field to string %s:%d", __FILE__, __LINE__);
+    rb_raise(eCurlErrInvalidPostField, "Local file and remote file are both nil %s:%d", __FILE__, __LINE__);
   }
   
   return result;

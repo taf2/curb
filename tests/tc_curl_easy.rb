@@ -731,6 +731,17 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.http_get
   end
 
+  def test_easy_use_http_versions
+    easy = Curl::Easy.new
+    easy.url = TestServlet.url + "?query=foo"
+    #puts "http none: #{Curl::HTTP_NONE.inspect}"
+    #puts "http1.0: #{Curl::HTTP_1_0.inspect}"
+    #puts "http1.1: #{Curl::HTTP_1_1.inspect}"
+    easy.version = Curl::HTTP_1_1
+    #easy.verbose = true
+    easy.http_get
+  end
+
   include TestServerMethods 
 
   def setup

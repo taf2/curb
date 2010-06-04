@@ -2289,6 +2289,40 @@ static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
 }
 /*
  *call-seq:
+ *
+ * easy = Curl::Easy.new("url")
+ * easy.version = Curl::HTTP_1_1
+ * easy.version = Curl::HTTP_1_0
+ * easy.version = Curl::HTTP_NONE
+ *
+ */
+static VALUE ruby_curl_easy_set_version(VALUE self, VALUE version) {
+  ruby_curl_easy *rbce;
+  //fprintf(stderr,"CURL_HTTP_VERSION_1_1: %d, CURL_HTTP_VERSION_1_0: %d, CURL_HTTP_VERSION_NONE: %d\n", CURL_HTTP_VERSION_1_1, CURL_HTTP_VERSION_1_0, CURL_HTTP_VERSION_NONE);
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  curl_easy_setopt(rbce->curl, CURLOPT_HTTP_VERSION, FIX2INT(version));
+
+  return version;
+}
+/*
+ * call-seq:
+ *
+ * easy = Curl::Easy.new
+ * easy.nosignal = true
+ */
+static VALUE ruby_curl_easy_set_nosignal(VALUE self, VALUE onoff) {
+  ruby_curl_easy *rbce;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, FIX2INT(onoff));
+
+  return onoff;
+}
+/*
+ *call-seq:
  * easy = Curl::Easy.new("url") do|c|
  *  c.delete = true
  * end
@@ -3253,6 +3287,11 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 1);
   rb_define_method(cCurlEasy, "head=", ruby_curl_easy_set_head_option, 1);
   rb_define_method(cCurlEasy, "delete=", ruby_curl_easy_set_delete_option, 1);
+  rb_define_method(cCurlEasy, "version=", ruby_curl_easy_set_version, 1);
+  rb_define_const(mCurl, "HTTP_1_1", LONG2NUM(CURL_HTTP_VERSION_1_1));
+  rb_define_const(mCurl, "HTTP_1_0", LONG2NUM(CURL_HTTP_VERSION_1_0));
+  rb_define_const(mCurl, "HTTP_NONE", LONG2NUM(CURL_HTTP_VERSION_NONE));
+  rb_define_method(cCurlEasy, "nosignal=", ruby_curl_easy_set_nosignal, 1);
 
   /* Post-perform info methods */
   rb_define_method(cCurlEasy, "body_str", ruby_curl_easy_body_str_get, 0);

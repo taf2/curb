@@ -1,3 +1,10 @@
+0.7.4
+	* add support to set the http version e.g. easy.version = Curl::HTTP_1_1
+	* add support to disable libcurls internal use of signals.
+0.7.3
+	* Support rubinius
+	* allow Multi.download to be called without a block
+	* add additional Multi.download examples
 0.7.2
   * Start tracking high level changes
   * Add Curl::Easy#close - hard close an easy handle
