@@ -2317,7 +2317,7 @@ static VALUE ruby_curl_easy_set_nosignal(VALUE self, VALUE onoff) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
-  curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, FIX2INT(onoff));
+  curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, (Qtrue == onoff) ? 1 : 0);
 
   return onoff;
 }
