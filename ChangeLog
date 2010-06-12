@@ -1,7 +1,8 @@
 0.7.6
 	* fix bug in http_* when http_delete or http("verb") raises an exception
-0.7.5
 	* add support for autoreferrer e.g. if follow_location=true it will pass that along
+0.7.5
+  * minor fix for no signal instead of INT2FIX Check boolean value
 0.7.4
 	* add support to set the http version e.g. easy.version = Curl::HTTP_1_1
 	* add support to disable libcurls internal use of signals.

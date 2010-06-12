@@ -325,13 +325,13 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
-  if (ecode != 0) {
-    raise_curl_easy_error_exception(ecode);
-  }
-
   rbce->last_result = result; /* save the last easy result code */
 
   ruby_curl_multi_remove( self, easy );
+
+  if (ecode != 0) {
+    raise_curl_easy_error_exception(ecode);
+  }
 
   if (!rb_easy_nil("complete_proc")) {
     rb_funcall( rb_easy_get("complete_proc"), idCall, 1, easy );
