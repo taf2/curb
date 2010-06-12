@@ -2361,6 +2361,7 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
   
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   ruby_curl_easy_put_data_set(self, data);
   
   return handle_perform(self, rbce);
