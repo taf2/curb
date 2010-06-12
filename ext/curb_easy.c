@@ -2098,6 +2098,7 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
 
   return handle_perform(self,rbce);
@@ -2196,6 +2197,8 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
+
+  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
   if (rbce->multipart_form_post) {
     VALUE ret;
