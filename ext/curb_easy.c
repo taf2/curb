@@ -1458,6 +1458,25 @@ static VALUE ruby_curl_easy_use_netrc_q(VALUE self) {
 static VALUE ruby_curl_easy_follow_location_set(VALUE self, VALUE follow_location) {
   CURB_BOOLEAN_SETTER(ruby_curl_easy, follow_location);
 }
+/*
+ * call-seq:
+ *
+ * easy = Curl::Easy.new
+ * easy.autoreferer=true
+ */
+static VALUE ruby_curl_easy_autoreferer_set(VALUE self, VALUE autoreferer) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (Qtrue == autoreferer) {
+    curl_easy_setopt(rbce->curl, CURLOPT_AUTOREFERER, 1);
+  }
+  else {
+    curl_easy_setopt(rbce->curl, CURLOPT_AUTOREFERER, 0);
+  }
+
+  return autoreferer;
+}
 
 /*
  * call-seq:
@@ -1849,7 +1868,6 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   /* general opts */
 
   curl_easy_setopt(curl, CURLOPT_HEADER, rbce->header_in_body);
-
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, rbce->follow_location);
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
 
@@ -3261,6 +3279,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "use_netrc?", ruby_curl_easy_use_netrc_q, 0);
   rb_define_method(cCurlEasy, "follow_location=", ruby_curl_easy_follow_location_set, 1);
   rb_define_method(cCurlEasy, "follow_location?", ruby_curl_easy_follow_location_q, 0);
+  rb_define_method(cCurlEasy, "autoreferer=", ruby_curl_easy_autoreferer_set, 1);
   rb_define_method(cCurlEasy, "unrestricted_auth=", ruby_curl_easy_unrestricted_auth_set, 1);
   rb_define_method(cCurlEasy, "unrestricted_auth?", ruby_curl_easy_unrestricted_auth_q, 0);
   rb_define_method(cCurlEasy, "verbose=", ruby_curl_easy_verbose_set, 1);
