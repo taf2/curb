@@ -759,7 +759,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   # http://github.com/taf2/curb/issues/#issue/33
   def test_easy_http_verbs_with_errors
     curl = Curl::Easy.new("http://127.0.0.1:9012/") # test will fail if http server on port 9012
-    assert_raise Curl::Err::ConnectionFailedError { curl.http_delete }
+    assert_raise Curl::Err::ConnectionFailedError do
+      curl.http_delete
+    end
     curl.url = TestServlet.url
     curl.http_get
     assert_equal 'GET', curl.body_str
