@@ -416,40 +416,23 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
 
-  rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+  timeout_milliseconds = cCurlMutiDefaulttimeout;
+
+  curl_multi_perform( rbcm->handle, &(rbcm->running) );
 
   while (rbcm->running) {
-
-#ifdef HAVE_CURL_MULTI_TIMEOUT
-    /* get the curl suggested time out */
-    mcode = curl_multi_timeout(rbcm->handle, &timeout_milliseconds);
-    if (mcode != CURLM_OK) {
-      raise_curl_multi_error_exception(mcode);
-    }
-#else
-    /* libcurl doesn't have a timeout method defined, initialize to -1 we'll pick up the default later */
-    timeout_milliseconds = -1;
-#endif
-
-    if (timeout_milliseconds == 0) { /* no delay */
-      rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-      continue;
-    }
-    else if (timeout_milliseconds < 0) {
-      timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
-    }
-
-    if (timeout_milliseconds > cCurlMutiDefaulttimeout) {
-      timeout_milliseconds = cCurlMutiDefaulttimeout; /* buggy versions libcurl sometimes reports huge timeouts... let's cap it */
-    }
 
     tv.tv_sec  = 0; /* never wait longer than 1 second */
     tv.tv_usec = timeout_milliseconds * 1000;
 
+    if (timeout_milliseconds == 0) { /* no delay */
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        continue;
+    }
+
     FD_ZERO(&fdread);
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
-
     /* load the fd sets from the multi handle */
     mcode = curl_multi_fdset(rbcm->handle, &fdread, &fdwrite, &fdexcep, &maxfd);
     if (mcode != CURLM_OK) {
