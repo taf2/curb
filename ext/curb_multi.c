@@ -383,8 +383,7 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
   if (mcode != CURLM_OK) {
     raise_curl_multi_error_exception(mcode);
   }
-
-  rb_curl_multi_read_info( self, multi_handle );
+  
 }
 
 /*
@@ -418,46 +417,45 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   timeout_milliseconds = cCurlMutiDefaulttimeout;
 
-  curl_multi_perform( rbcm->handle, &(rbcm->running) );
-
+  rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+ 
+  do {
   while (rbcm->running) {
+      tv.tv_sec  = 0; /* never wait longer than 1 second */
+      tv.tv_usec = timeout_milliseconds * 1000;
 
-    tv.tv_sec  = 0; /* never wait longer than 1 second */
-    tv.tv_usec = timeout_milliseconds * 1000;
-
-    if (timeout_milliseconds == 0) { /* no delay */
-        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-        continue;
-    }
-
-    FD_ZERO(&fdread);
-    FD_ZERO(&fdwrite);
-    FD_ZERO(&fdexcep);
-    /* load the fd sets from the multi handle */
-    mcode = curl_multi_fdset(rbcm->handle, &fdread, &fdwrite, &fdexcep, &maxfd);
-    if (mcode != CURLM_OK) {
-      raise_curl_multi_error_exception(mcode);
-    }
-
-    rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
-    switch(rc) {
-    case -1:
-      rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-      break;
-    case 0:
-      if (block != Qnil) {
-        rb_funcall(block, rb_intern("call"), 1, self); 
+      if (timeout_milliseconds == 0) { /* no delay */
+          rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+          continue;
       }
-//      if (rb_block_given_p()) {
-//        rb_yield(self);
-//      }
-    default: 
-      rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-      break;
+
+      FD_ZERO(&fdread);
+      FD_ZERO(&fdwrite);
+      FD_ZERO(&fdexcep);
+      /* load the fd sets from the multi handle */
+      mcode = curl_multi_fdset(rbcm->handle, &fdread, &fdwrite, &fdexcep, &maxfd);
+      if (mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
+
+      rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+      switch(rc) {
+      case -1:
+        rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+        break;
+      case 0:
+        if (block != Qnil) {
+          rb_funcall(block, rb_intern("call"), 1, self); 
+        }
+        rb_curl_multi_read_info( self, rbcm->handle );
+      default: 
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        break;
+      }
     }
-
-  }
-
+    rb_curl_multi_read_info( self, rbcm->handle );
+  } while( rbcm->running );
+    
   return Qtrue;
 }
 
