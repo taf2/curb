@@ -11,6 +11,7 @@ $:.unshift($EXTDIR)
 
 require 'curb'
 require 'test/unit'
+require 'fileutils'
 
 $TEST_URL = "file://#{URI.escape(File.expand_path(__FILE__).tr('\\','/').tr(':','|'))}"
 
