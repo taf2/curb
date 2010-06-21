@@ -170,7 +170,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     m.perform do
       # idle
-      puts "idling..."
+      #puts "idling..."
     end
 
     assert success_called2

@@ -456,6 +456,8 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         continue;
       }
 
+      if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+
       FD_ZERO(&fdread);
       FD_ZERO(&fdwrite);
       FD_ZERO(&fdexcep);
@@ -471,16 +473,15 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
         break;
       case 0:
-        if (block != Qnil) {
-          rb_funcall(block, rb_intern("call"), 1, self); 
-        }
         rb_curl_multi_read_info( self, rbcm->handle );
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
       default: 
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         break;
       }
     }
     rb_curl_multi_read_info( self, rbcm->handle );
+    if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
   } while( rbcm->running );
     
   return Qtrue;
