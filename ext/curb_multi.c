@@ -32,6 +32,7 @@ static long cCurlMutiDefaulttimeout = 100; /* milliseconds */
 
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
+static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running);
 
 static void rb_curl_multi_mark_all_easy(VALUE key, VALUE rbeasy, ruby_curl_multi *rbcm) {
   rb_gc_mark(rbeasy);
@@ -239,6 +240,8 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 
   rb_hash_aset( rbcm->requests, easy, easy );
 
+  rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+
   return self;
 }
 
@@ -420,13 +423,37 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
  
   do {
-  while (rbcm->running) {
+    while (rbcm->running) {
+
+#ifdef HAVE_CURL_MULTI_TIMEOUT
+      /* get the curl suggested time out */
+      mcode = curl_multi_timeout(rbcm->handle, &timeout_milliseconds);
+      if (mcode != CURLM_OK) {
+        raise_curl_multi_error_exception(mcode);
+      }
+#else
+      /* libcurl doesn't have a timeout method defined, initialize to -1 we'll pick up the default later */
+      timeout_milliseconds = -1;
+#endif
+
+      if (timeout_milliseconds == 0) { /* no delay */
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        continue;
+      }
+      else if (timeout_milliseconds < 0) {
+        timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
+      }
+
+      if (timeout_milliseconds > cCurlMutiDefaulttimeout) {
+        timeout_milliseconds = cCurlMutiDefaulttimeout; /* buggy versions libcurl sometimes reports huge timeouts... let's cap it */
+      }
+
       tv.tv_sec  = 0; /* never wait longer than 1 second */
       tv.tv_usec = timeout_milliseconds * 1000;
 
       if (timeout_milliseconds == 0) { /* no delay */
-          rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-          continue;
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        continue;
       }
 
       FD_ZERO(&fdread);
