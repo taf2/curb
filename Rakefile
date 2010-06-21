@@ -110,6 +110,25 @@ end
 task :unittests => :compile
 task :bugtests => :compile
 
+def has_gem?(file,name)
+  begin
+    require file
+    has_http_persistent = true
+  rescue LoadError => e
+    puts "Skipping #{name}"
+  end
+end
+
+desc "Benchmark curl against http://127.0.0.1/zeros-2k - will fail if /zeros-2k or 127.0.0.1 are missing"
+task :bench do
+  sh "ruby bench/curb_easy.rb"
+  sh "ruby bench/curb_multi.rb"
+  sh "ruby bench/nethttp_test.rb" if has_gem?("net/http/persistent","net-http-persistent")
+  sh "ruby bench/patron_test.rb" if has_gem?("patron","patron")
+  sh "ruby bench/typhoeus_test.rb" if has_gem?("typhoeus","typhoeus")
+  sh "ruby bench/typhoeus_hydra_test.rb" if has_gem?("typhoeus","typhoeus")
+end
+
 # RDoc Tasks ---------------------------------------------------------
 desc "Create the RDOC documentation"
 task :doc do

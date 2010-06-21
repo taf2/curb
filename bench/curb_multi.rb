@@ -1,3 +1,7 @@
+require 'rubygems'
+require 'rmem'
+smem = RMem::Report.memory
+
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','ext'))
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 
@@ -23,4 +27,5 @@ N.times do|n|
   end
 end
 fetch(urls)
-puts "Duration #{Time.now-t} seconds"
+emem = RMem::Report.memory
+puts "\tDuration #{Time.now-t} seconds memory total: #{emem} - growth: #{(emem-smem)/1024.0} kbytes"
