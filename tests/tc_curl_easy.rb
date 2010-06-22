@@ -674,7 +674,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     #curl.verbose = true
     curl.perform
     assert_equal 'Basic Zm9vOmJhcg==', $auth_header
-
+    $auth_header = nil
     # curl checks the auth type supported by the server, so we have to create a 
     # new easy handle if we're going to change the auth type...
 
@@ -711,6 +711,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_not_equal(0,easy.body_str.size)
     assert_equal(easy.body_str,File.read(readme))
   end
+
 
   def test_easy_close
     easy = Curl::Easy.new

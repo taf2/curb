@@ -74,9 +74,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_POST(req,res)
-    if !req.query['filename'].nil?
-      respond_with(req.query['filename'],req,res)
-    else
+    if req.query['filename'].nil?
       if req.body
         params = {}
         req.body.split('&').map{|s| k,v=s.split('='); params[k] = v }
@@ -86,6 +84,8 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
       else
         respond_with("POST\n#{req.body}",req,res)
       end
+    else
+      respond_with(req.query['filename'],req,res)
     end
   end
 
