@@ -144,12 +144,13 @@ documentation with:
       c = Curl::Easy.new(url) do|curl|
         curl.follow_location = true
         curl.on_body{|data| responses[url] << data; data.size }
+        curl.on_success {|easy| puts "success, add more easy handles" }
       end
       m.add(c)
     end
    
     m.perform do
-      puts "idling... can do some work here, including add new requests"
+      puts "idling... can do some work here"
     end
    
     requests.each do|url|
