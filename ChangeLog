@@ -1,3 +1,6 @@
+0.7.7
+  * Curl::Multi perform is more robust process callbacks before exiting the loop - issue 24. thanks igrigorik and ramsingla
+  * improve Curl::Multi idle callback robustness, trigger callbacks more often - issue 24. thanks igrigorik and ramsingla
 0.7.6
 	* fix bug in http_* when http_delete or http("verb") raises an exception
 	* add support for autoreferrer e.g. if follow_location=true it will pass that along
