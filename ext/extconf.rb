@@ -119,6 +119,11 @@ have_constant "curlinfo_primary_ip"
 # ie quirk added in 7.19.3
 have_constant "curlauth_digest_ie"
 
+# added in 7.15.1
+have_constant "curlftpmethod_multicwd"
+have_constant "curlftpmethod_nocwd"
+have_constant "curlftpmethod_singlecwd"
+
 # centos 4.5 build of libcurl
 have_constant "curlm_bad_socket"
 have_constant "curlm_unknown_option"
