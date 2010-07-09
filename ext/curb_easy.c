@@ -412,7 +412,7 @@ static VALUE ruby_curl_easy_proxy_url_get(VALUE self) {
  * To remove a standard header (this is useful when removing libcurls default
  * 'Expect: 100-Continue' header when using HTTP form posts):
  *
- *    easy.headers["Expect:"] = ''
+ *    easy.headers["Expect"] = ''
  *
  * Anything passed to libcurl as a header will be converted to a string during
  * the perform step.
