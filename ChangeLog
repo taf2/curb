@@ -1,3 +1,5 @@
+  * Fix inspect for Curl::Easy, thanks Hongli Lai
+  * Fix unit test assertions for Curl::Multi, thanks Hongli Lai
 0.7.7
   * Curl::Multi perform is more robust process callbacks before exiting the loop - issue 24. thanks igrigorik and ramsingla
   * improve Curl::Multi idle callback robustness, trigger callbacks more often - issue 24. thanks igrigorik and ramsingla
