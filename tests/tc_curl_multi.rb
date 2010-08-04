@@ -70,7 +70,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     m.perform
 
-    assert n, responses.size
+    assert_equal n, responses.size
     n.times do|i|
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
     end
@@ -93,7 +93,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       end
       m.perform
 
-      assert n, responses.size
+      assert_equal n, responses.size
       n.times do|i|
         assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
       end
