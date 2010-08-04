@@ -2995,10 +2995,10 @@ static VALUE ruby_curl_easy_inspect(VALUE self) {
     /* "#<Net::HTTP http://www.google.com/:80 open=false>" */
     memcpy(buf,"#<Curl::Easy ", 13);
     memcpy(buf+13,RSTRING_PTR(url), (len - 13));
-    buf[len-1] = '>';
+    buf[len++] = '>';
     return rb_str_new(buf,len);
   }
-  return rb_str_new2("#<Curl::Easy");
+  return rb_str_new2("#<Curl::Easy>");
 }
 
 

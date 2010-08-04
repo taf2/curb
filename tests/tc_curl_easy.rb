@@ -360,6 +360,25 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal blk, c.on_body   # sets handler nil, returns old handler
     assert_equal nil, c.on_body
   end
+
+  def test_inspect_with_no_url
+    c = Curl::Easy.new
+    assert_equal '#<Curl::Easy>', c.inspect
+  end
+  
+  def test_inspect_with_short_url
+    c = Curl::Easy.new('http://www.google.com/')
+    assert_equal "#<Curl::Easy http://www.google.com/>", c.inspect
+  end
+  
+  def test_inspect_truncates_to_64_chars
+    base_url      = 'http://www.google.com/'
+    truncated_url = base_url + 'x' * (64 - '#<Curl::Easy >'.size - base_url.size)
+    long_url      = truncated_url + 'yyyy'
+    c = Curl::Easy.new(long_url)
+    assert_equal 64, c.inspect.size
+    assert_equal "#<Curl::Easy #{truncated_url}>", c.inspect
+  end
   
   def test_on_header
     blk = lambda { |i| i.length }
