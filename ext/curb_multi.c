@@ -332,6 +332,12 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   ruby_curl_multi_remove( self, easy );
 
+  /* after running a request cleanup the headers, these are set before each request */
+  if (rbce->curl_headers) {
+    curl_slist_free_all(rbce->curl_headers);
+    rbce->curl_headers = NULL;
+  }
+
   if (ecode != 0) {
     raise_curl_easy_error_exception(ecode);
   }
@@ -356,6 +362,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
           (response_code >= 300 && response_code <= 999)) {
     rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
   }
+
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
