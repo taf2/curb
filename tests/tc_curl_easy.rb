@@ -621,6 +621,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match /message$/, curl.body_str
   end
 
+  def test_put_nil_data_no_crash
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.put_data = nil
+    
+    curl.perform
+  end
+
   def test_put_remote_file
     curl = Curl::Easy.new(TestServlet.url)
     File.open(__FILE__,'r') do|f|

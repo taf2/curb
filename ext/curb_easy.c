@@ -57,7 +57,7 @@ static size_t read_data_handler(void *ptr,
       return 0;
     }
   }
-  else {
+  else if (rb_respond_to(stream, rb_intern("to_s"))) {
     ruby_curl_upload *rbcu;
     VALUE str;
     size_t len;
@@ -68,6 +68,7 @@ static size_t read_data_handler(void *ptr,
     len = RSTRING_LEN(str);
     remaining = len - rbcu->offset;
     str_ptr = RSTRING_PTR(str);
+
     if( remaining < read_bytes ) {
       if( remaining > 0 ) {
         memcpy(ptr, str_ptr+rbcu->offset, remaining);
@@ -86,7 +87,9 @@ static size_t read_data_handler(void *ptr,
     }
     return read_bytes;
   }
-
+  else {
+    return 0;
+  }
 }
 
 static size_t proc_data_handler(char *stream,

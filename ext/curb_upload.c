@@ -11,7 +11,7 @@ VALUE cCurlUpload;
 #endif
 
 static void curl_upload_mark(ruby_curl_upload *rbcu) {
-  if (rbcu->stream) rb_gc_mark(rbcu->stream);
+  if (rbcu->stream && !NIL_P(rbcu->stream)) rb_gc_mark(rbcu->stream);
 }
 static void curl_upload_free(ruby_curl_upload *rbcu) {
   free(rbcu);
@@ -37,6 +37,7 @@ VALUE ruby_curl_upload_new(VALUE klass) {
 VALUE ruby_curl_upload_stream_set(VALUE self, VALUE stream) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
+  if (NIL_P(stream)) { rb_raise(rb_eRuntimeError,"stream can not be nil!"); }
   rbcu->stream = stream;
   return stream;
 }
