@@ -37,7 +37,6 @@ VALUE ruby_curl_upload_new(VALUE klass) {
 VALUE ruby_curl_upload_stream_set(VALUE self, VALUE stream) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
-  if (NIL_P(stream)) { rb_raise(rb_eRuntimeError,"stream can not be nil!"); }
   rbcu->stream = stream;
   return stream;
 }

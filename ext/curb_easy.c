@@ -810,10 +810,14 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
     }
   }
 
+  // exit fast if the payload is empty
+  if (NIL_P(data)) { return data; }
+
   headers = rb_easy_get("headers");
   if( headers == Qnil ) { 
     headers = rb_hash_new();
   }
+
   if (rb_respond_to(data, rb_intern("read"))) {
     VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
     if( stat ) {
@@ -838,7 +842,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
     rb_raise(rb_eRuntimeError, "PUT data must respond to read or to_s");
   }
   rb_easy_set("headers",headers);
-  
+
   // if we made it this far, all should be well.
   return data;
 }
