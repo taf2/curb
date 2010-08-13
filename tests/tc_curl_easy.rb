@@ -781,6 +781,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'PURGE', curl.body_str
     curl.http_put('hello')
     assert_equal "PUT\nhello", curl.body_str
+    curl.http('COPY')
+    assert_equal 'COPY', curl.body_str
   end
 
   # http://github.com/taf2/curb/issues/#issue/33

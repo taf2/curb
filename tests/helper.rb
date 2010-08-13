@@ -102,6 +102,10 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
     respond_with(:PURGE,req,res)
   end
 
+  def do_COPY(req,res)
+    respond_with(:COPY,req,res)
+  end
+
 end
 
 module TestServerMethods
