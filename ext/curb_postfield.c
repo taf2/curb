@@ -471,7 +471,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
       rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d", __FILE__, __LINE__);
     }
   } else {
-    rb_raise(eCurlErrInvalidPostField, "Local file and remote file are both nil %s:%d", __FILE__, __LINE__);
+    rb_raise(eCurlErrInvalidPostField, "Local file and remote file are both nil %s:%d - make sure you're calling http_post?", __FILE__, __LINE__);
   }
   
   return result;
