@@ -1433,8 +1433,8 @@ static VALUE ruby_curl_easy_header_in_body_set(VALUE self, VALUE header_in_body)
  * call-seq:
  *   easy.header_in_body?                             => boolean
  *
- * Determine whether this Curl instance will verify the SSL peer
- * certificate.
+ * Determine whether this Curl instance will return HTTP headers
+ * combined with body data.
  */
 static VALUE ruby_curl_easy_header_in_body_q(VALUE self) {
   CURB_BOOLEAN_GETTER(ruby_curl_easy, header_in_body);
