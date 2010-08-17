@@ -2169,7 +2169,17 @@ static VALUE ruby_curl_easy_perform_delete(VALUE self) {
  * This method always returns true or raises an exception (defined under Curl::Err) on error.
  */
 static VALUE ruby_curl_easy_perform_verb(VALUE self, VALUE verb) {
-  return ruby_curl_easy_perform_verb_str(self, RSTRING_PTR(verb));
+  VALUE str_verb;
+  if (rb_type(verb) == T_STRING) {
+    return ruby_curl_easy_perform_verb_str(self, RSTRING_PTR(verb));
+  }
+  else if (rb_respond_to(verb,rb_intern("to_s"))) {
+    str_verb = rb_funcall(verb, rb_intern("to_s"), 0);
+    return ruby_curl_easy_perform_verb_str(self, RSTRING_PTR(str_verb));
+  }
+  else {
+    rb_raise(rb_eRuntimeError, "Invalid HTTP VERB, must response to 'to_s'");
+  }
 }
 
 /*
