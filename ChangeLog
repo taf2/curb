@@ -1,4 +1,5 @@
-  * Free memory sooner after a request finishes instead of waiting for garabage collection
+  * Accept symbol and any object that responds_to?(:to_s) for easy.http(:verb)
+	* Free memory sooner after a request finishes instead of waiting for garabage collection
   * Fix crash when sending nil for the http_put body 
   * Fix inspect for Curl::Easy, thanks Hongli Lai
   * Fix unit test assertions for Curl::Multi, thanks Hongli Lai
