@@ -1,4 +1,7 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
+class FooNoToS 
+  undef to_s
+end
 
 class TestCurbCurlEasy < Test::Unit::TestCase
   def test_class_perform_01   
@@ -783,6 +786,18 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal "PUT\nhello", curl.body_str
     curl.http('COPY')
     assert_equal 'COPY', curl.body_str
+  end
+
+  def test_easy_http_verbs_must_respond_to_str
+    # issue http://github.com/taf2/curb/issues#issue/45
+    assert_nothing_raised do
+      c = Curl::Easy.new ; c.url = 'http://example.com' ; c.http(:get)
+    end
+
+    assert_raise RuntimeError do
+      c = Curl::Easy.new ; c.url = 'http://example.com' ; c.http(FooNoToS.new)
+    end
+
   end
 
   # http://github.com/taf2/curb/issues/#issue/33
