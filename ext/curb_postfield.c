@@ -235,7 +235,7 @@ static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass)
   rbcpf->local_file = Qnil;
   rbcpf->remote_file = Qnil;
   rbcpf->buffer_str = Qnil;
-  
+ 
   return Data_Wrap_Struct(cCurlPostField, curl_postfield_mark, curl_postfield_free, rbcpf);
 }
 
@@ -424,54 +424,65 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
   // FIXME This is using the deprecated curl_escape func
   ruby_curl_postfield *rbcpf;
   VALUE result = Qnil;
+  VALUE name = Qnil;
   
   Data_Get_Struct(self, ruby_curl_postfield, rbcpf);
 
   if ((rbcpf->local_file == Qnil) && (rbcpf->remote_file == Qnil)) {
-    if (rbcpf->name != Qnil && rb_type(rbcpf->name) == T_STRING) {
+    if (rbcpf->name != Qnil) {
+      name = rbcpf->name;
+      if (rb_type(name) == T_STRING) {
+        name = rbcpf->name;
+      } else if (rb_respond_to(name,rb_intern("to_s"))) {
+        name = rb_funcall(name, rb_intern("to_s"), 0);
+      }
+      else {
+        name = Qnil; // we can't handle this object
+      }
+    }
+    if (name == Qnil) {
+      rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d, make sure your field name responds_to :to_s", __FILE__, __LINE__);
+    }
 
-      char *tmpchrs = curl_escape(StringValuePtr(rbcpf->name), RSTRING_LEN(rbcpf->name));
+    char *tmpchrs = curl_escape(StringValuePtr(name), RSTRING_LEN(name));
+    
+    if (!tmpchrs) {
+      rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
+    } else {
+      VALUE tmpcontent = Qnil;
+      VALUE escd_name = rb_str_new2(tmpchrs);
+      curl_free(tmpchrs);
       
-      if (!tmpchrs) {
-        rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
+      if (rbcpf->content_proc != Qnil) {
+        tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
+      } else if (rbcpf->content != Qnil) {
+        tmpcontent = rbcpf->content;
       } else {
-        VALUE tmpcontent = Qnil;
-        VALUE escd_name = rb_str_new2(tmpchrs);
-        curl_free(tmpchrs);
-        
-        if (rbcpf->content_proc != Qnil) {
-          tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
-        } else if (rbcpf->content != Qnil) {
-          tmpcontent = rbcpf->content;
-        } else {
-          tmpcontent = rb_str_new2("");
+        tmpcontent = rb_str_new2("");
+      }
+      if (TYPE(tmpcontent) != T_STRING) {
+        if (rb_respond_to(tmpcontent, rb_intern("to_s"))) {
+          tmpcontent = rb_funcall(tmpcontent, rb_intern("to_s"), 0);
         }
-        if (TYPE(tmpcontent) != T_STRING) {
-          if (rb_respond_to(tmpcontent, rb_intern("to_s"))) {
-            tmpcontent = rb_funcall(tmpcontent, rb_intern("to_s"), 0);
-          }
-          else {
-            rb_raise(rb_eRuntimeError, "postfield(%s) is not a string and does not respond_to to_s", RSTRING_PTR(escd_name) );
-          }
-        }
-        //fprintf(stderr, "encoding content: %ld - %s\n", RSTRING_LEN(tmpcontent), RSTRING_PTR(tmpcontent) );
-        tmpchrs = curl_escape(RSTRING_PTR(tmpcontent), RSTRING_LEN(tmpcontent));
-        if (!tmpchrs) {
-          rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content `%s'", tmpchrs);
-        } else {
-          VALUE escd_content = rb_str_new2(tmpchrs);
-          curl_free(tmpchrs);
-          
-          result = escd_name;
-          rb_str_cat(result, "=", 1);
-          rb_str_concat(result, escd_content); 
+        else {
+          rb_raise(rb_eRuntimeError, "postfield(%s) is not a string and does not respond_to to_s", RSTRING_PTR(escd_name) );
         }
       }
-    } else {
-      rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d", __FILE__, __LINE__);
+      //fprintf(stderr, "encoding content: %ld - %s\n", RSTRING_LEN(tmpcontent), RSTRING_PTR(tmpcontent) );
+      tmpchrs = curl_escape(RSTRING_PTR(tmpcontent), RSTRING_LEN(tmpcontent));
+      if (!tmpchrs) {
+        rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content `%s'", tmpchrs);
+      } else {
+        VALUE escd_content = rb_str_new2(tmpchrs);
+        curl_free(tmpchrs);
+        
+        result = escd_name;
+        rb_str_cat(result, "=", 1);
+        rb_str_concat(result, escd_content); 
+      }
     }
   } else {
-    rb_raise(eCurlErrInvalidPostField, "Local file and remote file are both nil %s:%d - make sure you're calling http_post?", __FILE__, __LINE__);
+    rb_raise(eCurlErrInvalidPostField, "Local file and remote file are both nil %s:%d - did you mean Curl::PostField.content or You didn't call http_post ?", __FILE__, __LINE__);
   }
   
   return result;
