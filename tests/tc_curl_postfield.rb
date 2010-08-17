@@ -62,6 +62,7 @@ class TestCurbCurlPostfield < Test::Unit::TestCase
     assert_equal 'foo', pf.name
     assert_equal 'localname', pf.local_file
     assert_equal 'localname', pf.remote_file
+    assert_nothing_raised { pf.to_s }
     assert_nil pf.content_type
     assert_nil pf.content
     assert_nil pf.set_content_proc
@@ -136,6 +137,7 @@ class TestCurbCurlPostfield < Test::Unit::TestCase
 
   def test_to_s_04
     pf = Curl::PostField.file('foo.file', 'bar.file')
-    assert_raise(Curl::Err::InvalidPostFieldError) { pf.to_s }
+    assert_nothing_raised { pf.to_s }
+    #assert_raise(Curl::Err::InvalidPostFieldError) { pf.to_s }
   end
 end

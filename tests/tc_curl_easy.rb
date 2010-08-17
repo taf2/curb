@@ -569,6 +569,15 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'foo=bar&encoded%20string=val', curl.post_body
   end
 
+  def test_post_multipart_file_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = true
+    pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README')))
+    curl.http_post(pf)
+    assert_match /HTTP POST file upload/, curl.body_str
+    assert_match /Content-Disposition: form-data/, curl.body_str
+  end
+
   def test_delete_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_delete

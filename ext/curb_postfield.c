@@ -253,11 +253,11 @@ static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass)
  * data.
  */
 static VALUE ruby_curl_postfield_new_file(int argc, VALUE *argv, VALUE klass) {
-  // TODO needs to handle content-type too 
+  // TODO needs to handle content-type too
   ruby_curl_postfield *rbcpf = ALLOC(ruby_curl_postfield);
-  
+
   rb_scan_args(argc, argv, "21&", &rbcpf->name, &rbcpf->local_file, &rbcpf->remote_file, &rbcpf->content_proc);
-  
+
   // special handling if theres a block, second arg is actually remote name.
   if (rbcpf->content_proc != Qnil) {
     if (rbcpf->local_file != Qnil) {
@@ -267,7 +267,7 @@ static VALUE ruby_curl_postfield_new_file(int argc, VALUE *argv, VALUE klass) {
         // (correct block call form)
         rbcpf->remote_file = rbcpf->local_file;
       }
-      
+ 
       // Shouldn't get a local file, so can ignore it.
       rbcpf->local_file = Qnil;
     }
@@ -275,8 +275,8 @@ static VALUE ruby_curl_postfield_new_file(int argc, VALUE *argv, VALUE klass) {
     if (rbcpf->remote_file == Qnil) {
       rbcpf->remote_file = rbcpf->local_file;
     }
-  }    
-      
+  }
+ 
   /* assoc objects */
   rbcpf->content = Qnil;
   rbcpf->content_type = Qnil;
@@ -428,7 +428,6 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
   
   Data_Get_Struct(self, ruby_curl_postfield, rbcpf);
 
-  if ((rbcpf->local_file == Qnil) && (rbcpf->remote_file == Qnil)) {
     if (rbcpf->name != Qnil) {
       name = rbcpf->name;
       if (rb_type(name) == T_STRING) {
@@ -457,6 +456,10 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
         tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
       } else if (rbcpf->content != Qnil) {
         tmpcontent = rbcpf->content;
+      } else if (rbcpf->local_file != Qnil) {
+        tmpcontent = rbcpf->local_file;
+      } else if (rbcpf->remote_file != Qnil) {
+        tmpcontent = rbcpf->remote_file;
       } else {
         tmpcontent = rb_str_new2("");
       }
@@ -481,9 +484,6 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
         rb_str_concat(result, escd_content); 
       }
     }
-  } else {
-    rb_raise(eCurlErrInvalidPostField, "Local file and remote file are both nil %s:%d - did you mean Curl::PostField.content or You didn't call http_post ?", __FILE__, __LINE__);
-  }
   
   return result;
 }
