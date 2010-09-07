@@ -456,7 +456,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       }
 
       tv.tv_sec  = 0; /* never wait longer than 1 second */
-      tv.tv_usec = timeout_milliseconds * 1000;
+      tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
 
       if (timeout_milliseconds == 0) { /* no delay */
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
