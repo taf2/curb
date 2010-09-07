@@ -664,24 +664,26 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_cert
     curl = Curl::Easy.new(TestServlet.url)
     curl.cert= File.join(File.dirname(__FILE__),"cert.pem")
-    assert /cert.pem$/,curl.cert
+    assert_match /cert.pem$/,curl.cert
   end
 
   def test_cert_with_password
     curl = Curl::Easy.new(TestServlet.url)
     curl.cert= File.join(File.dirname(__FILE__),"cert.pem:password")
-    assert /cert.pem$/,curl.cert
+    assert_match /cert.pem$/,curl.cert
   end
 
   def test_cert_type
     curl = Curl::Easy.new(TestServlet.url)
     curl.certtype= "DER"
-    assert "DER", curl.certtype
+    assert_equal "DER", curl.certtype
   end
 
   def test_default_certtype
     curl = Curl::Easy.new(TestServlet.url)
-    assert "PEM", curl.certtype
+    assert_nil curl.certtype
+    curl.certtype = "PEM"
+    assert_equal "PEM", curl.certtype
   end
 
   # Generate a CA cert with instructions at
@@ -689,13 +691,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_ca_cert
     curl = Curl::Easy.new(TestServlet.url)
     curl.cacert= File.join(File.dirname(__FILE__),"cacert.pem")
-    assert /cacert.pem$/, curl.cacert
+    assert_match /cacert.pem$/, curl.cacert
   end
 
   def test_user_agent
     curl = Curl::Easy.new(TestServlet.url)
     curl.useragent= "Curb-Easy/Ruby"
-    assert /ScrubDog$/,curl.useragent
+    assert_equal "Curb-Easy/Ruby",curl.useragent
   end
 
   def test_username_password
