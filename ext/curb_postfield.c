@@ -109,7 +109,7 @@ void append_to_form(VALUE self,
     } else {
       // is a content field
       if (rbcpf->content_proc != Qnil) {
-        rbcpf->buffer_str = rb_funcall(rbcpf->content_proc, idCall, self);
+        rbcpf->buffer_str = rb_funcall(rbcpf->content_proc, idCall, 1, self);
         
         if (rbcpf->content_type == Qnil) {
           result = curl_formadd(first, last, CURLFORM_PTRNAME, StringValuePtr(rbcpf->name), 
@@ -443,7 +443,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
       rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d, make sure your field name responds_to :to_s", __FILE__, __LINE__);
     }
 
-    char *tmpchrs = curl_escape(StringValuePtr(name), RSTRING_LEN(name));
+    char *tmpchrs = curl_escape(StringValuePtr(name), (int)RSTRING_LEN(name));
     
     if (!tmpchrs) {
       rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
@@ -472,7 +472,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
         }
       }
       //fprintf(stderr, "encoding content: %ld - %s\n", RSTRING_LEN(tmpcontent), RSTRING_PTR(tmpcontent) );
-      tmpchrs = curl_escape(RSTRING_PTR(tmpcontent), RSTRING_LEN(tmpcontent));
+      tmpchrs = curl_escape(RSTRING_PTR(tmpcontent), (int)RSTRING_LEN(tmpcontent));
       if (!tmpchrs) {
         rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content `%s'", tmpchrs);
       } else {
