@@ -315,15 +315,20 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     downloads = []
     file_info = {}
     FileUtils.mkdir("tmp/")
+
+    # for each file store the size by file name
     Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
       urls << (root_uri + File.basename(path))
       downloads << "tmp/" + File.basename(path)
-      file_info[File.basename(path)] = {:size => File.size(path)}
+      file_info[File.basename(path)] = {:size => File.size(path), :path => path}
     end
+
+    # start downloads
     Curl::Multi.download(urls,{},{},downloads) do|curl,download_path|
       assert_equal 200, curl.response_code
       assert File.exist?(download_path)
-      assert file_info[File.basename(download_path)][:size], File.size(download_path)
+      store = file_info[File.basename(download_path)]
+      assert_equal file_info[File.basename(download_path)][:size], File.size(download_path), "incomplete download: #{download_path}"
     end
   ensure
     FileUtils.rm_rf("tmp/")
