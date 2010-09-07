@@ -200,6 +200,7 @@ module Curl
       # when using the :post or :put method, urls should be a hash, including the individual post fields per post
       #
       def download(urls,easy_options={},multi_options={},download_paths=nil,&blk)
+        errors = []
         procs = []
         files = []
         urls_with_config = []
@@ -218,10 +219,11 @@ module Curl
             download_path = File.basename(url)
           end
 
-          lambda do|dp|
+          file = lambda do|dp|
             file = File.open(dp,"wb")
             procs << (lambda {|data| file.write data; data.size })
             files << file
+            file
           end.call(download_path)
 
           if urlcfg.is_a?(Hash)
@@ -229,17 +231,27 @@ module Curl
           else
             urls_with_config << {:url => url, :on_body => procs.last, :method => :get}.merge(easy_options)
           end
-          url_to_download_paths[url] = download_path # store for later
+          url_to_download_paths[url] = {:path => download_path, :file => file} # store for later
         end
 
         if blk
-          Curl::Multi.http(urls_with_config, multi_options) {|c,code,method| blk.call(c,url_to_download_paths[c.url]) }
+          # when injecting the block, ensure file is closed before yielding
+          Curl::Multi.http(urls_with_config, multi_options) do |c,code,method|
+            info = url_to_download_paths[c.url]
+            begin
+              file = info[:file]
+              files.reject!{|f| f == file }
+              file.close
+            rescue => e
+              errors << e
+            end
+            blk.call(c,info[:path])
+          end
         else
           Curl::Multi.http(urls_with_config, multi_options)
         end
 
       ensure
-        errors = []
         files.each {|f|
           begin
             f.close
