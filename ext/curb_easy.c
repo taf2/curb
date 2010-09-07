@@ -331,6 +331,12 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
     raise_curl_easy_error_exception(ecode);
   }
 
+  /* Free everything up */
+  if (rbce->curl_headers) {
+    curl_slist_free_all(rbce->curl_headers);
+    rbce->curl_headers = NULL;
+  }
+
   return opts_dup;
 }
 
@@ -1002,7 +1008,8 @@ static VALUE ruby_curl_easy_http_auth_types_set(int argc, VALUE *argv, VALUE sel
 
   rb_scan_args(argc, argv, "*", &args_ary);
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  len = RARRAY_LEN(args_ary);
+
+  len = (int)RARRAY_LEN(args_ary);
 
   if (len == 1 && (TYPE(rb_ary_entry(args_ary,0)) == T_FIXNUM || rb_ary_entry(args_ary,0) == Qnil)) {
     if (rb_ary_entry(args_ary,0) == Qnil) { 
@@ -2054,10 +2061,10 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
 VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 
   CURL *curl = rbce->curl;
-  struct curl_slist *headers = rbce->curl_headers;
-  // Free everything up
-  if (headers) {
-    curl_slist_free_all(headers);
+
+  /* Free everything up */
+  if (rbce->curl_headers) {
+    curl_slist_free_all(rbce->curl_headers);
     rbce->curl_headers = NULL;
   }
 
@@ -2067,7 +2074,7 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
     rbce->curl_ftp_commands = NULL;
   }
 
-  // clean up a PUT request's curl options.
+  /* clean up a PUT request's curl options. */
   if (!rb_easy_nil("upload")) {
     rb_easy_del("upload"); // set the upload object to Qnil to let the GC clean up
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
@@ -2132,7 +2139,7 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
 /*
  * Common implementation of easy.http(verb) and easy.http_delete
  */
-static VALUE ruby_curl_easy_perform_verb_str(VALUE self, char *verb) {
+static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   ruby_curl_easy *rbce;
   CURL *curl;
   VALUE retval;
@@ -3042,9 +3049,9 @@ static VALUE ruby_curl_easy_escape(VALUE self, VALUE svalue) {
   if( rb_type(str) != T_STRING ) { str = rb_funcall(str,rb_intern("to_s"),0); }
 
 #if (LIBCURL_VERSION_NUM >= 0x070f04)
-  result = (char*)curl_easy_escape(rbce->curl, StringValuePtr(str), RSTRING_LEN(str));
+  result = (char*)curl_easy_escape(rbce->curl, StringValuePtr(str), (int)RSTRING_LEN(str));
 #else
-  result = (char*)curl_escape(StringValuePtr(str), RSTRING_LEN(str));
+  result = (char*)curl_escape(StringValuePtr(str), (int)RSTRING_LEN(str));
 #endif
 
   rresult = rb_str_new2(result);
@@ -3070,7 +3077,7 @@ static VALUE ruby_curl_easy_unescape(VALUE self, VALUE str) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
 #if (LIBCURL_VERSION_NUM >= 0x070f04)
-  result = (char*)curl_easy_unescape(rbce->curl, StringValuePtr(str), RSTRING_LEN(str), &rlen);
+  result = (char*)curl_easy_unescape(rbce->curl, StringValuePtr(str), (int)RSTRING_LEN(str), &rlen);
 #else
   result = (char*)curl_unescape(StringValuePtr(str), RSTRING_LEN(str));
   rlen = strlen(result);
