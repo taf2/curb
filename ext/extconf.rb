@@ -1,5 +1,4 @@
 require 'mkmf'
-puts $CFLAGS.inspect
 
 dir_config('curl')
 
