@@ -156,3 +156,9 @@ documentation with:
     requests.each do|url|
       puts responses[url]
     end
+
+### Easy Callbacks
+
+on_success:  is called when the response code is 20x
+on_failure: is called when the response code is not success, including redirects e.g. 30x
+on_complete: is called in all cases.
