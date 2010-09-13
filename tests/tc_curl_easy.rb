@@ -354,6 +354,30 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 30, c.dns_cache_timeout
   end
   
+  def test_low_speed_limit_01
+    c = Curl::Easy.new($TEST_URL)
+    
+    assert_nil c.low_speed_limit
+    
+    c.low_speed_limit = 3
+    assert_equal 3, c.low_speed_limit
+    
+    c.low_speed_limit = nil
+    assert_nil c.low_speed_limit
+  end
+  
+  def test_low_speed_time_01
+    c = Curl::Easy.new($TEST_URL)
+    
+    assert_nil c.low_speed_time
+    
+    c.low_speed_time = 3
+    assert_equal 3, c.low_speed_time
+    
+    c.low_speed_time = nil
+    assert_nil c.low_speed_time
+  end
+  
   def test_on_body
     blk = lambda { |i| i.length }
     

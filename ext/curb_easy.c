@@ -181,6 +181,8 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->connect_timeout = 0;
   rbce->dns_cache_timeout = 60;
   rbce->ftp_response_timeout = 0;
+  rbce->low_speed_limit = 0;
+  rbce->low_speed_time = 0;
   rbce->ssl_version = -1;
   rbce->use_ssl = -1;
   rbce->ftp_filemethod = -1;
@@ -1198,6 +1200,51 @@ static VALUE ruby_curl_easy_ftp_response_timeout_get(VALUE self, VALUE ftp_respo
 
 /*
  * call-seq:
+ *   easy.low_speed_limit = fixnum or nil        => fixnum or nil
+ *
+ * Set the transfer speed (in bytes per second) that the transfer should be
+ * below during +low_speed_time+ seconds for the library to consider it too
+ * slow and abort.
+ */
+static VALUE ruby_curl_easy_low_speed_limit_set(VALUE self, VALUE low_speed_limit) {
+  CURB_IMMED_SETTER(ruby_curl_easy, low_speed_limit, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.low_speed_limit                        => fixnum or nil
+ *
+ * Obtain the minimum transfer speed over +low_speed+time+ below which the
+ * transfer will be aborted.
+ */
+static VALUE ruby_curl_easy_low_speed_limit_get(VALUE self, VALUE low_speed_limit) {
+  CURB_IMMED_GETTER(ruby_curl_easy, low_speed_limit, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.low_speed_time = fixnum or nil        => fixnum or nil
+ *
+ * Set the time (in seconds) that the transfer should be below the
+ * +low_speed_limit+ for the library to consider it too slow and abort.
+ */
+static VALUE ruby_curl_easy_low_speed_time_set(VALUE self, VALUE low_speed_time) {
+  CURB_IMMED_SETTER(ruby_curl_easy, low_speed_time, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.low_speed_time                        => fixnum or nil
+ *
+ * Obtain the time that the transfer should be below +low_speed_limit+ for
+ * the library to abort it.
+ */
+static VALUE ruby_curl_easy_low_speed_time_get(VALUE self, VALUE low_speed_time) {
+  CURB_IMMED_GETTER(ruby_curl_easy, low_speed_time, 0);
+}
+
+/*
+ * call-seq:
  *   easy.username = string                           => string
  *
  * Set the HTTP Authentication username.
@@ -1938,6 +1985,9 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
     rb_warn("Installed libcurl is too old to support ftp_response_timeout");
   }
 #endif
+
+  curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, rbce->low_speed_limit);
+  curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, rbce->low_speed_time);
 
   // Set up localport / proxy port
   // FIXME these won't get returned to default if they're unset Ruby
@@ -3310,6 +3360,10 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "dns_cache_timeout", ruby_curl_easy_dns_cache_timeout_get, 0);
   rb_define_method(cCurlEasy, "ftp_response_timeout=", ruby_curl_easy_ftp_response_timeout_set, 1);
   rb_define_method(cCurlEasy, "ftp_response_timeout", ruby_curl_easy_ftp_response_timeout_get, 0);
+  rb_define_method(cCurlEasy, "low_speed_limit=", ruby_curl_easy_low_speed_limit_set, 1);
+  rb_define_method(cCurlEasy, "low_speed_limit", ruby_curl_easy_low_speed_limit_get, 0);
+  rb_define_method(cCurlEasy, "low_speed_time=", ruby_curl_easy_low_speed_time_set, 1);
+  rb_define_method(cCurlEasy, "low_speed_time", ruby_curl_easy_low_speed_time_get, 0);
   rb_define_method(cCurlEasy, "ssl_version=", ruby_curl_easy_ssl_version_set, 1);
   rb_define_method(cCurlEasy, "ssl_version", ruby_curl_easy_ssl_version_get, 0);
   rb_define_method(cCurlEasy, "use_ssl=", ruby_curl_easy_use_ssl_set, 1);

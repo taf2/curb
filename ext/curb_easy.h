@@ -51,6 +51,8 @@ typedef struct {
   unsigned long connect_timeout;
   long dns_cache_timeout;
   unsigned long ftp_response_timeout;
+  long low_speed_limit;
+  long low_speed_time;
   long ssl_version;
   long use_ssl;
   long ftp_filemethod;
