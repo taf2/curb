@@ -26,16 +26,24 @@ module Curl
       def download(url, filename = url.split(/\?/).first.split(/\//).last, &blk)
         curl = Curl::Easy.new(url, &blk)
         
-        File.open(filename, "wb") do |output|
-          old_on_body = curl.on_body do |data| 
+        output = if filename.is_a? IO
+          filename.binmode if filename.respond_to?(:binmode)
+          filename
+        else
+          File.open(filename, 'wb')
+        end
+        
+        begin
+          old_on_body = curl.on_body do |data|
             result = old_on_body ?  old_on_body.call(data) : data.length
             output << data if result == data.length
             result
           end
-          
           curl.perform
-        end        
-
+        ensure
+          output.close rescue IOError
+        end
+        
         return curl
       end
     end
