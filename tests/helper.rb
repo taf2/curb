@@ -178,5 +178,6 @@ module TestServerMethods
       at_exit{exit_code.call}
 
     end
+  rescue Errno::EADDRINUSE
   end
 end
