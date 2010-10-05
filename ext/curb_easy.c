@@ -197,6 +197,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->verbose = 0;
   rbce->multipart_form_post = 0;
   rbce->enable_cookies = 0;
+  rbce->ignore_content_length = 0;
 }
 
 /*
@@ -1599,6 +1600,31 @@ static VALUE ruby_curl_easy_enable_cookies_q(VALUE self) {
   CURB_BOOLEAN_GETTER(ruby_curl_easy, enable_cookies);
 }
 
+/*
+ * call-seq:
+ *   easy.ignore_content_length = boolean
+ *
+ * Configure whether this Curl::Easy instance should ignore the content
+ * length header.
+ */
+static VALUE ruby_curl_easy_ignore_content_length_set(VALUE self, VALUE ignore_content_length)
+{
+  CURB_BOOLEAN_SETTER(ruby_curl_easy, ignore_content_length);
+}
+
+/*
+ * call-seq:
+ *   easy.ignore_content_length?                             => boolean
+ *
+ * Determine whether this Curl::Easy instance ignores the content
+ * length header.
+ */
+static VALUE ruby_curl_easy_ignore_content_length_q(VALUE self) {
+  CURB_BOOLEAN_GETTER(ruby_curl_easy, ignore_content_length);
+}
+
+
+
 /* ================= EVENT PROCS ================== */
 
 /*
@@ -1901,6 +1927,9 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, rbce->timeout);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, rbce->connect_timeout);
   curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, rbce->dns_cache_timeout);
+
+  curl_easy_setopt(curl, CURLOPT_IGNORE_CONTENT_LENGTH, rbce->ignore_content_length);
+
 
 #if LIBCURL_VERSION_NUM >= 0x070a08
   curl_easy_setopt(curl, CURLOPT_FTP_RESPONSE_TIMEOUT, rbce->ftp_response_timeout);
@@ -3316,6 +3345,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "multipart_form_post?", ruby_curl_easy_multipart_form_post_q, 0);
   rb_define_method(cCurlEasy, "enable_cookies=", ruby_curl_easy_enable_cookies_set, 1);
   rb_define_method(cCurlEasy, "enable_cookies?", ruby_curl_easy_enable_cookies_q, 0);
+  rb_define_method(cCurlEasy, "ignore_content_length=", ruby_curl_easy_ignore_content_length_set, 1);
+  rb_define_method(cCurlEasy, "ignore_content_length?", ruby_curl_easy_ignore_content_length_q, 0);
 
   rb_define_method(cCurlEasy, "on_body", ruby_curl_easy_on_body_set, -1);
   rb_define_method(cCurlEasy, "on_header", ruby_curl_easy_on_header_set, -1);

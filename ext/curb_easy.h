@@ -67,6 +67,7 @@ typedef struct {
   char verbose;
   char multipart_form_post;
   char enable_cookies;
+  char ignore_content_length;
   struct curl_slist *curl_headers;
   struct curl_slist *curl_ftp_commands;
 
