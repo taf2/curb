@@ -476,6 +476,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert c.multipart_form_post?
   end
 
+  def test_ignore_content_length
+    c = Curl::Easy.new
+    assert !c.ignore_content_length?
+    assert c.ignore_content_length = true
+    assert c.ignore_content_length?
+  end
+
   def test_enable_cookies
     c = Curl::Easy.new
     assert !c.enable_cookies?
