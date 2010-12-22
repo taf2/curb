@@ -209,7 +209,7 @@ void curl_postfield_free(ruby_curl_postfield *rbcpf) {
  */
 static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass) {
   ruby_curl_postfield *rbcpf = ALLOC(ruby_curl_postfield);
-  
+ 
   // wierdness - we actually require two args, unless a block is provided, but
   // we have to work that out below.
   rb_scan_args(argc, argv, "12&", &rbcpf->name, &rbcpf->content, &rbcpf->content_type, &rbcpf->content_proc);

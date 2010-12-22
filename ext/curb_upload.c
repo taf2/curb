@@ -56,7 +56,7 @@ VALUE ruby_curl_upload_stream_get(VALUE self) {
 VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
-  rbcu->offset = FIX2INT(offset);
+  rbcu->offset = FIX2LONG(offset);
   return offset;
 }
 /*
