@@ -213,7 +213,7 @@ static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass)
   // wierdness - we actually require two args, unless a block is provided, but
   // we have to work that out below.
   rb_scan_args(argc, argv, "12&", &rbcpf->name, &rbcpf->content, &rbcpf->content_type, &rbcpf->content_proc);
-  
+
   // special handling if theres a block, second arg is actually content_type
   if (rbcpf->content_proc != Qnil) {
     if (rbcpf->content != Qnil) {

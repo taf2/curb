@@ -753,8 +753,18 @@ static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
     rb_easy_del("postdata_buffer");
     
   } else {  
-    data = StringValuePtr(post_body);
-    len = RSTRING_LEN(post_body);
+    if (rb_type(post_body) == T_STRING) {
+      data = StringValuePtr(post_body);
+      len = RSTRING_LEN(post_body);
+    }
+    else if (rb_respond_to(post_body, rb_intern("to_s"))) {
+      VALUE str_body = rb_funcall(post_body, rb_intern("to_s"), 0);
+      data = StringValuePtr(str_body);
+      len = RSTRING_LEN(post_body);
+    }
+    else {
+      rb_raise(rb_eRuntimeError, "post data must respond_to .to_s");
+    }
   
     // Store the string, since it has to hang around for the duration of the 
     // request.  See CURLOPT_POSTFIELDS in the libcurl docs.

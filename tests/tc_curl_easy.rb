@@ -565,8 +565,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   
   def test_post_remote
     curl = Curl::Easy.new(TestServlet.url)
-    curl.http_post
-    assert_equal "POST\n", curl.body_str
+    curl.http_post([Curl::PostField.content('document_id', 5)])
+    assert_equal "POST\ndocument%5Fid=5", curl.body_str
   end
 
   def test_post_remote_is_easy_handle
