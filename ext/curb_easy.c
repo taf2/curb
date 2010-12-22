@@ -137,7 +137,7 @@ static int proc_debug_handler(CURL *curl,
 
 /* ================== MARK/FREE FUNC ==================*/
 void curl_easy_mark(ruby_curl_easy *rbce) {
-  rb_gc_mark(rbce->opts);
+  if (!NIL_P(rbce->opts)) { rb_gc_mark(rbce->opts); }
   if (!NIL_P(rbce->multi)) { rb_gc_mark(rbce->multi); }
 }
 
@@ -228,13 +228,14 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
     rb_raise(eCurlErrFailedInit, "Failed to initialize easy handle");
   }
 
+  new_curl = Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
+
   rbce->multi = Qnil;
+  rbce->opts  = Qnil;
 
   ruby_curl_easy_zero(rbce);
 
   rb_easy_set("url", url);
-
-  new_curl = Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
 
   /* set the new_curl pointer to the curl handle */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)new_curl);
