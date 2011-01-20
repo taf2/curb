@@ -2151,6 +2151,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
 VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 
   CURL *curl = rbce->curl;
+  struct curl_slist *ftp_commands;
 
   /* Free everything up */
   if (rbce->curl_headers) {
@@ -2158,7 +2159,7 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
     rbce->curl_headers = NULL;
   }
 
-  struct curl_slist *ftp_commands = rbce->curl_ftp_commands;
+  ftp_commands = rbce->curl_ftp_commands;
   if (ftp_commands) {
     curl_slist_free_all(ftp_commands);
     rbce->curl_ftp_commands = NULL;

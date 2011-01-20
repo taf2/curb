@@ -425,6 +425,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
   ruby_curl_postfield *rbcpf;
   VALUE result = Qnil;
   VALUE name = Qnil;
+  char *tmpchrs;
   
   Data_Get_Struct(self, ruby_curl_postfield, rbcpf);
 
@@ -443,7 +444,7 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
       rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d, make sure your field name responds_to :to_s", __FILE__, __LINE__);
     }
 
-    char *tmpchrs = curl_escape(StringValuePtr(name), (int)RSTRING_LEN(name));
+    tmpchrs = curl_escape(StringValuePtr(name), (int)RSTRING_LEN(name));
     
     if (!tmpchrs) {
       rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
