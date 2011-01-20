@@ -19,6 +19,11 @@
 
 #include <errno.h>
 
+#ifdef _WIN32
+  // for O_RDWR and O_BINARY
+  #include <fcntl.h>
+#endif
+
 extern VALUE mCurl;
 static VALUE idCall;
 
@@ -396,6 +401,35 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
   
 }
 
+#ifdef _WIN32
+void create_crt_fd(fd_set *os_set, fd_set *crt_set)
+{
+  int i;
+  crt_set->fd_count = os_set->fd_count;
+  for (i = 0; i < os_set->fd_count; i++) {
+    WSAPROTOCOL_INFO wsa_pi;
+    // dupicate the SOCKET
+    int r = WSADuplicateSocket(os_set->fd_array[i], GetCurrentProcessId(), &wsa_pi);
+    SOCKET s = WSASocket(wsa_pi.iAddressFamily, wsa_pi.iSocketType, wsa_pi.iProtocol, &wsa_pi, 0, 0);
+    // create the CRT fd so ruby can get back to the SOCKET
+    int fd = _open_osfhandle(s, O_RDWR|O_BINARY);
+    os_set->fd_array[i] = s;
+    crt_set->fd_array[i] = fd;
+  }
+}
+
+void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
+{
+  int i;
+  for (i = 0; i < os_set->fd_count; i++) {
+    // cleanup the CRT fd
+    _close(crt_set->fd_array[i]);
+    // cleanup the duplicated SOCKET
+    closesocket(os_set->fd_array[i]);
+  }
+}
+#endif
+
 /*
  * call-seq:
  * multi = Curl::Multi.new
@@ -416,6 +450,9 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   ruby_curl_multi *rbcm;
   int maxfd, rc;
   fd_set fdread, fdwrite, fdexcep;
+#ifdef _WIN32
+  fd_set crt_fdread, crt_fdwrite, crt_fdexcep;
+#endif
 
   long timeout_milliseconds;
   struct timeval tv = {0, 0};
@@ -474,7 +511,20 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         raise_curl_multi_error_exception(mcode);
       }
 
+#ifdef _WIN32
+      create_crt_fd(&fdread, &crt_fdread);
+      create_crt_fd(&fdwrite, &crt_fdwrite);
+      create_crt_fd(&fdexcep, &crt_fdexcep);
+#endif
+
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+
+#ifdef _WIN32
+      cleanup_crt_fd(&fdread, &crt_fdread);
+      cleanup_crt_fd(&fdwrite, &crt_fdwrite);
+      cleanup_crt_fd(&fdexcep, &crt_fdexcep);
+#endif
+
       switch(rc) {
       case -1:
         rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
