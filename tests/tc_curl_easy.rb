@@ -855,10 +855,37 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_easy_can_put_with_content_length
     curl = Curl::Easy.new(TestServlet.url)
-    curl.headers['Content-Length'] = "hello".size
-    curl.http_put("hello")
-    assert_match /^PUT/, curl.body_str
-    assert_match /hello$/, curl.body_str
+    rd, wr = IO.pipe
+    buf = (("hello")* (1000 / 5))
+
+    producer = Thread.new do
+      5.times do
+        wr << buf
+        sleep 0.1 # act as a slow producer
+      end
+    end
+
+    consumer = Thread.new do
+
+      #curl.verbose = true
+      curl.headers['Content-Length'] = buf.size * 5
+      curl.headers['User-Agent']     = "Something else"
+      curl.headers['Content-Type']   = "text/javascript"
+      curl.headers['Date']           = Time.now.httpdate
+      curl.headers['Host']           = 's3.amazonaws.com'
+      curl.headers['Accept']         = '*/*'
+      curl.headers['Authorization']  = 'Foo Bar Biz Baz'
+      curl.http_put(rd)
+      assert_match /^PUT/, curl.body_str
+      assert_match /hello$/, curl.body_str
+      curl.header_str
+      curl.body_str
+    end
+
+    producer.join
+    wr.close
+    consumer.join
+
   end
 
   include TestServerMethods 

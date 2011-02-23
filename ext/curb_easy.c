@@ -815,7 +815,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
                                     the easy handle is active or until the upload
                                     is complete or terminated... */
 
-  curl_easy_setopt(curl, CURLOPT_NOBODY,0);
+  curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
@@ -840,7 +840,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
 
   if (rb_respond_to(data, rb_intern("read"))) {
     VALUE stat = rb_funcall(data, rb_intern("stat"), 0);
-    if( stat ) {
+    if( stat && rb_hash_aref(headers, rb_str_new2("Content-Length")) == Qnil) {
       VALUE size;
       if( rb_hash_aref(headers, rb_str_new2("Expect")) == Qnil ) {
         rb_hash_aset(headers, rb_str_new2("Expect"), rb_str_new2(""));
@@ -850,6 +850,10 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
     }
     else if( rb_hash_aref(headers, rb_str_new2("Content-Length")) == Qnil && rb_hash_aref(headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
       rb_hash_aset(headers, rb_str_new2("Transfer-Encoding"), rb_str_new2("chunked"));
+    }
+    else if( rb_hash_aref(headers, rb_str_new2("Content-Length")) ) {
+      VALUE size = rb_funcall(rb_hash_aref(headers, rb_str_new2("Content-Length")), rb_intern("to_i"), 0);
+      curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2LONG(size));
     }
   }
   else if (rb_respond_to(data, rb_intern("to_s"))) {
