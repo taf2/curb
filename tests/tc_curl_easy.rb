@@ -853,6 +853,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'GET', curl.body_str
   end
 
+  def test_easy_can_put_with_content_length
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.headers['Content-Length'] = "hello".size
+    curl.http_put("hello")
+    assert_match /^PUT/, curl.body_str
+    assert_match /hello$/, curl.body_str
+  end
 
   include TestServerMethods 
 

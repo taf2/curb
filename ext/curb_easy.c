@@ -848,7 +848,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
       size = rb_funcall(stat, rb_intern("size"), 0);
       curl_easy_setopt(curl, CURLOPT_INFILESIZE, FIX2LONG(size));
     }
-    else if( rb_hash_aref(headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
+    else if( rb_hash_aref(headers, rb_str_new2("Content-Length")) == Qnil && rb_hash_aref(headers, rb_str_new2("Transfer-Encoding")) == Qnil ) {
       rb_hash_aset(headers, rb_str_new2("Transfer-Encoding"), rb_str_new2("chunked"));
     }
   }
