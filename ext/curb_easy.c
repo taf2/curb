@@ -1916,7 +1916,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   if (rb_easy_nil("proxypwd")) {
     curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, NULL);
   } else {
-    curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, rb_easy_get_str("proxy_pwd"));
+    curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, rb_easy_get_str("proxypwd"));
   }
 
   // body/header procs
