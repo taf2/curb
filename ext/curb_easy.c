@@ -1907,16 +1907,16 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
     curl_easy_setopt(curl, CURLOPT_USERPWD, NULL);
   }
 
-  if (!rb_easy_nil("proxy_url")) {
-    curl_easy_setopt(curl, CURLOPT_PROXY, rb_easy_get_str("proxy_url"));
-  } else {
+  if (rb_easy_nil("proxy_url")) {
     curl_easy_setopt(curl, CURLOPT_PROXY, NULL);
+  } else {
+    curl_easy_setopt(curl, CURLOPT_PROXY, rb_easy_get_str("proxy_url"));
   }
 
-  if (!rb_easy_nil("proxypwd")) {
-    curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, rb_easy_get_str("proxy_pwd"));
-  } else {
+  if (rb_easy_nil("proxypwd")) {
     curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, NULL);
+  } else {
+    curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, rb_easy_get_str("proxy_pwd"));
   }
 
   // body/header procs

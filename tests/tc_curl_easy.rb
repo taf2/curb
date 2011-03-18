@@ -224,7 +224,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
     assert_equal $TEST_URL, c.url
     assert_equal "http://some.proxy", c.proxy_url
-    
+ 
     c.proxy_url = nil
     assert_equal $TEST_URL, c.url
     assert_nil c.proxy_url
