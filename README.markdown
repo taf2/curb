@@ -45,14 +45,19 @@ documentation with:
 
     $ rake doc
 
-## Examples
+## Usage & examples
+
+Curb provides two classes:
+
++ Curl::Easy - simple API, for day-to-day tasks.
++ Curl::Multi - more advanced API, for operating on multiple URLs simultaneously.
 
 ### Simple fetch via HTTP:
 
     c = Curl::Easy.perform("http://www.google.co.uk")
     puts c.body_str
 
-### Same thing, more manual:
+Same thing, more manual:
 
     c = Curl::Easy.new("http://www.google.co.uk")
     c.perform
@@ -65,13 +70,21 @@ documentation with:
       curl.verbose = true
     end
 
-### Same thing, more manual:
+Same thing, more manual:
 
     c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
       curl.headers["User-Agent"] = "myapp-0.0"
       curl.verbose = true
     end
   
+    c.perform
+
+### HTTP basic authentication:
+
+    c = Curl::Easy.new("http://github.com/")
+    c.http_auth_types = :basic
+    c.username = 'foo'
+    c.password = 'bar'
     c.perform
 
 ### Supplying custom handlers:
