@@ -77,7 +77,7 @@ module Curl
         urls.each do|url|
           url_confs << {:url => url, :method => :get}.merge(easy_options)
         end
-        self.http(url_confs, multi_options) {|c,code,method| blk.call(c) }
+        self.http(url_confs, multi_options) {|c,code,method| blk.call(c) if blk }
       end
 
       # call-seq:
@@ -148,17 +148,25 @@ module Curl
       #
       def http(urls_with_config, multi_options={}, &blk)
         m = Curl::Multi.new
+
+        # maintain a sane number of easy handles
+        multi_options[:max_connects] = max_connects = multi_options.key?(:max_connects) ? multi_options[:max_connects] : 10
+
+        free_handles = [] # keep a list of free easy handles
+
         # configure the multi handle
         multi_options.each { |k,v| m.send("#{k}=", v) }
         callbacks = [:on_progress,:on_debug,:on_failure,:on_success,:on_body,:on_header]
 
-        urls_with_config.each do|conf|
-          c = conf.dup # avoid being destructive to input
+        add_free_handle = proc do|conf, easy|
+          c       = conf.dup # avoid being destructive to input
           url     = c.delete(:url)
           method  = c.delete(:method)
           headers = c.delete(:headers)
 
-          easy    = Curl::Easy.new(url)
+          easy    = Curl::Easy.new if easy.nil?
+
+          easy.url = url
 
           # assign callbacks
           callbacks.each do |cb|
@@ -191,10 +199,35 @@ module Curl
           #
           c.each { |k,v| easy.send("#{k}=",v) }
 
-          easy.on_complete {|curl,code| blk.call(curl,code,method) } if blk
+          easy.on_complete {|curl,code|
+            free_handles << curl
+            blk.call(curl,code,method) if blk
+          }
           m.add(easy)
         end
-        m.perform
+
+        max_connects.times do
+          conf = urls_with_config.pop
+          add_free_handle.call conf, nil
+          break if urls_with_config.empty?
+        end
+
+        consume_free_handles = proc do
+          # as we idle consume free handles
+          if urls_with_config.size > 0 && free_handles.size > 0
+            easy = free_handles.pop
+            conf = urls_with_config.pop
+            add_free_handle.call conf, easy
+          end
+        end
+
+        until urls_with_config.empty?
+          m.perform do
+            consume_free_handles.call
+          end
+          consume_free_handles.call
+        end
+        free_handles = nil 
       end
 
       # call-seq:
