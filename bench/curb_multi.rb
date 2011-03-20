@@ -1,6 +1,6 @@
 require 'rubygems'
-require 'rmem'
-smem = RMem::Report.memory
+$:.unshift File.expand_path(File.dirname(__FILE__))
+require '_usage'
 
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','ext'))
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
@@ -8,24 +8,43 @@ $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 N = (ARGV.shift || 50).to_i
 BURL = 'http://127.0.0.1/zeros-2k'
 
-require 'curb'
+Memory.usage("Curl::Multi(#{N})") do
+  require 'curb'
 
-urls = []
+  count = 0
+  multi = Curl::Multi.new
 
-def fetch(urls)
-  Curl::Multi.get(urls, {}, {:max_connects => 10, :pipeline => true}) {|c| }
-end
+  multi.pipeline = true
+  multi.max_connects = 10
 
-t = Time.now
-N.times do|n|
-  if urls.size >10
-    t = Time.now
-    fetch(urls)
-    urls = []
-  else
-    urls << BURL
+  # maintain a free list of easy handles, better to reuse an open connection than create a new one...
+  free = []
+
+  pending = N
+  bytes_received = 0
+
+  # initialize first 10
+  10.times do
+    easy = Curl::Easy.new(BURL)
+    easy.on_body {|d| bytes_received += d.size; d.size } # don't buffer
+    easy.on_complete do|c|
+      free << c
+    end
+    multi.add easy
+    pending-=1
+    break if pending <= 0
   end
+
+  until pending == 0
+    multi.perform do
+      # idle
+      if pending > 0 && free.size > 0
+        easy = free.pop
+        easy.url = BURL
+        multi.add easy
+        pending -= 1
+      end
+    end
+  end
+
 end
-fetch(urls)
-emem = RMem::Report.memory
-puts "\tDuration #{Time.now-t} seconds memory total: #{emem} - growth: #{(emem-smem)/1024.0} kbytes"

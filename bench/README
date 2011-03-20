@@ -1,1 +1,42 @@
 Each benchmark requires a webserver be running on port 80 with a URL of http://127.0.0.1/zeros-2k
+
+Memory usage is reported using the rmem gem.
+
+
+===
+OSX you might experience very bad performance from libcurl... it is because of OpenSSL
+
+
+Running on my Linux machine:
+
+  Processor: Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz
+  Memory:    3G
+  OS:        Linux spin 2.6.35.11-83.fc14.i686 #1 SMP Mon Feb 7 07:04:18 UTC 2011 i686 i686 i386 GNU/Linux
+  libcurl:   7.21.0
+  openssl:   1.0.0d
+  ruby:      ruby 1.9.2p136 (2010-12-25 revision 30365) [i686-linux]
+  webserver: nginx/0.8.53
+
+Curl::Easy(5050)        Duration: 0.6169 sec, Memory Usage: 27.71 KB - Memory Growth: 25.31 KB
+Curl::Multi(5050)       Duration: 0.5969 sec, Memory Usage: 8.33 KB  - Memory Growth: 5.94 KB
+Net::HTTP(5050)         Duration: 1.9837 sec, Memory Usage: 73.90 KB - Memory Growth: 71.51 KB
+Patron(5050)            Duration: 0.9795 sec, Memory Usage: 88.94 KB - Memory Growth: 86.56 KB
+Typhoeus::Hydra(5050)   Duration: 0.2877 sec, Memory Usage: 8.90 KB  - Memory Growth: 6.51 KB
+Typhoeus(5050)          Duration: 1.2635 sec, Memory Usage: 18.78 KB - Memory Growth: 16.39 KB
+
+Running on my MacBook Pro
+
+  Processor: Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz
+  Memory:    2G
+  OS:        Darwin glazgo 10.6.0 Darwin Kernel Version 10.6.0: Wed Nov 10 18:13:17 PST 2010; root:xnu-1504.9.26~3/RELEASE_I386 i386 i386 MacBookPro5,1 Darwin
+  libcurl:   7.19.7
+  openssl:   0.9.8l
+  ruby:      ruby 1.8.7 (2010-04-19 patchlevel 253) [i686-darwin10.6.0], MBARI 0x6770, Ruby Enterprise Edition 2010.02
+  webserver: nginx/0.7.65
+
+Curl::Easy(5050)        Duration: 0.8870 sec, Memory Usage: 41900.00 KB - Memory Growth: 11068.00 KB
+Curl::Multi(5050)       Duration: 0.9340 sec, Memory Usage: 41408.00 KB - Memory Growth: 10572.00 KB
+Net::HTTP(5050)         Duration: 1.8687 sec, Memory Usage: 71660.00 KB - Memory Growth: 40828.00 KB
+Patron(5050)            Duration: 1.2757 sec, Memory Usage: 38108.00 KB - Memory Growth: 7280.00 KB
+Typhoeus::Hydra(5050)   Duration: 0.4511 sec, Memory Usage: 36932.00 KB - Memory Growth: 6100.00 KB
+Typhoeus(5050)          Duration: 1.7582 sec, Memory Usage: 55812.00 KB - Memory Growth: 24984.00 KB

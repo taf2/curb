@@ -1,0 +1,19 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    mime-types (1.16)
+    net-http-persistent (1.6.1)
+    patron (0.4.11)
+    rmem (1.0.0)
+    typhoeus (0.2.4)
+      mime-types
+      mime-types
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  net-http-persistent
+  patron
+  rmem
+  typhoeus
