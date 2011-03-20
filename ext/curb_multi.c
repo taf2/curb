@@ -482,29 +482,23 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
       if (timeout_milliseconds == 0) { /* no delay */
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        rb_curl_multi_read_info( self, rbcm->handle );
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
         continue;
       }
-      else if (timeout_milliseconds < 0) {
-        timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
-      }
 
-      if (timeout_milliseconds > cCurlMutiDefaulttimeout) {
-        timeout_milliseconds = cCurlMutiDefaulttimeout; /* buggy versions libcurl sometimes reports huge timeouts... let's cap it */
+      if (timeout_milliseconds < 0 || timeout_milliseconds > cCurlMutiDefaulttimeout) {
+        timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
+                                                        /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
       }
 
       tv.tv_sec  = 0; /* never wait longer than 1 second */
       tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
 
-      if (timeout_milliseconds == 0) { /* no delay */
-        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-        continue;
-      }
-
-      if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
-
       FD_ZERO(&fdread);
       FD_ZERO(&fdwrite);
       FD_ZERO(&fdexcep);
+
       /* load the fd sets from the multi handle */
       mcode = curl_multi_fdset(rbcm->handle, &fdread, &fdwrite, &fdexcep, &maxfd);
       if (mcode != CURLM_OK) {
@@ -529,17 +523,19 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       case -1:
         rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
         break;
-      case 0:
+      case 0: /* timeout */
+      default: /* action */
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
-      default: 
-        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         break;
       }
     }
-    rb_curl_multi_read_info( self, rbcm->handle );
-    if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+
   } while( rbcm->running );
+
+  rb_curl_multi_read_info( self, rbcm->handle );
+  if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
     
   return Qtrue;
 }
