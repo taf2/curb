@@ -3183,12 +3183,6 @@ void init_curb_easy() {
 
   /* Class methods */
   rb_define_singleton_method(cCurlEasy, "new", ruby_curl_easy_new, -1);
-//  rb_define_singleton_method(cCurlEasy, "perform", ruby_curl_easy_class_perform, -1);
-//  rb_define_singleton_method(cCurlEasy, "http_delete", ruby_curl_easy_class_perform_delete, -1);
-//  rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
-//  rb_define_singleton_method(cCurlEasy, "http_post", ruby_curl_easy_class_perform_post, -1);
-//  rb_define_singleton_method(cCurlEasy, "http_head", ruby_curl_easy_class_perform_head, -1);
-//  rb_define_singleton_method(cCurlEasy, "http_put", ruby_curl_easy_class_perform_put, 2);
   rb_define_singleton_method(cCurlEasy, "error", ruby_curl_easy_error_message, 1);
 
   /* Attributes for config next perform */
