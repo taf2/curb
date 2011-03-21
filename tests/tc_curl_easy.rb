@@ -572,7 +572,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_post_remote_is_easy_handle
     # see: http://pastie.org/560852 and
     # http://groups.google.com/group/curb---ruby-libcurl-bindings/browse_thread/thread/216bb2d9b037f347?hl=en
-    [:post, :get,:head,:delete].each do |method|
+    [:post, :get, :head, :delete].each do |method|
       count = 0
       curl = Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
         count += 1
@@ -886,6 +886,15 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     wr.close
     consumer.join
 
+  end
+
+  def test_get_set_multi_on_easy
+    easy = Curl::Easy.new
+    assert_nil easy.multi
+    multi = Curl::Multi.new
+    easy.multi = multi
+    assert_not_nil easy.multi
+    assert_equal multi, easy.multi
   end
 
   include TestServerMethods 

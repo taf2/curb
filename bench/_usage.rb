@@ -13,6 +13,7 @@ class Memory
 
     GC.enable
     GC.start
+
     emem = RMem::Report.memory
     memory_usage = emem / 1024.0
     memory_growth = (emem - smem) / 1024.0

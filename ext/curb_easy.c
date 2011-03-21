@@ -2181,36 +2181,6 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
   return Qnil;
 }
 
-/***********************************************
- *
- * This is the main worker for the perform methods (get, post, head, put).
- * It's not surfaced as a Ruby method - instead, the individual request
- * methods are responsible for setting up stuff specific to that type,
- * then calling this to handle common stuff and do the perform.
- *
- * Always returns Qtrue, rb_raise on error.
- *
- */
-static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
-
-  VALUE ret;
-
-  /* reuse existing multi handle for this easy handle */
-  if (NIL_P(rbce->multi)) {
-    rbce->multi = ruby_curl_multi_new(cCurlMulti);
-  }
-
-  rb_funcall(rbce->multi, rb_intern("add"), 1, self );
-  ret = rb_funcall(rbce->multi, rb_intern("perform"), 0);
-
-  /* check for errors in the easy response and raise exceptions if anything went wrong and their is no on_failure handler */
-  if (rbce->last_result != 0 && rb_easy_nil("failure_proc")) {
-    raise_curl_easy_error_exception(rbce->last_result);
-  }
-
-  return ret;
-}
-
 /*
  * call-seq:
  *   easy.http_get                                    => true
@@ -2229,7 +2199,7 @@ static VALUE ruby_curl_easy_perform_get(VALUE self) {
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
 
-  return handle_perform(self,rbce);
+  return rb_funcall(self, rb_intern("perform"), 0);
 }
 
 /*
@@ -2245,7 +2215,7 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
 
-  retval = handle_perform(self,rbce);
+  retval = rb_funcall(self, rb_intern("perform"), 0);
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
@@ -2283,22 +2253,6 @@ static VALUE ruby_curl_easy_perform_verb(VALUE self, VALUE verb) {
   else {
     rb_raise(rb_eRuntimeError, "Invalid HTTP VERB, must response to 'to_s'");
   }
-}
-
-/*
- * call-seq:
- *   easy.perform                                     => true
- *
- * Transfer the currently configured URL using the options set for this
- * Curl::Easy instance. If this is an HTTP URL, it will be transferred via
- * the GET or HEAD request method.
- */
-static VALUE ruby_curl_easy_perform(VALUE self) {
-  ruby_curl_easy *rbce;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-
-  return handle_perform(self,rbce);
 }
 
 /*
@@ -2354,7 +2308,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
     curl_easy_setopt(curl, CURLOPT_POST, 0);
     curl_easy_setopt(curl, CURLOPT_HTTPPOST, first);
-    ret = handle_perform(self,rbce);
+    ret = rb_funcall(self, rb_intern("perform"), 0);
     curl_formfree(first);
 
     return ret;
@@ -2376,7 +2330,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
         ruby_curl_easy_post_body_set(self, post_body);
       }
 
-      return handle_perform(self,rbce);
+      return rb_funcall(self, rb_intern("perform"), 0);
     }
   }
 }
@@ -2401,7 +2355,7 @@ static VALUE ruby_curl_easy_perform_head(VALUE self) {
 
   curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
 
-  ret = handle_perform(self,rbce);
+  ret = rb_funcall(self, rb_intern("perform"), 0);
 
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   return ret;
@@ -2502,20 +2456,9 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   ruby_curl_easy_put_data_set(self, data);
   
-  return handle_perform(self, rbce);
+  return rb_funcall(self, rb_intern("perform"), 0);
 }
 
-/*
- * call-seq:
- *   Curl::Easy.http_put(url, data) {|c| ... }
- *
- * see easy.http_put
- */
-static VALUE ruby_curl_easy_class_perform_put(VALUE klass, VALUE url, VALUE data) {
-  VALUE c = ruby_curl_easy_new(1, &url, klass);
-  ruby_curl_easy_perform_put(c, data);
-  return c;
-}
 
 /* =================== DATA FUNCS =============== */
 
@@ -3102,6 +3045,36 @@ static VALUE ruby_curl_easy_ftp_entry_path_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.multi                                     => "#<Curl::Multi>"
+ */
+static VALUE ruby_curl_easy_multi_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  return rbce->multi;
+}
+
+/*
+ * call-seq:
+ *   easy.multi=multi                                    => "#<Curl::Multi>"
+ */
+static VALUE ruby_curl_easy_multi_set(VALUE self, VALUE multi) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  rbce->multi = multi;
+  return rbce->multi;
+}
+
+/*
+ * call-seq:
+ *   easy.last_result                                    => 0
+ */
+static VALUE ruby_curl_easy_last_result(VALUE self) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  return INT2FIX(rbce->last_result);
+}
+/*
+ * call-seq:
  *   easy.inspect                                     => "#<Curl::Easy http://google.com/>"
  */
 static VALUE ruby_curl_easy_inspect(VALUE self) {
@@ -3190,113 +3163,13 @@ static VALUE ruby_curl_easy_unescape(VALUE self, VALUE str) {
 
 /*
  * call-seq:
- *   Curl::Easy.perform(url) { |easy| ... }           => #&lt;Curl::Easy...&gt;
+ *   Curl::Easy.error(code)    => String
  *
- * Convenience method that creates a new Curl::Easy instance with
- * the specified URL and calls the general +perform+ method, before returning
- * the new instance. For HTTP URLs, this is equivalent to calling +http_get+.
- *
- * If a block is supplied, the new instance will be yielded just prior to
- * the +http_get+ call.
+ * translate an internal libcurl error to ruby error class
  */
-static VALUE ruby_curl_easy_class_perform(int argc, VALUE *argv, VALUE klass) {
-  VALUE c = ruby_curl_easy_new(argc, argv, klass);
-
-  if (rb_block_given_p()) {
-    rb_yield(c);
-  }
-
-  ruby_curl_easy_perform(c);
-  return c;
+static VALUE ruby_curl_easy_error_message(VALUE klass, VALUE code) {
+  return rb_curl_easy_error(FIX2INT(code));
 }
-
-/*
- * call-seq:
- *   Curl::Easy.http_get(url) { |easy| ... }          => #&lt;Curl::Easy...&gt;
- *
- * Convenience method that creates a new Curl::Easy instance with
- * the specified URL and calls +http_get+, before returning the new instance.
- *
- * If a block is supplied, the new instance will be yielded just prior to
- * the +http_get+ call.
- */
-static VALUE ruby_curl_easy_class_perform_get(int argc, VALUE *argv, VALUE klass) {
-  VALUE c = ruby_curl_easy_new(argc, argv, klass);
-
-  ruby_curl_easy_perform_get(c);
-  return c;
-}
-
-/*
- * call-seq:
- *   Curl::Easy.http_delete(url) { |easy| ... }       => #&lt;Curl::Easy...&gt;
- *
- * Convenience method that creates a new Curl::Easy instance with
- * the specified URL and calls +http_delete+, before returning the new instance.
- *
- * If a block is supplied, the new instance will be yielded just prior to
- * the +http_delete+ call.
- */
-static VALUE ruby_curl_easy_class_perform_delete(int argc, VALUE *argv, VALUE klass) {
-  VALUE c = ruby_curl_easy_new(argc, argv, klass);
-
-  ruby_curl_easy_perform_delete(c);
-  return c;
-}
-
-/*
- * call-seq:
- *   Curl::Easy.http_head(url) { |easy| ... }         => #&lt;Curl::Easy...&gt;
- *
- * Convenience method that creates a new Curl::Easy instance with
- * the specified URL and calls +http_head+, before returning the new instance.
- *
- * If a block is supplied, the new instance will be yielded just prior to
- * the +http_head+ call.
- */
-static VALUE ruby_curl_easy_class_perform_head(int argc, VALUE *argv, VALUE klass) {
-  VALUE c = ruby_curl_easy_new(argc, argv, klass);
-
-  ruby_curl_easy_perform_head(c);
-
-  return c;
-}
-
-// TODO: add convenience method for http_post
-
-/*
- * call-seq:
- *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data&and=so%20on") => true
- *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data", "and=so%20on", ...) => true
- *   Curl::Easy.http_post(url, "some=urlencoded%20form%20data", Curl::PostField, "and=so%20on", ...) => true
- *   Curl::Easy.http_post(url, Curl::PostField, Curl::PostField ..., Curl::PostField) => true
- *
- * POST the specified formdata to the currently configured URL using
- * the current options set for this Curl::Easy instance. This method
- * always returns true, or raises an exception (defined under
- * Curl::Err) on error.
- *
- * If you wish to use multipart form encoding, you'll need to supply a block
- * in order to set multipart_form_post true. See #http_post for more
- * information.
- */
-static VALUE ruby_curl_easy_class_perform_post(int argc, VALUE *argv, VALUE klass) {
-  VALUE url, fields;
-  VALUE c;
-
-  rb_scan_args(argc, argv, "1*", &url, &fields);
-
-  c = ruby_curl_easy_new(1, &url, klass);
-
-  if (argc > 1) {
-    ruby_curl_easy_perform_post(argc - 1, &argv[1], c);
-  } else {
-    ruby_curl_easy_perform_post(0, NULL, c);
-  }
-
-  return c;
-}
-
 
 /* =================== INIT LIB =====================*/
 void init_curb_easy() {
@@ -3310,12 +3183,13 @@ void init_curb_easy() {
 
   /* Class methods */
   rb_define_singleton_method(cCurlEasy, "new", ruby_curl_easy_new, -1);
-  rb_define_singleton_method(cCurlEasy, "perform", ruby_curl_easy_class_perform, -1);
-  rb_define_singleton_method(cCurlEasy, "http_delete", ruby_curl_easy_class_perform_delete, -1);
-  rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
-  rb_define_singleton_method(cCurlEasy, "http_post", ruby_curl_easy_class_perform_post, -1);
-  rb_define_singleton_method(cCurlEasy, "http_head", ruby_curl_easy_class_perform_head, -1);
-  rb_define_singleton_method(cCurlEasy, "http_put", ruby_curl_easy_class_perform_put, 2);
+//  rb_define_singleton_method(cCurlEasy, "perform", ruby_curl_easy_class_perform, -1);
+//  rb_define_singleton_method(cCurlEasy, "http_delete", ruby_curl_easy_class_perform_delete, -1);
+//  rb_define_singleton_method(cCurlEasy, "http_get", ruby_curl_easy_class_perform_get, -1);
+//  rb_define_singleton_method(cCurlEasy, "http_post", ruby_curl_easy_class_perform_post, -1);
+//  rb_define_singleton_method(cCurlEasy, "http_head", ruby_curl_easy_class_perform_head, -1);
+//  rb_define_singleton_method(cCurlEasy, "http_put", ruby_curl_easy_class_perform_put, 2);
+  rb_define_singleton_method(cCurlEasy, "error", ruby_curl_easy_error_message, 1);
 
   /* Attributes for config next perform */
   rb_define_method(cCurlEasy, "url=", ruby_curl_easy_url_set, 1);
@@ -3427,7 +3301,6 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_failure", ruby_curl_easy_on_failure_set, -1);
   rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
 
-  rb_define_method(cCurlEasy, "perform", ruby_curl_easy_perform, 0);
   rb_define_method(cCurlEasy, "http", ruby_curl_easy_perform_verb, 1);
   rb_define_method(cCurlEasy, "http_delete", ruby_curl_easy_perform_delete, 0);
   rb_define_method(cCurlEasy, "http_get", ruby_curl_easy_perform_get, 0);
@@ -3485,4 +3358,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "clone", ruby_curl_easy_clone, 0);
   rb_define_alias(cCurlEasy, "dup", "clone");
   rb_define_method(cCurlEasy, "inspect", ruby_curl_easy_inspect, 0);
+
+  rb_define_method(cCurlEasy, "multi", ruby_curl_easy_multi_get, 0);
+  rb_define_method(cCurlEasy, "multi=", ruby_curl_easy_multi_set, 1);
+  rb_define_method(cCurlEasy, "last_result", ruby_curl_easy_last_result, 0);
 }
