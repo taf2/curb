@@ -26,8 +26,8 @@ Typhoeus(5050)          Duration: 1.2635 sec, Memory Usage: 18.78 KB - Memory Gr
 
 Running on my MacBook Pro
 
-  Processor: Intel(R) Core(TM)2 Quad CPU    Q6600  @ 2.40GHz
-  Memory:    2G
+  Processor: 2.53 GHz Intel Core 2 Duo
+  Memory:    4 GB
   OS:        Darwin glazgo 10.6.0 Darwin Kernel Version 10.6.0: Wed Nov 10 18:13:17 PST 2010; root:xnu-1504.9.26~3/RELEASE_I386 i386 i386 MacBookPro5,1 Darwin
   libcurl:   7.19.7
   openssl:   0.9.8l
