@@ -152,4 +152,7 @@
               return INT2FIX(ptr->attr);                            \
             }
 
+#define CURB_DEFINE(name) \
+  rb_define_const(mCurl, #name, INT2FIX(name))
+
 #endif
