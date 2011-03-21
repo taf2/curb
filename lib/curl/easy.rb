@@ -3,6 +3,20 @@ module Curl
 
     #
     # call-seq:
+    #   easy.set :sym, value
+    #
+    #  translates ruby symbols to libcurl options
+    #
+    def set(opt,val)
+      setopt(sym2curl(opt), val)
+    end
+
+    def sym2curl(opt)
+      Curl.const_get("CURLOPT_#{opt.to_s.upcase}")
+    end
+
+    #
+    # call-seq:
     #   easy.perform                                     => true
     #
     # Transfer the currently configured URL using the options set for this

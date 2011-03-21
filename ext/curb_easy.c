@@ -2867,7 +2867,10 @@ static VALUE ruby_curl_easy_ssl_verify_result_get(VALUE self) {
 
 /* TODO CURLINFO_SSL_ENGINES
 
-Pass the address of a 'struct curl_slist *' to receive a linked-list of OpenSSL crypto-engines supported. Note that engines are normally implemented in separate dynamic libraries. Hence not all the returned engines may be available at run-time. NOTE: you must call curl_slist_free_all(3) on the list pointer once you're done with it, as libcurl will not free the data for you. (Added in 7.12.3)
+Pass the address of a 'struct curl_slist *' to receive a linked-list of OpenSSL crypto-engines supported.
+Note that engines are normally implemented in separate dynamic libraries.
+Hence not all the returned engines may be available at run-time.
+NOTE: you must call curl_slist_free_all(3) on the list pointer once you're done with it, as libcurl will not free the data for you. (Added in 7.12.3)
 */
 
 /*
@@ -3073,6 +3076,51 @@ static VALUE ruby_curl_easy_last_result(VALUE self) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   return INT2FIX(rbce->last_result);
 }
+
+/*
+ * call-seq:
+ *   easy.setopt Fixnum, value  => value
+ *
+ * Iniital access to libcurl curl_easy_setopt
+ */
+static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
+  ruby_curl_easy *rbce;
+  long option = FIX2LONG(opt);
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  switch (option) {
+  /* BEHAVIOR OPTIONS */
+  case CURLOPT_VERBOSE: {
+    VALUE verbose = val;
+    CURB_BOOLEAN_SETTER(ruby_curl_easy, verbose);
+    } break;
+  case CURLOPT_HEADER:
+  case CURLOPT_NOPROGRESS:
+  case CURLOPT_NOSIGNAL:
+    curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, val == Qtrue ? 1 : 0);
+    break;
+  /* TODO: CALLBACK OPTIONS */
+  /* TODO: ERROR OPTIONS */
+  /* NETWORK OPTIONS */
+  case CURLOPT_URL: {
+    VALUE url = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, url);
+    } break;
+  }
+  return val;
+}
+
+/*
+ * call-seq:
+ *   easy.getinfo Fixnum => value
+ *
+ * Iniital access to libcurl curl_easy_getinfo, remember getinfo doesn't return the same values as setopt
+ */
+static VALUE ruby_curl_easy_get_opt(VALUE self, VALUE opt) {
+  
+}
+
 /*
  * call-seq:
  *   easy.inspect                                     => "#<Curl::Easy http://google.com/>"
@@ -3356,4 +3404,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "multi", ruby_curl_easy_multi_get, 0);
   rb_define_method(cCurlEasy, "multi=", ruby_curl_easy_multi_set, 1);
   rb_define_method(cCurlEasy, "last_result", ruby_curl_easy_last_result, 0);
+
+  rb_define_method(cCurlEasy, "setopt", ruby_curl_easy_set_opt, 2);
+  rb_define_method(cCurlEasy, "getinfo", ruby_curl_easy_get_opt, 1);
 }

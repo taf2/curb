@@ -352,6 +352,12 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURLAUTH_ANY", INT2FIX(0));
 #endif
 
+  rb_define_const(mCurl, "CURLOPT_VERBOSE", INT2FIX(CURLOPT_VERBOSE));
+  rb_define_const(mCurl, "CURLOPT_HEADER", INT2FIX(CURLOPT_HEADER));
+  rb_define_const(mCurl, "CURLOPT_NOPROGRESS", INT2FIX(CURLOPT_NOPROGRESS));
+  rb_define_const(mCurl, "CURLOPT_NOSIGNAL", INT2FIX(CURLOPT_NOSIGNAL));
+  rb_define_const(mCurl, "CURLOPT_URL", INT2FIX(CURLOPT_URL));
+
   rb_define_singleton_method(mCurl, "ipv6?", ruby_curl_ipv6_q, 0);
   rb_define_singleton_method(mCurl, "kerberos4?", ruby_curl_kerberos4_q, 0);
   rb_define_singleton_method(mCurl, "ssl?", ruby_curl_ssl_q, 0);
