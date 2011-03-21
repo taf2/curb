@@ -2199,6 +2199,7 @@ static VALUE handle_perform(VALUE self, ruby_curl_easy *rbce) {
   if (NIL_P(rbce->multi)) {
     rbce->multi = ruby_curl_multi_new(cCurlMulti);
   }
+
   rb_funcall(rbce->multi, rb_intern("add"), 1, self );
   ret = rb_funcall(rbce->multi, rb_intern("perform"), 0);
 

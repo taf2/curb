@@ -3,7 +3,6 @@
  * Licensed under the Ruby License. See LICENSE for details.
  *
  */
-
 #include "curb_config.h"
 #ifdef HAVE_RUBY19_ST_H
   #include <ruby.h>
@@ -245,8 +244,6 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 
   rb_hash_aset( rbcm->requests, easy, easy );
 
-  rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
-
   return self;
 }
 
@@ -465,6 +462,8 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   timeout_milliseconds = cCurlMutiDefaulttimeout;
 
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+  rb_curl_multi_read_info( self, rbcm->handle );
+  if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
  
   do {
     while (rbcm->running) {
