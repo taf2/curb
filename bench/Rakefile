@@ -1,11 +1,7 @@
 task :default do
   sh "bundle install"
-  n = 5050
-  system "ruby curb_easy.rb #{n}"
-  system "ruby curb_multi.rb #{n}"
-  system "ruby curb_multi_using_get.rb #{n}" # validate our easier interfaces are efficient
-  system "ruby nethttp_test.rb #{n}"
-  system "ruby patron_test.rb #{n}"
-  system "ruby typhoeus_hydra_test.rb #{n}"
-  system "ruby typhoeus_test.rb #{n}"
+  n = 2000
+  [:curb_easy, :curb_easy14, :curb_multi, :curb_multi_using_get, :nethttp_test, :patron_test, :typhoeus_hydra_test, :typhoeus_test].each do|bench|
+    system "ruby #{bench}.rb #{n}"
+  end
 end

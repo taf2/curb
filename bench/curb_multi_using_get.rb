@@ -16,4 +16,5 @@ Memory.usage("Curl::Multi(#{N})") do
   require 'curb'
 
   Curl::Multi.get(URLS)
+
 end

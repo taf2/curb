@@ -1,6 +1,7 @@
 GEM
   remote: http://rubygems.org/
   specs:
+    curb (0.1.4)
     mime-types (1.16)
     net-http-persistent (1.6.1)
     patron (0.4.11)
@@ -13,6 +14,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  curb (= 0.1.4)
   net-http-persistent
   patron
   rmem
