@@ -130,6 +130,9 @@ have_func("curl_multi_timeout")
 have_func("curl_multi_fdset")
 have_func("curl_multi_perform")
 
+# was obsoleted in August 2007 for 7.17.0, reused in April 2011 for 7.21.5
+have_constant "curle_not_built_in"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end

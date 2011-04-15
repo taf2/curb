@@ -28,6 +28,7 @@ VALUE eCurlErrUnsupportedProtocol;
 VALUE eCurlErrFailedInit;
 VALUE eCurlErrMalformedURL;
 VALUE eCurlErrMalformedURLUser;
+VALUE eCurlErrNotBuiltIn;
 VALUE eCurlErrProxyResolution;
 VALUE eCurlErrHostResolution;
 VALUE eCurlErrConnectFailed;
@@ -141,9 +142,15 @@ VALUE rb_curl_easy_error(CURLcode code) {
     case CURLE_URL_MALFORMAT:           /* 3 */
       exclz = eCurlErrMalformedURL;
       break;
+#ifdef HAVE_CURLE_NOT_BUILT_IN
+    case CURLE_NOT_BUILT_IN:            /* 4 - [was obsoleted in August 2007 for 7.17.0, reused in April 2011 for 7.21.5] */
+      exclz = eCurlErrNotBuiltIn;
+      break;
+#else
     case CURLE_URL_MALFORMAT_USER:      /* 4 (NOT USED) */
       exclz = eCurlErrMalformedURLUser;
       break;
+#endif
     case CURLE_COULDNT_RESOLVE_PROXY:   /* 5 */
       exclz = eCurlErrProxyResolution;
       break;
@@ -518,6 +525,7 @@ void init_curb_errors() {
   eCurlErrUnsupportedProtocol = rb_define_class_under(mCurlErr, "UnsupportedProtocolError", eCurlErrError);
   eCurlErrFailedInit = rb_define_class_under(mCurlErr, "FailedInitError", eCurlErrError);
   eCurlErrMalformedURL = rb_define_class_under(mCurlErr, "MalformedURLError", eCurlErrError);
+  eCurlErrNotBuiltIn = rb_define_class_under(mCurlErr, "NotBuiltInError", eCurlErrError);
   eCurlErrMalformedURLUser = rb_define_class_under(mCurlErr, "MalformedURLUserError", eCurlErrError);
   eCurlErrProxyResolution = rb_define_class_under(mCurlErr, "ProxyResolutionError", eCurlErrError);
   eCurlErrHostResolution = rb_define_class_under(mCurlErr, "HostResolutionError", eCurlErrError);
