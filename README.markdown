@@ -42,7 +42,7 @@ expand on the above instructions, please report the issue at http://github.com/t
 
 On Ubuntu, the dependencies can be satisfied by installing the following packages:
 
-   $ sudo apt-get install libcurl3 libcurl3-gnutls libcurl4-openssl-dev
+    $ sudo apt-get install libcurl3 libcurl3-gnutls libcurl4-openssl-dev
 
 Curb has fairly extensive RDoc comments in the source. You can build the
 documentation with:
