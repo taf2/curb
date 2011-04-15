@@ -40,6 +40,9 @@ Curb is tested only on GNU/Linux x86 and Mac OSX - YMMV on other platforms.
 If you do use another platform and experience problems, or if you can 
 expand on the above instructions, please report the issue at http://github.com/taf2/curb/issues
 
+On Ubuntu, the dependencies can be satisfied by installing the following packages:
+    $ sudo apt-get install libcurl3 libcurl3-gnutls libcurl4-openssl-dev
+
 Curb has fairly extensive RDoc comments in the source. You can build the
 documentation with:
 
