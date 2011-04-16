@@ -3,14 +3,24 @@ module Curl
 
     #
     # call-seq:
-    #   easy.set :sym, value
+    #   easy.set :sym|Fixnum, value
+    # 
+    # set options on the curl easy handle see http://curl.haxx.se/libcurl/c/curl_easy_setopt.html
+    #
+    def set(opt,val)
+      if opt.is_a?(Symbol)
+        setopt(sym2curl(opt), val)
+      else
+        setopt(opt.to_i, val)
+      end
+    end
+
+    #
+    # call-seq:
+    #   easy.sym2curl :symbol => Fixnum
     #
     #  translates ruby symbols to libcurl options
     #
-    def set(opt,val)
-      setopt(sym2curl(opt), val)
-    end
-
     def sym2curl(opt)
       Curl.const_get("CURLOPT_#{opt.to_s.upcase}")
     end
@@ -34,6 +44,153 @@ module Curl
       end
 
       ret
+    end
+
+    #
+    # call-seq:
+    #
+    # easy = Curl::Easy.new
+    # easy.nosignal = true
+    #
+    def nosignal=(onoff)
+      set :nosignal, !!onoff
+    end
+
+    #
+    # call-seq:
+    #   easy = Curl::Easy.new("url") do|c|
+    #    c.delete = true
+    #   end
+    #   easy.perform
+    #
+    def delete=(onoff)
+      set :customrequest, onoff ? 'delete' : nil
+      onoff
+    end
+    # 
+    # call-seq:
+    # 
+    #  easy = Curl::Easy.new("url")
+    #  easy.version = Curl::HTTP_1_1
+    #  easy.version = Curl::HTTP_1_0
+    #  easy.version = Curl::HTTP_NONE
+    # 
+    def version=(http_version)
+      set :http_version, http_version
+    end
+
+    # 
+    # call-seq:
+    #   easy.url = "http://some.url/"                    => "http://some.url/"
+    # 
+    # Set the URL for subsequent calls to +perform+. It is acceptable
+    # (and even recommended) to reuse Curl::Easy instances by reassigning
+    # the URL between calls to +perform+.
+    # 
+    def url=(u)
+      set :url, u
+    end
+
+    # 
+    # call-seq:
+    #   easy.proxy_url = string                          => string
+    # 
+    # Set the URL of the HTTP proxy to use for subsequent calls to +perform+.
+    # The URL should specify the the host name or dotted IP address. To specify
+    # port number in this string, append :[port] to the end of the host name.
+    # The proxy string may be prefixed with [protocol]:// since any such prefix
+    # will be ignored. The proxy's port number may optionally be specified with
+    # the separate option proxy_port .
+    # 
+    # When you tell the library to use an HTTP proxy, libcurl will transparently
+    # convert operations to HTTP even if you specify an FTP URL etc. This may have
+    # an impact on what other features of the library you can use, such as
+    # FTP specifics that don't work unless you tunnel through the HTTP proxy. Such
+    # tunneling is activated with proxy_tunnel = true.
+    # 
+    # libcurl respects the environment variables *http_proxy*, *ftp_proxy*,
+    # *all_proxy* etc, if any of those is set. The proxy_url option does however
+    # override any possibly set environment variables.
+    # 
+    # Starting with libcurl 7.14.1, the proxy host string given in environment
+    # variables can be specified the exact same way as the proxy can be set with
+    # proxy_url, including protocol prefix (http://) and embedded user + password.
+    #
+    def proxy_url=(url)
+      set :proxy, url
+    end
+
+    # 
+    # call-seq:
+    #   easy.interface = string                          => string
+    # 
+    # Set the interface name to use as the outgoing network interface.
+    # The name can be an interface name, an IP address or a host name.
+    # 
+    def interface=(value)
+      set :interface, value
+    end
+
+    # 
+    # call-seq:
+    #   easy.userpwd = string                            => string
+    # 
+    # Set the username/password string to use for subsequent calls to +perform+.
+    # The supplied string should have the form "username:password"
+    # 
+    def userpwd=(value)
+      set :userpwd, value
+    end
+
+    # 
+    # call-seq:
+    #   easy.proxypwd = string                           => string
+    # 
+    # Set the username/password string to use for proxy connection during
+    # subsequent calls to +perform+. The supplied string should have the
+    # form "username:password"
+    # 
+    def proxypwd=(value)
+      set :proxyuserpwd, value
+    end
+
+    # 
+    # call-seq:
+    #   easy.cookies = "name1=content1; name2=content2;" => string
+    # 
+    # Set cookies to be sent by this Curl::Easy instance. The format of the string should
+    # be NAME=CONTENTS, where NAME is the cookie name and CONTENTS is what the cookie should contain.
+    # Set multiple cookies in one string like this: "name1=content1; name2=content2;" etc.
+    # 
+    def cookies=(value)
+      set :cookie, value
+    end
+
+    # 
+    # call-seq:
+    #   easy.cookiefile = string                         => string
+    # 
+    # Set a file that contains cookies to be sent in subsequent requests by this Curl::Easy instance.
+    # 
+    # *Note* that you must set enable_cookies true to enable the cookie
+    # engine, or this option will be ignored.
+    # 
+    def cookiefile=(value)
+      set :cookiefile, value
+    end
+
+    # 
+    # call-seq:
+    #   easy.cookiejar = string                          => string
+    # 
+    # Set a cookiejar file to use for this Curl::Easy instance.
+    # Cookies from the response will be written into this file.
+    # 
+    # *Note* that you must set enable_cookies true to enable the cookie
+    # engine, or this option will be ignored.
+    # 
+    def cookiejar=(value)
+      set :cookiejar, value
     end
 
     class << self

@@ -349,53 +349,12 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
 
 /*
  * call-seq:
- *   easy.url = "http://some.url/"                    => "http://some.url/"
- *
- * Set the URL for subsequent calls to +perform+. It is acceptable
- * (and even recommended) to reuse Curl::Easy instances by reassigning
- * the URL between calls to +perform+.
- */
-static VALUE ruby_curl_easy_url_set(VALUE self, VALUE url) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, url);
-}
-
-/*
- * call-seq:
  *   easy.url                                         => string
  *
  * Obtain the URL that will be used by subsequent calls to +perform+.
  */
 static VALUE ruby_curl_easy_url_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, url);
-}
-
-/*
- * call-seq:
- *   easy.proxy_url = string                          => string
- *
- * Set the URL of the HTTP proxy to use for subsequent calls to +perform+.
- * The URL should specify the the host name or dotted IP address. To specify
- * port number in this string, append :[port] to the end of the host name.
- * The proxy string may be prefixed with [protocol]:// since any such prefix
- * will be ignored. The proxy's port number may optionally be specified with
- * the separate option proxy_port .
- *
- * When you tell the library to use an HTTP proxy, libcurl will transparently
- * convert operations to HTTP even if you specify an FTP URL etc. This may have
- * an impact on what other features of the library you can use, such as
- * FTP specifics that don't work unless you tunnel through the HTTP proxy. Such
- * tunneling is activated with proxy_tunnel = true.
- *
- * libcurl respects the environment variables *http_proxy*, *ftp_proxy*,
- * *all_proxy* etc, if any of those is set. The proxy_url option does however
- * override any possibly set environment variables.
- *
- * Starting with libcurl 7.14.1, the proxy host string given in environment
- * variables can be specified the exact same way as the proxy can be set with
- * proxy_url, including protocol prefix (http://) and embedded user + password.
-  */
-static VALUE ruby_curl_easy_proxy_url_set(VALUE self, VALUE proxy_url) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, proxy_url);
 }
 
 /*
@@ -451,17 +410,6 @@ static VALUE ruby_curl_easy_headers_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.interface = string                          => string
- *
- * Set the interface name to use as the outgoing network interface.
- * The name can be an interface name, an IP address or a host name.
- */
-static VALUE ruby_curl_easy_interface_set(VALUE self, VALUE interface_hm) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, interface_hm);
-}
-
-/*
- * call-seq:
  *   easy.interface                                   => string
  *
  * Obtain the interface name that is used as the outgoing network interface.
@@ -469,17 +417,6 @@ static VALUE ruby_curl_easy_interface_set(VALUE self, VALUE interface_hm) {
  */
 static VALUE ruby_curl_easy_interface_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, interface_hm);
-}
-
-/*
- * call-seq:
- *   easy.userpwd = string                            => string
- *
- * Set the username/password string to use for subsequent calls to +perform+.
- * The supplied string should have the form "username:password"
- */
-static VALUE ruby_curl_easy_userpwd_set(VALUE self, VALUE userpwd) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, userpwd);
 }
 
 /*
@@ -495,18 +432,6 @@ static VALUE ruby_curl_easy_userpwd_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.proxypwd = string                           => string
- *
- * Set the username/password string to use for proxy connection during
- * subsequent calls to +perform+. The supplied string should have the
- * form "username:password"
- */
-static VALUE ruby_curl_easy_proxypwd_set(VALUE self, VALUE proxypwd) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, proxypwd);
-}
-
-/*
- * call-seq:
  *   easy.proxypwd                                    => string
  *
  * Obtain the username/password string that will be used for proxy
@@ -515,19 +440,6 @@ static VALUE ruby_curl_easy_proxypwd_set(VALUE self, VALUE proxypwd) {
  */
 static VALUE ruby_curl_easy_proxypwd_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, proxypwd);
-}
-
-
-/*
- * call-seq:
- *   easy.cookies = "name1=content1; name2=content2;" => string
- *
- * Set cookies to be sent by this Curl::Easy instance. The format of the string should
- * be NAME=CONTENTS, where NAME is the cookie name and CONTENTS is what the cookie should contain.
- * Set multiple cookies in one string like this: "name1=content1; name2=content2;" etc.
- */
-static VALUE ruby_curl_easy_cookies_set(VALUE self, VALUE cookies) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, cookies);
 }
 
 /*
@@ -542,39 +454,12 @@ static VALUE ruby_curl_easy_cookies_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.cookiefile = string                         => string
- *
- * Set a file that contains cookies to be sent in subsequent requests by this Curl::Easy instance.
- *
- * *Note* that you must set enable_cookies true to enable the cookie
- * engine, or this option will be ignored.
- */
-static VALUE ruby_curl_easy_cookiefile_set(VALUE self, VALUE cookiefile) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, cookiefile);
-}
-
-/*
- * call-seq:
  *   easy.cookiefile                                  => string
  *
  * Obtain the cookiefile file for this Curl::Easy instance.
  */
 static VALUE ruby_curl_easy_cookiefile_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, cookiefile);
-}
-
-/*
- * call-seq:
- *   easy.cookiejar = string                          => string
- *
- * Set a cookiejar file to use for this Curl::Easy instance.
- * Cookies from the response will be written into this file.
- *
- * *Note* that you must set enable_cookies true to enable the cookie
- * engine, or this option will be ignored.
- */
-static VALUE ruby_curl_easy_cookiejar_set(VALUE self, VALUE cookiejar) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
 }
 
 /*
@@ -2383,62 +2268,6 @@ static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
   return onoff;
 }
 /*
- *call-seq:
- *
- * easy = Curl::Easy.new("url")
- * easy.version = Curl::HTTP_1_1
- * easy.version = Curl::HTTP_1_0
- * easy.version = Curl::HTTP_NONE
- *
- */
-static VALUE ruby_curl_easy_set_version(VALUE self, VALUE version) {
-  ruby_curl_easy *rbce;
-  //fprintf(stderr,"CURL_HTTP_VERSION_1_1: %d, CURL_HTTP_VERSION_1_0: %d, CURL_HTTP_VERSION_NONE: %d\n", CURL_HTTP_VERSION_1_1, CURL_HTTP_VERSION_1_0, CURL_HTTP_VERSION_NONE);
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-
-  curl_easy_setopt(rbce->curl, CURLOPT_HTTP_VERSION, FIX2INT(version));
-
-  return version;
-}
-/*
- * call-seq:
- *
- * easy = Curl::Easy.new
- * easy.nosignal = true
- */
-static VALUE ruby_curl_easy_set_nosignal(VALUE self, VALUE onoff) {
-  ruby_curl_easy *rbce;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-
-  curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, (Qtrue == onoff) ? 1 : 0);
-
-  return onoff;
-}
-/*
- *call-seq:
- * easy = Curl::Easy.new("url") do|c|
- *  c.delete = true
- * end
- * easy.perform
- */
-static VALUE ruby_curl_easy_set_delete_option(VALUE self, VALUE onoff) {
-  ruby_curl_easy *rbce;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-
-  if( onoff == Qtrue ) {
-    curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, "DELETE");
-  }
-  else {
-    curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, NULL);
-  }
-
-  return onoff;
-}
-
-/*
  * call-seq:
  *   easy.http_put(data)                              => true
  *
@@ -3107,7 +2936,45 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE url = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, url);
     } break;
+  case CURLOPT_CUSTOMREQUEST:
+    curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, NIL_P(val) ? NULL : StringValueCStr(val));
+    break;
+  case CURLOPT_HTTP_VERSION:
+    curl_easy_setopt(rbce->curl, CURLOPT_HTTP_VERSION, FIX2INT(val));
+    break;
+  case CURLOPT_PROXY: {
+    VALUE proxy_url = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, proxy_url);
+    } break;
+  case CURLOPT_INTERFACE: {
+    VALUE interface_hm = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, interface_hm);
+    } break;
+  case CURLOPT_USERPWD: {
+    VALUE userpwd = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, userpwd);
+    } break;
+  case CURLOPT_PROXYUSERPWD: {
+    VALUE proxypwd = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, proxypwd);
+    } break;
+  case CURLOPT_COOKIE: {
+    VALUE cookies = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, cookies);
+    } break;
+  case CURLOPT_COOKIEFILE: {
+    VALUE cookiefile = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, cookiefile);
+    } break;
+  case CURLOPT_COOKIEJAR: {
+    VALUE cookiejar = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
+    } break;
+
+  default:
+    break;
   }
+
   return val;
 }
 
@@ -3234,23 +3101,15 @@ void init_curb_easy() {
   rb_define_singleton_method(cCurlEasy, "error", ruby_curl_easy_error_message, 1);
 
   /* Attributes for config next perform */
-  rb_define_method(cCurlEasy, "url=", ruby_curl_easy_url_set, 1);
   rb_define_method(cCurlEasy, "url", ruby_curl_easy_url_get, 0);
-  rb_define_method(cCurlEasy, "proxy_url=", ruby_curl_easy_proxy_url_set, 1);
   rb_define_method(cCurlEasy, "proxy_url", ruby_curl_easy_proxy_url_get, 0);
   rb_define_method(cCurlEasy, "headers=", ruby_curl_easy_headers_set, 1);
   rb_define_method(cCurlEasy, "headers", ruby_curl_easy_headers_get, 0);
-  rb_define_method(cCurlEasy, "interface=", ruby_curl_easy_interface_set, 1);
   rb_define_method(cCurlEasy, "interface", ruby_curl_easy_interface_get, 0);
-  rb_define_method(cCurlEasy, "userpwd=", ruby_curl_easy_userpwd_set, 1);
   rb_define_method(cCurlEasy, "userpwd", ruby_curl_easy_userpwd_get, 0);
-  rb_define_method(cCurlEasy, "proxypwd=", ruby_curl_easy_proxypwd_set, 1);
   rb_define_method(cCurlEasy, "proxypwd", ruby_curl_easy_proxypwd_get, 0);
-  rb_define_method(cCurlEasy, "cookies=", ruby_curl_easy_cookies_set, 1);
   rb_define_method(cCurlEasy, "cookies", ruby_curl_easy_cookies_get, 0);
-  rb_define_method(cCurlEasy, "cookiefile=", ruby_curl_easy_cookiefile_set, 1);
   rb_define_method(cCurlEasy, "cookiefile", ruby_curl_easy_cookiefile_get, 0);
-  rb_define_method(cCurlEasy, "cookiejar=", ruby_curl_easy_cookiejar_set, 1);
   rb_define_method(cCurlEasy, "cookiejar", ruby_curl_easy_cookiejar_get, 0);
   rb_define_method(cCurlEasy, "cert=", ruby_curl_easy_cert_set, 1);
   rb_define_method(cCurlEasy, "cert", ruby_curl_easy_cert_get, 0);
@@ -3350,12 +3209,6 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "http_head", ruby_curl_easy_perform_head, 0);
   rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 1);
   rb_define_method(cCurlEasy, "head=", ruby_curl_easy_set_head_option, 1);
-  rb_define_method(cCurlEasy, "delete=", ruby_curl_easy_set_delete_option, 1);
-  rb_define_method(cCurlEasy, "version=", ruby_curl_easy_set_version, 1);
-  rb_define_const(mCurl, "HTTP_1_1", LONG2NUM(CURL_HTTP_VERSION_1_1));
-  rb_define_const(mCurl, "HTTP_1_0", LONG2NUM(CURL_HTTP_VERSION_1_0));
-  rb_define_const(mCurl, "HTTP_NONE", LONG2NUM(CURL_HTTP_VERSION_NONE));
-  rb_define_method(cCurlEasy, "nosignal=", ruby_curl_easy_set_nosignal, 1);
 
   /* Post-perform info methods */
   rb_define_method(cCurlEasy, "body_str", ruby_curl_easy_body_str_get, 0);
