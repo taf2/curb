@@ -1972,12 +1972,13 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
     }
   }
   if (!rb_easy_nil("cacert")) {
-#ifdef HAVE_CURL_CONFIG_CA
-    curl_easy_setopt(curl, CURLOPT_CAINFO, CURL_CONFIG_CA);
-#else
-    curl_easy_setopt(curl, CURLOPT_CAINFO, "/usr/local/share/curl/curl-ca-bundle.crt");
-#endif
+    curl_easy_setopt(curl, CURLOPT_CAINFO, rb_easy_get_str("cacert"));
   }
+#ifdef HAVE_CURL_CONFIG_CA
+  else {
+    curl_easy_setopt(curl, CURLOPT_CAINFO, CURL_CONFIG_CA);
+  }
+#endif
 
 #ifdef CURL_VERSION_SSL
   if (rbce->ssl_version > 0) {
