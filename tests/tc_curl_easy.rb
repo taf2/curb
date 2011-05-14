@@ -507,6 +507,17 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert c.ignore_content_length?
   end
 
+  def test_resolve_mode
+    c = Curl::Easy.new
+    assert c.resolve_mode == :auto
+    c.resolve_mode = :ipv4
+    assert c.resolve_mode == :ipv4
+    c.resolve_mode = :ipv6
+    assert c.resolve_mode == :ipv6
+
+    assert_raises(ArgumentError) { c.resolve_mode = :bad }
+  end
+
   def test_enable_cookies
     c = Curl::Easy.new
     assert !c.enable_cookies?

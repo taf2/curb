@@ -8,6 +8,7 @@
 #ifndef __CURB_MACROS_H
 #define __CURB_MACROS_H
 
+#define rb_easy_sym(sym) ID2SYM(rb_intern(sym))
 #define rb_easy_hkey(key) ID2SYM(rb_intern(key))
 #define rb_easy_set(key,val) rb_hash_aset(rbce->opts, rb_easy_hkey(key) , val)
 #define rb_easy_get(key) rb_hash_aref(rbce->opts, rb_easy_hkey(key))

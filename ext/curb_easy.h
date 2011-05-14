@@ -56,6 +56,7 @@ typedef struct {
   long ssl_version;
   long use_ssl;
   long ftp_filemethod;
+  unsigned short resolve_mode;
 
   /* bool flags */
   char proxy_tunnel;
