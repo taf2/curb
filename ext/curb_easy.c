@@ -1570,6 +1570,65 @@ static VALUE ruby_curl_easy_ignore_content_length_q(VALUE self) {
   CURB_BOOLEAN_GETTER(ruby_curl_easy, ignore_content_length);
 }
 
+/*
+ * call-seq:
+ *   easy.resolve_mode                                      => symbol
+ *
+ * Determines what type of IP address this Curl::Easy instance
+ * resolves DNS names to.
+ */
+static VALUE ruby_curl_easy_resolve_mode(VALUE self) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  unsigned short rm = rbce->resolve_mode;
+
+  switch(rm) {
+    case CURL_IPRESOLVE_V4:
+      return rb_easy_sym("ipv4");
+    case CURL_IPRESOLVE_V6:
+      return rb_easy_sym("ipv6");
+    default:
+      return rb_easy_sym("auto");
+  }
+}
+
+/*
+ * call-seq:
+ *   easy.resolve_mode = symbol                             => symbol
+ *
+ * Configures what type of IP address this Curl::Easy instance
+ * resolves DNS names to. Valid options are:
+ *
+ * [:auto]  resolves DNS names to all IP versions your system allows
+ * [:ipv4]  resolves DNS names to IPv4 only
+ * [:ipv6]  resolves DNS names to IPv6 only
+ */
+static VALUE ruby_curl_easy_resolve_mode_set(VALUE self, VALUE resolve_mode) {
+  if (TYPE(resolve_mode) != T_SYMBOL) {
+    rb_raise(rb_eTypeError, "Must pass a symbol");
+    return Qnil;
+  } else {
+    ruby_curl_easy *rbce;
+    Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+    ID resolve_mode_id = rb_to_id(resolve_mode);
+
+    if (resolve_mode_id == rb_intern("auto")) {
+      rbce->resolve_mode = CURL_IPRESOLVE_WHATEVER;
+      return resolve_mode;
+    } else if (resolve_mode_id == rb_intern("ipv4")) {
+      rbce->resolve_mode = CURL_IPRESOLVE_V4;
+      return resolve_mode;
+    } else if (resolve_mode_id == rb_intern("ipv6")) {
+      rbce->resolve_mode = CURL_IPRESOLVE_V6;
+      return resolve_mode;
+    } else {
+      rb_raise(rb_eArgError, "Must set to one of :auto, :ipv4, :ipv6");
+      return Qnil;
+    }
+  }
+}
 
 
 /* ================= EVENT PROCS ================== */
@@ -1876,6 +1935,8 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, rbce->dns_cache_timeout);
 
   curl_easy_setopt(curl, CURLOPT_IGNORE_CONTENT_LENGTH, rbce->ignore_content_length);
+
+  curl_easy_setopt(curl, CURLOPT_IPRESOLVE, rbce->resolve_mode);
 
 
 #if LIBCURL_VERSION_NUM >= 0x070a08
@@ -3193,6 +3254,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "enable_cookies?", ruby_curl_easy_enable_cookies_q, 0);
   rb_define_method(cCurlEasy, "ignore_content_length=", ruby_curl_easy_ignore_content_length_set, 1);
   rb_define_method(cCurlEasy, "ignore_content_length?", ruby_curl_easy_ignore_content_length_q, 0);
+  rb_define_method(cCurlEasy, "resolve_mode", ruby_curl_easy_resolve_mode, 0);
+  rb_define_method(cCurlEasy, "resolve_mode=", ruby_curl_easy_resolve_mode_set, 1);
 
   rb_define_method(cCurlEasy, "on_body", ruby_curl_easy_on_body_set, -1);
   rb_define_method(cCurlEasy, "on_header", ruby_curl_easy_on_header_set, -1);
