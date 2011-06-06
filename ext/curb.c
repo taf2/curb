@@ -6,6 +6,7 @@
  */
 
 #include "curb.h"
+#include "curb_upload.h"
 
 VALUE mCurl;
 
@@ -959,4 +960,5 @@ void Init_curb_core() {
   init_curb_easy();
   init_curb_postfield();
   init_curb_multi();
+  init_curb_upload();
 }

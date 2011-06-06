@@ -38,13 +38,9 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running);
 
-static void rb_curl_multi_mark_all_easy(VALUE key, VALUE rbeasy, ruby_curl_multi *rbcm) {
-  rb_gc_mark(rbeasy);
-}
-
 static void curl_multi_mark(ruby_curl_multi *rbcm) {
   rb_gc_mark(rbcm->requests);
-  rb_hash_foreach( rbcm->requests, (int (*)())rb_curl_multi_mark_all_easy, (VALUE)rbcm );
+  rb_gc_mark(rbcm->requests);
 }
 
 static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) {
