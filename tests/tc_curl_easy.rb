@@ -584,12 +584,19 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     # see: http://pastie.org/560852 and
     # http://groups.google.com/group/curb---ruby-libcurl-bindings/browse_thread/thread/216bb2d9b037f347?hl=en
     [:post, :get, :head, :delete].each do |method|
-      count = 0
-      curl = Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
-        count += 1
-        assert_equal Curl::Easy, c.class
+      retries = 0
+      begin
+        count = 0
+        curl = Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
+          count += 1
+          assert_equal Curl::Easy, c.class
+        end
+        assert_equal 1, count, "For request method: #{method.to_s.upcase}"
+      rescue Curl::Err::HostResolutionError => e # travis-ci.org fails to resolve... try again?
+        retries+=1
+        retry if retries < 3
+        raise e
       end
-      assert_equal 1, count, "For request method: #{method.to_s.upcase}"
     end
   end
   
