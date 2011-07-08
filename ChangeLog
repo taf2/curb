@@ -1,7 +1,10 @@
+  * Allow Content-Length header when sending a PUT request
+  * Better handling of cacert
+  * Support CURLOPT_IPRESOLVE
   * Allow PostField.file#to_s
   * Minor refactoring to how PostField.file handles strings
-	* Accept symbol and any object that responds_to?(:to_s) for easy.http(:verb)
-	* Free memory sooner after a request finishes instead of waiting for garabage collection
+  * Accept symbol and any object that responds_to?(:to_s) for easy.http(:verb)
+  * Free memory sooner after a request finishes instead of waiting for garabage collection
   * Fix crash when sending nil for the http_put body 
   * Fix inspect for Curl::Easy, thanks Hongli Lai
   * Fix unit test assertions for Curl::Multi, thanks Hongli Lai
