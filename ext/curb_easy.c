@@ -2247,6 +2247,17 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
     for (i = 0; i < argc; i++) {
       if (rb_obj_is_instance_of(argv[i], cCurlPostField)) {
         append_to_form(argv[i], &first, &last);
+      } else if (rb_type(argv[i]) == T_ARRAY) {
+        int argv_len = (int)RARRAY_LEN(argv[i]);
+        int c;
+        for (c = 0; c < argv_len; c++) {
+          if (rb_obj_is_instance_of(rb_ary_entry(argv[i],c), cCurlPostField)) {
+            append_to_form(rb_ary_entry(argv[i],c), &first, &last);
+          } else {
+            rb_raise(eCurlErrInvalidPostField, "You must use PostFields only with multipart form posts");
+            return Qnil;
+          }
+        }        
       } else {
         rb_raise(eCurlErrInvalidPostField, "You must use PostFields only with multipart form posts");
         return Qnil;
