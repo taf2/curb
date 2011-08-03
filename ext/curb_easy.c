@@ -3058,7 +3058,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
  * Iniital access to libcurl curl_easy_getinfo, remember getinfo doesn't return the same values as setopt
  */
 static VALUE ruby_curl_easy_get_opt(VALUE self, VALUE opt) {
-  
+  return opt; // warning: control reaches end of non-void function
 }
 
 /*
