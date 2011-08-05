@@ -579,7 +579,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.http_post([Curl::PostField.content('document_id', 5)])
     assert_equal "POST\ndocument_id=5", curl.unescape(curl.body_str)
   end
-
+  
   def test_post_remote_is_easy_handle
     # see: http://pastie.org/560852 and
     # http://groups.google.com/group/curb---ruby-libcurl-bindings/browse_thread/thread/216bb2d9b037f347?hl=en
@@ -623,6 +623,18 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.multipart_form_post = true
     pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README')))
     curl.http_post(pf)
+    assert_match /HTTP POST file upload/, curl.body_str
+    assert_match /Content-Disposition: form-data/, curl.body_str
+  end
+  
+  def test_post_multipart_array_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = true
+    fields = [
+      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README'))),
+      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README')))
+    ]
+    curl.http_post(fields)
     assert_match /HTTP POST file upload/, curl.body_str
     assert_match /Content-Disposition: form-data/, curl.body_str
   end
