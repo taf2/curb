@@ -1760,7 +1760,10 @@ static VALUE ruby_curl_easy_on_debug_set(int argc, VALUE *argv, VALUE self) {
 /***********************************************
  * This is an rb_iterate callback used to set up http headers.
  */
-static VALUE cb_each_http_header(VALUE header, struct curl_slist **list) {
+static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
+  struct curl_slist **list;
+  Data_Get_Struct(wrap, struct curl_slist *, list);
+
   VALUE header_str = Qnil;
 
   //rb_p(header);
@@ -1789,7 +1792,10 @@ static VALUE cb_each_http_header(VALUE header, struct curl_slist **list) {
 /***********************************************
  * This is an rb_iterate callback used to set up ftp commands.
  */
-static VALUE cb_each_ftp_command(VALUE ftp_command, struct curl_slist **list) {
+static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
+  struct curl_slist **list;
+  Data_Get_Struct(wrap, struct curl_slist *, list);
+
   VALUE ftp_command_string = rb_obj_as_string(ftp_command);
   *list = curl_slist_append(*list, StringValuePtr(ftp_command));
 
@@ -2069,7 +2075,8 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
 
   if (!rb_easy_nil("headers")) {
     if (rb_easy_type_check("headers", T_ARRAY) || rb_easy_type_check("headers", T_HASH)) {
-      rb_iterate(rb_each, rb_easy_get("headers"), cb_each_http_header, (VALUE)hdrs);
+      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, hdrs);
+      rb_iterate(rb_each, rb_easy_get("headers"), cb_each_http_header, wrap);
     } else {
       VALUE headers_str = rb_obj_as_string(rb_easy_get("headers"));
       *hdrs = curl_slist_append(*hdrs, StringValuePtr(headers_str));
@@ -2083,7 +2090,8 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   /* Setup FTP commands if necessary */
   if (!rb_easy_nil("ftp_commands")) {
     if (rb_easy_type_check("ftp_commands", T_ARRAY)) {
-      rb_iterate(rb_each, rb_easy_get("ftp_commands"), cb_each_ftp_command, (VALUE)cmds);
+      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, cmds);
+      rb_iterate(rb_each, rb_easy_get("ftp_commands"), cb_each_ftp_command, wrap);
     }
 
     if (*cmds) {
@@ -3047,7 +3055,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
  * Iniital access to libcurl curl_easy_getinfo, remember getinfo doesn't return the same values as setopt
  */
 static VALUE ruby_curl_easy_get_opt(VALUE self, VALUE opt) {
-  
+  return Qnil;
 }
 
 /*
