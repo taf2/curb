@@ -40,7 +40,6 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
 
 static void curl_multi_mark(ruby_curl_multi *rbcm) {
   rb_gc_mark(rbcm->requests);
-  rb_gc_mark(rbcm->requests);
 }
 
 static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) {

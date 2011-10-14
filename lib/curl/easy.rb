@@ -120,6 +120,26 @@ module Curl
       set :proxy, url
     end
 
+    def ssl_verify_host=(value)
+      value = 1 if value.class == TrueClass
+      value = 0 if value.class == FalseClass
+      self.ssl_verify_host_integer=value
+    end
+
+    # 
+    # call-seq:
+    #   easy.ssl_verify_host?                            => boolean
+    # 
+    # Deprecated: call easy.ssl_verify_host instead
+    # can be one of [0,1,2]
+    # 
+    # Determine whether this Curl instance will verify that the server cert
+    # is for the server it is known as.
+    # 
+    def ssl_verify_host?
+      ssl_verify_host.nil? ? false : (ssl_verify_host > 0)
+    end
+
     # 
     # call-seq:
     #   easy.interface = string                          => string
@@ -347,6 +367,7 @@ module Curl
     # Allow the incoming cert string to be file:password
     # but be careful to not use a colon from a windows file path
     # as the split point. Mimic what curl's main does
+    if respond_to?(:cert=)
     alias_method :native_cert=, :cert=
     def cert=(cert_file)
       pos = cert_file.rindex(':')
@@ -358,5 +379,7 @@ module Curl
       end
       self.cert
     end
+    end
+
   end
 end

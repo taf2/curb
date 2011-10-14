@@ -1338,7 +1338,7 @@ static VALUE ruby_curl_easy_ssl_verify_peer_q(VALUE self) {
 
 /*
  * call-seq:
- *   easy.ssl_verify_host = boolean                   => boolean
+ *   easy.ssl_verify_host = [0, 1, 2]                   => [0, 1, 2]
  *
  * Configure whether this Curl instance will verify that the server cert
  * is for the server it is known as. When true (the default) the server
@@ -1350,18 +1350,18 @@ static VALUE ruby_curl_easy_ssl_verify_peer_q(VALUE self) {
  * The server could be lying. To control lying, see ssl_verify_peer? .
  */
 static VALUE ruby_curl_easy_ssl_verify_host_set(VALUE self, VALUE ssl_verify_host) {
-  CURB_BOOLEAN_SETTER(ruby_curl_easy, ssl_verify_host);
+  CURB_IMMED_SETTER(ruby_curl_easy, ssl_verify_host, 0);
 }
 
 /*
  * call-seq:
- *   easy.ssl_verify_host?                            => boolean
+ *   easy.ssl_verify_host                            => number
  *
  * Determine whether this Curl instance will verify that the server cert
  * is for the server it is known as.
  */
-static VALUE ruby_curl_easy_ssl_verify_host_q(VALUE self) {
-  CURB_BOOLEAN_GETTER(ruby_curl_easy, ssl_verify_host);
+static VALUE ruby_curl_easy_ssl_verify_host_get(VALUE self) {
+  CURB_IMMED_GETTER(ruby_curl_easy, ssl_verify_host, 0);
 }
 
 /*
@@ -2029,7 +2029,9 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
 
   /* Set up HTTPS cert handling if necessary */
   if (!rb_easy_nil("cert")) {
-    curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, rb_easy_get_str("certtype"));
+    if (!rb_easy_nil("certtype")) {
+      curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, rb_easy_get_str("certtype"));
+    }
     curl_easy_setopt(curl, CURLOPT_SSLCERT, rb_easy_get_str("cert"));
     if (!rb_easy_nil("certpassword")) {
       curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, rb_easy_get_str("certpassword"));
@@ -2038,6 +2040,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
       curl_easy_setopt(curl, CURLOPT_SSLKEY, rb_easy_get_str("cert_key"));
     }
   }
+
   if (!rb_easy_nil("cacert")) {
     curl_easy_setopt(curl, CURLOPT_CAINFO, rb_easy_get_str("cacert"));
   }
@@ -3244,8 +3247,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "fetch_file_time?", ruby_curl_easy_fetch_file_time_q, 0);
   rb_define_method(cCurlEasy, "ssl_verify_peer=", ruby_curl_easy_ssl_verify_peer_set, 1);
   rb_define_method(cCurlEasy, "ssl_verify_peer?", ruby_curl_easy_ssl_verify_peer_q, 0);
-  rb_define_method(cCurlEasy, "ssl_verify_host=", ruby_curl_easy_ssl_verify_host_set, 1);
-  rb_define_method(cCurlEasy, "ssl_verify_host?", ruby_curl_easy_ssl_verify_host_q, 0);
+  rb_define_method(cCurlEasy, "ssl_verify_host_integer=", ruby_curl_easy_ssl_verify_host_set, 1);
+  rb_define_method(cCurlEasy, "ssl_verify_host", ruby_curl_easy_ssl_verify_host_get, 0);
   rb_define_method(cCurlEasy, "header_in_body=", ruby_curl_easy_header_in_body_set, 1);
   rb_define_method(cCurlEasy, "header_in_body?", ruby_curl_easy_header_in_body_q, 0);
   rb_define_method(cCurlEasy, "use_netrc=", ruby_curl_easy_use_netrc_set, 1);

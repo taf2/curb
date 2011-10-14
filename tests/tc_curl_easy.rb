@@ -461,7 +461,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_ssl_verify_host
     c = Curl::Easy.new    
     assert c.ssl_verify_host?
-    assert !c.ssl_verify_host = false
+    c.ssl_verify_host = 0
+    c.ssl_verify_host = false
     assert !c.ssl_verify_host?
   end
   
@@ -718,7 +719,10 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_cert_with_password
     curl = Curl::Easy.new(TestServlet.url)
-    curl.cert= File.join(File.dirname(__FILE__),"cert.pem:password")
+    path = File.join(File.dirname(__FILE__),"cert.pem:password")
+    curl.cert = path
+    puts path.inspect
+    puts curl.cert.inspect
     assert_match /cert.pem$/,curl.cert
   end
 
