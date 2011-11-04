@@ -20,14 +20,14 @@ class BugCrashOnDebug < Test::Unit::TestCase
     c.on_progress do|x|
       raise "error"
     end
-    c.easy.on_debug { |type, data| puts "debug: #{type.inspect}, #{data.inspect}" }
     c.perform
+
+    assert false, "should not reach this point"
 
   rescue => e
     assert_equal 'Curl::Err::AbortedByCallbackError', e.class.to_s
     c.close
   ensure
-    puts "shutdown server"
     server.shutdown
   end
 end

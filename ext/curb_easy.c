@@ -157,11 +157,13 @@ static int proc_debug_handler(CURL *curl,
                               char *data,
                               size_t data_len,
                               VALUE proc) {
+  VALUE procret;
   VALUE callargs = rb_ary_new2(3);
   rb_ary_store(callargs, 0, proc);
   rb_ary_store(callargs, 1, INT2FIX(type));
   rb_ary_store(callargs, 2, rb_str_new(data, data_len));
   rb_rescue(call_debug_handler, callargs, callback_exception, Qnil);
+  // XXX: no way to indicate to libcurl that we should break out given an exception in the on_debug handler... this means exceptions will be swallowed
   //rb_funcall(proc, idCall, 2, INT2FIX(type), rb_str_new(data, data_len));
   return 0;
 }
