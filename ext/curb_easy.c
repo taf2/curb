@@ -111,17 +111,38 @@ static size_t proc_data_handler(char *stream,
   }
 }
 
+static VALUE callback_exception(VALUE unused) {
+  return Qfalse;
+} 
+
+static VALUE call_progress_handler(VALUE ary) {
+  return rb_funcall(rb_ary_entry(ary, 0), idCall, 4,
+                    rb_ary_entry(ary, 1), // rb_float_new(dltotal),
+                    rb_ary_entry(ary, 2), // rb_float_new(dlnow),
+                    rb_ary_entry(ary, 3), // rb_float_new(ultotal),
+                    rb_ary_entry(ary, 4)); // rb_float_new(ulnow));
+}
+
 static int proc_progress_handler(VALUE proc,
                                  double dltotal,
                                  double dlnow,
                                  double ultotal,
                                  double ulnow) {
   VALUE procret;
+  VALUE callargs = rb_ary_new2(4);
 
-  procret = rb_funcall(proc, idCall, 4, rb_float_new(dltotal),
-                                        rb_float_new(dlnow),
-                                        rb_float_new(ultotal),
-                                        rb_float_new(ulnow));
+  rb_ary_store(callargs, 0, proc);
+  rb_ary_store(callargs, 1, rb_float_new(dltotal));
+  rb_ary_store(callargs, 2, rb_float_new(dlnow));
+  rb_ary_store(callargs, 3, rb_float_new(ultotal));
+  rb_ary_store(callargs, 4, rb_float_new(ulnow));
+
+	//v = rb_rescue(range_check, (VALUE)args, range_failed, 0);
+  //procret = rb_funcall(proc, idCall, 4, rb_float_new(dltotal),
+  //                                      rb_float_new(dlnow),
+  //                                      rb_float_new(ultotal),
+  //                                      rb_float_new(ulnow));
+  procret = rb_rescue(call_progress_handler, callargs, callback_exception, Qnil);
 
   return(((procret == Qfalse) || (procret == Qnil)) ? -1 : 0);
 }
