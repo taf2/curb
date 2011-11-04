@@ -2,10 +2,14 @@
 # 
 require 'rake/clean'
 require 'rake/testtask'
-require 'rake/rdoctask'
+begin
+  require 'rdoc/task'
+rescue LoadError
+  require 'rake/rdoctask'
+end
 
 CLEAN.include '**/*.o'
-CLEAN.include "**/*.#{Config::MAKEFILE_CONFIG['DLEXT']}"
+CLEAN.include "**/*.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
 CLOBBER.include 'doc'
 CLOBBER.include '**/*.log'
 CLOBBER.include '**/Makefile'
@@ -40,7 +44,7 @@ make_program = (/mswin/ =~ RUBY_PLATFORM) ? 'nmake' : 'make'
 MAKECMD = ENV['MAKE_CMD'] || make_program
 MAKEOPTS = ENV['MAKE_OPTS'] || ''
 
-CURB_SO = "ext/curb_core.#{Config::MAKEFILE_CONFIG['DLEXT']}"
+CURB_SO = "ext/curb_core.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
 
 file 'ext/Makefile' => 'ext/extconf.rb' do
   Dir.chdir('ext') do
