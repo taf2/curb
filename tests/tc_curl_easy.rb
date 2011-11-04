@@ -719,10 +719,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_cert_with_password
     curl = Curl::Easy.new(TestServlet.url)
-    path = File.join(File.dirname(__FILE__),"cert.pem:password")
+    path = File.join(File.dirname(__FILE__),"cert.pem")
+    curl.certpassword = 'password'
     curl.cert = path
-    puts path.inspect
-    puts curl.cert.inspect
     assert_match /cert.pem$/,curl.cert
   end
 
