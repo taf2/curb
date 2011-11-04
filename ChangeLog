@@ -1,3 +1,5 @@
+0.7.16
+  * Improve stablity, avoid bus errors when raising in callbacks
   * Allow Content-Length header when sending a PUT request
   * Better handling of cacert
   * Support CURLOPT_IPRESOLVE
