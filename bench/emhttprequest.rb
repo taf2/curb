@@ -7,14 +7,22 @@ $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 
 N = (ARGV.shift || 50).to_i
 BURL = 'http://127.0.0.1/zeros-2k'
-URLS = []
-N.times do
-  URLS << BURL
-end
 
-Memory.usage("Curl::Multi.get(#{N})") do
-  require 'curb'
+Memory.usage("EM::HTTPRequest(#{N})") do
 
-  Curl::Multi.get(URLS)
+  require 'em-http-request'
+  EM.run do
+    multi = EM::MultiRequest.new
+
+    N.times do|n|
+      # add multiple requests to the multi-handler
+      multi.add(EM::HttpRequest.new(BURL).get)
+    end
+
+    multi.callback do
+      EM.stop
+    end
+
+  end
 
 end

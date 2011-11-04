@@ -1,7 +1,8 @@
 task :default do
   sh "bundle install"
-  n = 2000
+  n = 200
   [:curb_easy, :curb_easy14, :curb_multi, :curb_multi_using_get, :emhttprequest, :nethttp_test, :patron_test, :typhoeus_hydra_test, :typhoeus_test].each do|bench|
     system "ruby #{bench}.rb #{n}"
+    sleep 1
   end
 end
