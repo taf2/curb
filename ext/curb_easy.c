@@ -28,6 +28,10 @@ VALUE cCurlEasy;
 
 /* ================== CURL HANDLER FUNCS ==============*/
 
+static VALUE callback_exception(VALUE unused) {
+  return Qfalse;
+} 
+
 /* These handle both body and header data */
 static size_t default_data_handler(char *stream,
                                    size_t size,
@@ -111,10 +115,6 @@ static size_t proc_data_handler(char *stream,
   }
 }
 
-static VALUE callback_exception(VALUE unused) {
-  return Qfalse;
-} 
-
 static VALUE call_progress_handler(VALUE ary) {
   return rb_funcall(rb_ary_entry(ary, 0), idCall, 4,
                     rb_ary_entry(ary, 1), // rb_float_new(dltotal),
@@ -129,7 +129,7 @@ static int proc_progress_handler(VALUE proc,
                                  double ultotal,
                                  double ulnow) {
   VALUE procret;
-  VALUE callargs = rb_ary_new2(4);
+  VALUE callargs = rb_ary_new2(5);
 
   rb_ary_store(callargs, 0, proc);
   rb_ary_store(callargs, 1, rb_float_new(dltotal));
@@ -147,12 +147,22 @@ static int proc_progress_handler(VALUE proc,
   return(((procret == Qfalse) || (procret == Qnil)) ? -1 : 0);
 }
 
+static VALUE call_debug_handler(VALUE ary) {
+  return rb_funcall(rb_ary_entry(ary, 0), idCall, 2,
+                    rb_ary_entry(ary, 1), // INT2FIX(type),
+                    rb_ary_entry(ary, 2)); // rb_str_new(data, data_len)
+}
 static int proc_debug_handler(CURL *curl,
                               curl_infotype type,
                               char *data,
                               size_t data_len,
                               VALUE proc) {
-  rb_funcall(proc, idCall, 2, INT2FIX(type), rb_str_new(data, data_len));
+  VALUE callargs = rb_ary_new2(3);
+  rb_ary_store(callargs, 0, proc);
+  rb_ary_store(callargs, 1, INT2FIX(type));
+  rb_ary_store(callargs, 2, rb_str_new(data, data_len));
+  rb_rescue(call_debug_handler, callargs, callback_exception, Qnil);
+  //rb_funcall(proc, idCall, 2, INT2FIX(type), rb_str_new(data, data_len));
   return 0;
 }
 

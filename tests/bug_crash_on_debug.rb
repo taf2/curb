@@ -20,6 +20,7 @@ class BugCrashOnDebug < Test::Unit::TestCase
     c.on_progress do|x|
       raise "error"
     end
+    c.easy.on_debug { |type, data| puts "debug: #{type.inspect}, #{data.inspect}" }
     c.perform
 
   rescue => e

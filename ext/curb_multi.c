@@ -38,6 +38,10 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running);
 
+static VALUE callback_exception(VALUE unused) {
+  return Qfalse;
+} 
+
 static void curl_multi_mark(ruby_curl_multi *rbcm) {
   rb_gc_mark(rbcm->requests);
 }
@@ -315,11 +319,20 @@ static VALUE ruby_curl_multi_cancel(VALUE self) {
   return self;
 }
 
+// on_success, on_failure, on_complete
+static VALUE call_status_handler1(VALUE ary) {
+  return rb_funcall(rb_ary_entry(ary, 0), idCall, 1, rb_ary_entry(ary, 1));
+}
+static VALUE call_status_handler2(VALUE ary) {
+  return rb_funcall(rb_ary_entry(ary, 0), idCall, 2, rb_ary_entry(ary, 1), rb_ary_entry(ary, 2));
+}
+
 static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result) {
 
   long response_code = -1;
   VALUE easy;
   ruby_curl_easy *rbce = NULL;
+  VALUE callargs;
 
   CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&easy);
 
@@ -340,24 +353,32 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   }
 
   if (!rb_easy_nil("complete_proc")) {
-    rb_funcall( rb_easy_get("complete_proc"), idCall, 1, easy );
+    callargs = rb_ary_new3(2, rb_easy_get("complete_proc"), easy);
+    rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    //rb_funcall( rb_easy_get("complete_proc"), idCall, 1, easy );
   }
 
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
 
   if (result != 0) {
     if (!rb_easy_nil("failure_proc")) {
-      rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
+      callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
+      rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+      //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
     }
   }
   else if (!rb_easy_nil("success_proc") &&
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
     /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
-    rb_funcall( rb_easy_get("success_proc"), idCall, 1, easy );
+    callargs = rb_ary_new3(2, rb_easy_get("success_proc"), easy);
+    rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    //rb_funcall( rb_easy_get("success_proc"), idCall, 1, easy );
   }
   else if (!rb_easy_nil("failure_proc") &&
           (response_code >= 300 && response_code <= 999)) {
-    rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
+    callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
+    rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+    //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
   }
 
 }
