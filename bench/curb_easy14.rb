@@ -12,7 +12,8 @@ Memory.usage("Curl::Easy14(#{N})") do
   c = Curl::Easy.new
 
   N.times do|n|
-    c.url = BURL
+    c.url = BURL + "?n=#{n}"
+    c.on_header {|d| d.size} # don't buffer
     c.on_body {|d| d.size} # don't buffer
     c.perform
   end

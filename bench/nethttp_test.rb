@@ -9,10 +9,9 @@ Memory.usage("Net::HTTP Persistent(#{N})") do
   require 'net/http/persistent'
 
   http = Net::HTTP::Persistent.new
-  uri = URI.parse BURL
 
   N.times do |n|
-    http.request uri
+    http.request URI.parse(BURL+"?n=#{n}")
   end
 
 end

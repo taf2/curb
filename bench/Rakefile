@@ -1,8 +1,28 @@
 task :default do
   sh "bundle install"
-  n = 200
-  [:curb_easy, :curb_easy14, :curb_multi, :curb_multi_using_get, :emhttprequest, :nethttp_test, :patron_test, :typhoeus_hydra_test, :typhoeus_test].each do|bench|
-    system "ruby #{bench}.rb #{n}"
-    sleep 1
+  n = 8000
+  results = {}
+  system("cd ../ && rake compile")
+  [:curb_easy14, :curb_easy, :curb_multi, :curb_multi_using_get, :emhttprequest, :nethttp_test, :patron_test, :typhoeus_hydra_test, :typhoeus_test].each do|bench|
+    result = `ruby #{bench}.rb #{n}`
+    results[bench] = result.scan(/Duration: (\d*\.\d*) sec, Memory Usage: (\d*\.\d*) KB - Memory Growth: (\d*\.\d*) KB/).flatten.map {|v| v.to_f}
+    results.delete(bench) if results[bench].empty?
+    puts result
+  end
+  # find shortest time
+  best_time = nil
+  best_key_time = nil
+  results.each do|k,v|
+    if best_time.nil? || best_time.first > v.first
+      best_key_time = k
+      best_time = v
+    end
+  end
+  puts "Fastest: #{best_key_time} in #{best_time.inspect}"
+
+  # find smallest memory
+  best_mem = nil
+  best_key_mem = nil
+  results.each do|k,v|
   end
 end
