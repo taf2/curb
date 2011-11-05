@@ -7,8 +7,8 @@ Memory.usage("Typhoeus(#{N})") do
 
   require 'typhoeus'
 
-  N.times do
-    Typhoeus::Request.get('http://127.0.0.1/zeros-2k')
+  N.times do|n|
+    Typhoeus::Request.get('http://127.0.0.1/zeros-2k' + "?n=#{n}")
   end
 
 end

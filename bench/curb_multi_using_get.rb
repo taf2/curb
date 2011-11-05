@@ -8,8 +8,8 @@ $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 N = (ARGV.shift || 50).to_i
 BURL = 'http://127.0.0.1/zeros-2k'
 URLS = []
-N.times do
-  URLS << BURL
+N.times do|n|
+  URLS << BURL + "?n=#{n}"
 end
 
 Memory.usage("Curl::Multi.get(#{N})") do

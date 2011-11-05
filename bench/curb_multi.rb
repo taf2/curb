@@ -7,8 +7,9 @@ $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 
 N = (ARGV.shift || 50).to_i
 BURL = 'http://127.0.0.1/zeros-2k'
+count = 0
 
-Memory.usage("Curl::Multi(#{N})") do
+Memory.usage("Curl::Multi.pipelined(#{N})") do
   require 'curb'
 
   count = 0
@@ -25,7 +26,8 @@ Memory.usage("Curl::Multi(#{N})") do
 
   # initialize first 10
   10.times do
-    easy = Curl::Easy.new(BURL)
+    easy = Curl::Easy.new(BURL + "?n=#{count}")
+    count+=1
     easy.on_body {|d| bytes_received += d.size; d.size } # don't buffer
     easy.on_complete do|c|
       free << c

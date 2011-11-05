@@ -11,8 +11,8 @@ Memory.usage("Typhoeus::Hydra(#{N})") do
   hydra = Typhoeus::Hydra.new
   reqs = []
 
-  N.times do
-    req = Typhoeus::Request.new('http://127.0.0.1/zeros-2k')
+  N.times do |n|
+    req = Typhoeus::Request.new('http://127.0.0.1/zeros-2k' + "?n=#{n}")
     reqs << req
     hydra.queue req
   end

@@ -18,7 +18,7 @@ class Memory
     memory_usage = emem / 1024.0
     memory_growth = (emem - smem) / 1024.0
 
-    printf "#{name}\t\tDuration: %.4f sec, Memory Usage: %.2f KB - Memory Growth: %.2f KB\n", duration, memory_usage, memory_growth
+    printf "#{name}\t\tDuration: %.4f sec, Memory Usage: %.2f KB - Memory Growth: %.2f KB average: #{duration/N}\n", duration, memory_usage, memory_growth
   end
 
 end
