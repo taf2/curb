@@ -2,7 +2,7 @@ GEM
   remote: http://rubygems.org/
   specs:
     addressable (2.2.4)
-    curb (0.3.2)
+    curb (0.1.4)
     em-http-request (0.3.0)
       addressable (>= 2.0.0)
       escape_utils
@@ -22,7 +22,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  curb (= 0.3.2)
+  curb (= 0.1.4)
   em-http-request
   net-http-persistent
   patron
