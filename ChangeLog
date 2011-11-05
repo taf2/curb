@@ -1,3 +1,4 @@
+  * use rb_thread_blocking_region when available in place of rb_thread_select for ruby 1.9.x
 0.7.16
   * Add better support for timeouts issue 48
   * Improve stablity, avoid bus errors when raising in callbacks

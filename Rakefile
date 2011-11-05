@@ -4,7 +4,7 @@ require 'rake/clean'
 require 'rake/testtask'
 begin
   require 'rdoc/task'
-rescue LoadError
+rescue LoadError => e
   require 'rake/rdoctask'
 end
 

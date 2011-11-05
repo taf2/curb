@@ -443,6 +443,20 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
 }
 #endif
 
+#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+struct _select_set {
+  int maxfd;
+  fd_set *fdread, *fdwrite, *fdexcep;
+  struct timeval *tv;
+};
+
+static VALUE curb_select(void *args) {
+  struct _select_set* set = args;
+  int rc = select(set->maxfd, set->fdread, set->fdwrite, set->fdexcep, set->tv);
+  return INT2FIX(rc);
+}
+#endif
+
 /*
  * call-seq:
  * multi = Curl::Multi.new
@@ -466,10 +480,12 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 #ifdef _WIN32
   fd_set crt_fdread, crt_fdwrite, crt_fdexcep;
 #endif
-
   long timeout_milliseconds;
   struct timeval tv = {0, 0};
   VALUE block = Qnil;
+#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+  struct _select_set fdset_args;
+#endif
 
   rb_scan_args(argc, argv, "0&", &block);
 
@@ -526,7 +542,16 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       create_crt_fd(&fdexcep, &crt_fdexcep);
 #endif
 
+#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+      fdset_args.maxfd = maxfd+1;
+      fdset_args.fdread = &fdread;
+      fdset_args.fdwrite = &fdwrite;
+      fdset_args.fdexcep = &fdexcep;
+      fdset_args.tv = &tv;
+      rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
+#else
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+#endif
 
 #ifdef _WIN32
       cleanup_crt_fd(&fdread, &crt_fdread);
