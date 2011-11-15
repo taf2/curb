@@ -101,6 +101,13 @@ have_constant "curle_login_denied"
 # older than 7.16.3
 have_constant "curlmopt_maxconnects"
 
+have_constant "curlopt_seekfunction"
+have_constant "curlopt_seekdata"
+have_constant "curlopt_sockoptfunction"
+have_constant "curlopt_sockoptdata"
+have_constant "curlopt_opensocketfunction"
+have_constant "curlopt_opensocketdata"
+
 # additional consts
 have_constant "curle_conv_failed"
 have_constant "curle_conv_reqd"
