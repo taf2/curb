@@ -332,7 +332,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   long response_code = -1;
   VALUE easy;
   ruby_curl_easy *rbce = NULL;
-  VALUE callargs;
+  VALUE callargs, val = Qtrue;
 
   CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&easy);
 
@@ -354,7 +354,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   if (!rb_easy_nil("complete_proc")) {
     callargs = rb_ary_new3(2, rb_easy_get("complete_proc"), easy);
-    rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    val = rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
     //rb_funcall( rb_easy_get("complete_proc"), idCall, 1, easy );
   }
 
@@ -363,7 +363,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   if (result != 0) {
     if (!rb_easy_nil("failure_proc")) {
       callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
-      rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+      val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
       //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
     }
   }
@@ -371,14 +371,20 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
     /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
     callargs = rb_ary_new3(2, rb_easy_get("success_proc"), easy);
-    rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    val = rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
     //rb_funcall( rb_easy_get("success_proc"), idCall, 1, easy );
   }
   else if (!rb_easy_nil("failure_proc") &&
           (response_code >= 300 && response_code <= 999)) {
     callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
-    rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+    val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
     //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
+  }
+
+  if (val == Qfalse) {
+    rb_warn("uncaught exception from callback");
+      // exception was raised?
+    //fprintf(stderr, "exception raised from callback\n");
   }
 
 }
