@@ -920,7 +920,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_raise_on_progress
     c = Curl::Easy.new($TEST_URL)
-    c.on_progress {|x| raise "error" }
+    c.on_progress {|w,x,y,z| raise "error" }
     c.perform
   rescue => e
     assert_equal 'Curl::Err::AbortedByCallbackError', e.class.to_s
@@ -938,7 +938,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_raise_on_debug
     c = Curl::Easy.new($TEST_URL)
-    c.on_debug {|x| raise "error" }
+    c.on_debug { raise "error" }
     c.perform
     assert true, "raise in on debug has no effect"
   end
