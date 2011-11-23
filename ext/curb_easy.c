@@ -1959,7 +1959,7 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   curl_easy_setopt(curl, CURLOPT_HTTPPROXYTUNNEL, rbce->proxy_tunnel);
   curl_easy_setopt(curl, CURLOPT_FILETIME, rbce->fetch_file_time);
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, rbce->ssl_verify_peer);
-  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, rbce->ssl_verify_peer);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, rbce->ssl_verify_host);
 
   if ((rbce->use_netrc != Qnil) && (rbce->use_netrc != Qfalse)) {
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CURL_NETRC_OPTIONAL);
