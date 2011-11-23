@@ -1962,9 +1962,9 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, rbce->ssl_verify_host);
 
   if ((rbce->use_netrc != Qnil) && (rbce->use_netrc != Qfalse)) {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CURL_NETRC_OPTIONAL);
+    curl_easy_setopt(curl, CURLOPT_NETRC, CURL_NETRC_OPTIONAL);
   } else {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CURL_NETRC_IGNORED);
+    curl_easy_setopt(curl, CURLOPT_NETRC, CURL_NETRC_IGNORED);
   }
 
   curl_easy_setopt(curl, CURLOPT_UNRESTRICTED_AUTH, rbce->unrestricted_auth);
