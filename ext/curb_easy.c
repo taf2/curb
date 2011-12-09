@@ -2479,19 +2479,28 @@ static VALUE ruby_curl_easy_response_code_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_status_message_get(VALUE self) {
   ruby_curl_easy *rbce;
-  char *header = NULL, *start = NULL, *end = NULL;
+  char *header = NULL, *h = NULL, *start = NULL, *end = NULL;
+  VALUE status;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   header = rb_easy_get_str("header_data");
+  h = malloc(strlen(header));
+  strcpy(h, header);
+  start = h;
   do {
-    start = strchr(header, ' ');
+    start = strchr(start, ' ');
     if (0 < atoi(start+1)) break; // search space followed with positive number
   } while (start!=NULL);
   if (start==NULL) return Qnil;   // no such space in header?
   end = strstr(start, "\r\n");
   if (end==NULL) return Qnil;     // no \r\n found afterwards?
-  end[0] = '\0';
-  return rb_str_new2(start+1);
+  do {
+    end[0] = '\0';
+    end--;
+  } while (end[0]==' ');
+  status = rb_str_new2(start+1);
+  free(h);
+  return status;
 }
 
 #if defined(HAVE_CURLINFO_PRIMARY_IP)

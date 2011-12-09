@@ -781,6 +781,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'NTLM TlRMTVNTUAABAAAABoIIAAAAAAAAAAAAAAAAAAAAAAA=', $auth_header
   end
 
+  def test_status_message
+    curl = Curl::Easy.new(TestServlet.url)
+    if curl.respond_to?(:status_message)
+      curl.perform
+      assert_equal '200 OK', curl.status_message
+    end
+  end
+
   def test_primary_ip
     curl = Curl::Easy.new(TestServlet.url)
     if curl.respond_to?(:primary_ip)
