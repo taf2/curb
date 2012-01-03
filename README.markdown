@@ -1,5 +1,7 @@
 # Curb - Libcurl bindings for Ruby
 
+![build status](https://secure.travis-ci.org/taf2/curb.png "Build Status")
+
 + [rubyforge rdoc](http://curb.rubyforge.org/)
 + [rubyforge project](http://rubyforge.org/projects/curb)
 + [github project](http://github.com/taf2/curb/tree/master)
