@@ -224,7 +224,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->proxy_tunnel = 0;
   rbce->fetch_file_time = 0;
   rbce->ssl_verify_peer = 1;
-  rbce->ssl_verify_host = 1;
+  rbce->ssl_verify_host = 2;
   rbce->header_in_body = 0;
   rbce->use_netrc = 0;
   rbce->follow_location = 0;
@@ -1959,12 +1959,12 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   curl_easy_setopt(curl, CURLOPT_HTTPPROXYTUNNEL, rbce->proxy_tunnel);
   curl_easy_setopt(curl, CURLOPT_FILETIME, rbce->fetch_file_time);
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, rbce->ssl_verify_peer);
-  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, rbce->ssl_verify_peer);
+  curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, rbce->ssl_verify_host);
 
   if ((rbce->use_netrc != Qnil) && (rbce->use_netrc != Qfalse)) {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CURL_NETRC_OPTIONAL);
+    curl_easy_setopt(curl, CURLOPT_NETRC, CURL_NETRC_OPTIONAL);
   } else {
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, CURL_NETRC_IGNORED);
+    curl_easy_setopt(curl, CURLOPT_NETRC, CURL_NETRC_IGNORED);
   }
 
   curl_easy_setopt(curl, CURLOPT_UNRESTRICTED_AUTH, rbce->unrestricted_auth);
