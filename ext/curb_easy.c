@@ -54,7 +54,7 @@ static size_t read_data_handler(void *ptr,
     /* copy read_bytes from stream into ptr */
     VALUE str = rb_funcall(stream, rb_intern("read"), 1, rb_int_new(read_bytes) );
     if( str != Qnil ) {
-      memcpy(ptr, RSTRING_PTR(str), RSTRING_LEN(str));
+      memcpy(ptr, StringValueCStr(str), RSTRING_LEN(str));
       return RSTRING_LEN(str);
     }
     else {
@@ -71,7 +71,7 @@ static size_t read_data_handler(void *ptr,
     str = rb_funcall(stream, rb_intern("to_s"), 0);
     len = RSTRING_LEN(str);
     remaining = len - rbcu->offset;
-    str_ptr = RSTRING_PTR(str);
+    str_ptr = StringValueCStr(str);
 
     if( remaining < read_bytes ) {
       if( remaining > 0 ) {
@@ -2235,11 +2235,11 @@ static VALUE ruby_curl_easy_perform_delete(VALUE self) {
 static VALUE ruby_curl_easy_perform_verb(VALUE self, VALUE verb) {
   VALUE str_verb;
   if (rb_type(verb) == T_STRING) {
-    return ruby_curl_easy_perform_verb_str(self, RSTRING_PTR(verb));
+    return ruby_curl_easy_perform_verb_str(self, StringValueCStr(verb));
   }
   else if (rb_respond_to(verb,rb_intern("to_s"))) {
     str_verb = rb_funcall(verb, rb_intern("to_s"), 0);
-    return ruby_curl_easy_perform_verb_str(self, RSTRING_PTR(str_verb));
+    return ruby_curl_easy_perform_verb_str(self, StringValueCStr(str_verb));
   }
   else {
     rb_raise(rb_eRuntimeError, "Invalid HTTP VERB, must response to 'to_s'");
@@ -3108,7 +3108,7 @@ static VALUE ruby_curl_easy_inspect(VALUE self) {
     size_t len = 13+((RSTRING_LEN(url) > 50) ? 50 : RSTRING_LEN(url));
     /* "#<Net::HTTP http://www.google.com/:80 open=false>" */
     memcpy(buf,"#<Curl::Easy ", 13);
-    memcpy(buf+13,RSTRING_PTR(url), (len - 13));
+    memcpy(buf+13,StringValueCStr(url), (len - 13));
     buf[len++] = '>';
     return rb_str_new(buf,len);
   }
