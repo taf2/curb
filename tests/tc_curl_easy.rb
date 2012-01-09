@@ -510,11 +510,11 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_resolve_mode
     c = Curl::Easy.new
-    assert c.resolve_mode == :auto
+    assert_equal :auto, c.resolve_mode
     c.resolve_mode = :ipv4
-    assert c.resolve_mode == :ipv4
+    assert_equal :ipv4, c.resolve_mode 
     c.resolve_mode = :ipv6
-    assert c.resolve_mode == :ipv6
+    assert_equal :ipv6, c.resolve_mode 
 
     assert_raises(ArgumentError) { c.resolve_mode = :bad }
   end
