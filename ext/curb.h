@@ -20,12 +20,12 @@
 #include "curb_macros.h"
 
 // These should be managed from the Rake 'release' task.
-#define CURB_VERSION   "0.7.16"
-#define CURB_VER_NUM   716
+#define CURB_VERSION   "0.7.17"
+#define CURB_VER_NUM   717
 #define CURB_VER_MAJ   0
 #define CURB_VER_MIN   7
 #define CURB_VER_MIC   1
-#define CURB_VER_PATCH 6
+#define CURB_VER_PATCH 7
 
 
 // Maybe not yet defined in Ruby
