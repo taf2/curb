@@ -286,9 +286,11 @@ VALUE rb_curl_easy_error(CURLcode code) {
     case CURLE_TELNET_OPTION_SYNTAX:    /* 49 - Malformed telnet option */
       exclz = eCurlErrTelnetBadOptionSyntax;
       break;
+#ifdef HAVE_CURLE_OBSOLETE
     case CURLE_OBSOLETE:                /* 50 - NOT USED */
       exclz = eCurlErrObsolete;
       break;
+#endif
     case CURLE_SSL_PEER_CERTIFICATE:    /* 51 - peer's certificate wasn't ok */
       exclz = eCurlErrSSLPeerCertificate;
       break;

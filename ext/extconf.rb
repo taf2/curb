@@ -346,6 +346,8 @@ have_constant "curlopt_telnetoptions"
 # was obsoleted in August 2007 for 7.17.0, reused in April 2011 for 7.21.5
 have_constant "curle_not_built_in"
 
+have_constant "curle_obsolete" # removed in 7.24 ?
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end
