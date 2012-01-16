@@ -683,6 +683,17 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match /message$/, curl.body_str
   end
 
+  # https://github.com/taf2/curb/issues/101
+  def test_put_data_null_bytes
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.put_data = "a\0b"
+ 
+    curl.perform
+    
+    assert_match /^PUT/, curl.body_str
+    assert_match "a\0b", curl.body_str
+  end
+
   def test_put_nil_data_no_crash
     curl = Curl::Easy.new(TestServlet.url)
     curl.put_data = nil
