@@ -1718,6 +1718,36 @@ static VALUE ruby_curl_easy_on_failure_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
+ *  easy.on_missing {|easy,code| ... }                => &lt;old handler;&gt;
+ *
+ *  Assign or remove the on_missing handler for this Curl::Easy instance.
+ *  To remove a previously-supplied handler, call this method with no attached
+ *  block.
+ *
+ *  The +on_missing+ handler is called when request is finished with a 
+ *  status of 40x
+ */
+static VALUE ruby_curl_easy_on_missing_set(int argc, VALUE *argv, VALUE self) {
+  CURB_HANDLER_PROC_HSETTER(ruby_curl_easy, missing_proc);
+}
+
+/*
+ * call-seq:
+ *  easy.on_redirect {|easy,code| ... }                => &lt;old handler;&gt;
+ *
+ *  Assign or remove the on_redirect handler for this Curl::Easy instance.
+ *  To remove a previously-supplied handler, call this method with no attached
+ *  block.
+ *
+ *  The +on_redirect+ handler is called when request is finished with a 
+ *  status of 30x
+ */
+static VALUE ruby_curl_easy_on_redirect_set(int argc, VALUE *argv, VALUE self) {
+  CURB_HANDLER_PROC_HSETTER(ruby_curl_easy, redirect_proc);
+}
+
+/*
+ * call-seq:
  *   easy.on_complete {|easy| ... }                   => &lt;old handler&gt;
  *
  * Assign or remove the +on_complete+ handler for this Curl::Easy instance.
@@ -3309,6 +3339,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_debug", ruby_curl_easy_on_debug_set, -1);
   rb_define_method(cCurlEasy, "on_success", ruby_curl_easy_on_success_set, -1);
   rb_define_method(cCurlEasy, "on_failure", ruby_curl_easy_on_failure_set, -1);
+  rb_define_method(cCurlEasy, "on_missing", ruby_curl_easy_on_missing_set, -1);
+  rb_define_method(cCurlEasy, "on_redirect", ruby_curl_easy_on_redirect_set, -1);
   rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
 
   rb_define_method(cCurlEasy, "http", ruby_curl_easy_perform_verb, 1);

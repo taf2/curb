@@ -561,12 +561,33 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end
 
   def test_on_success_with_on_failure
-    curl = Curl::Easy.new("#{$TEST_URL.gsub(/file:\/\//,'')}/not_here")
+    curl = Curl::Easy.new(TestServlet.url + '/error')
     on_failure_called = false
     curl.on_success {|c| } # make sure we get the failure call even though this handler is defined
     curl.on_failure {|c,code| on_failure_called = true }
     curl.perform
+    assert_equal 500, curl.response_code
     assert on_failure_called, "Failure handler not called" 
+  end
+
+  def test_on_success_with_on_missing
+    curl = Curl::Easy.new(TestServlet.url + '/not_here')
+    on_missing_called = false
+    curl.on_success {|c| } # make sure we get the missing call even though this handler is defined
+    curl.on_missing {|c,code| on_missing_called = true }
+    curl.perform
+    assert_equal 404, curl.response_code
+    assert on_missing_called, "Missing handler not called" 
+  end
+
+  def test_on_success_with_on_redirect
+    curl = Curl::Easy.new(TestServlet.url + '/redirect')
+    on_redirect_called = false
+    curl.on_success {|c| } # make sure we get the redirect call even though this handler is defined
+    curl.on_redirect {|c,code| on_redirect_called = true }
+    curl.perform
+    assert_equal 302, curl.response_code
+    assert on_redirect_called, "Redirect handler not called" 
   end
   
   def test_get_remote
