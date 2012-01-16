@@ -219,6 +219,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->ssl_version = -1;
   rbce->use_ssl = -1;
   rbce->ftp_filemethod = -1;
+  rbce->resolve_mode = CURL_IPRESOLVE_WHATEVER;
 
   /* bool opts */
   rbce->proxy_tunnel = 0;
