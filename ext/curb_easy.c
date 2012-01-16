@@ -54,7 +54,7 @@ static size_t read_data_handler(void *ptr,
     /* copy read_bytes from stream into ptr */
     VALUE str = rb_funcall(stream, rb_intern("read"), 1, rb_int_new(read_bytes) );
     if( str != Qnil ) {
-      memcpy(ptr, StringValueCStr(str), RSTRING_LEN(str));
+      memcpy(ptr, RSTRING_PTR(str), RSTRING_LEN(str));
       return RSTRING_LEN(str);
     }
     else {
@@ -71,7 +71,7 @@ static size_t read_data_handler(void *ptr,
     str = rb_funcall(stream, rb_intern("to_s"), 0);
     len = RSTRING_LEN(str);
     remaining = len - rbcu->offset;
-    str_ptr = StringValueCStr(str);
+    str_ptr = RSTRING_PTR(str);
 
     if( remaining < read_bytes ) {
       if( remaining > 0 ) {
