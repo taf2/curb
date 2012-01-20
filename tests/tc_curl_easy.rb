@@ -621,6 +621,19 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       end
     end
   end
+
+  # see: https://github.com/rvanlieshout/curb/commit/8bcdefddc0162484681ebd1a92d52a642666a445
+  def test_post_multipart_array_remote
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = true
+    fields = [
+      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README'))),
+      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README')))
+    ]
+    curl.http_post(fields)
+    assert_match /HTTP POST file upload/, curl.body_str
+    assert_match /Content-Disposition: form-data/, curl.body_str
+  end
   
   def test_post_with_body_remote
     curl = Curl::Easy.new(TestServlet.url)
@@ -724,7 +737,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
   def test_put_remote_file
     curl = Curl::Easy.new(TestServlet.url)
-    File.open(__FILE__,'r') do|f|
+    File.open(__FILE__,'rb') do|f|
       assert curl.http_put(f)
     end
     assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str

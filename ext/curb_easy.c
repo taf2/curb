@@ -1887,7 +1887,6 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
 
   url = rb_check_string_type(_url);
 
-  // Need to configure the handler as per settings in rbce
   curl_easy_setopt(curl, CURLOPT_URL, StringValuePtr(url));
 
   // network stuff and auth
@@ -2322,6 +2321,17 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
     for (i = 0; i < argc; i++) {
       if (rb_obj_is_instance_of(argv[i], cCurlPostField)) {
         append_to_form(argv[i], &first, &last);
+      } else if (rb_type(argv[i]) == T_ARRAY) {
+        // see: https://github.com/rvanlieshout/curb/commit/8bcdefddc0162484681ebd1a92d52a642666a445
+        int c = 0, argv_len = (int)RARRAY_LEN(argv[i]);
+        for (; c < argv_len; ++c) {
+          if (rb_obj_is_instance_of(rb_ary_entry(argv[i],c), cCurlPostField)) {
+            append_to_form(rb_ary_entry(argv[i],c), &first, &last);
+          } else {
+            rb_raise(eCurlErrInvalidPostField, "You must use PostFields only with multipart form posts");
+            return Qnil;
+          }
+        }
       } else {
         rb_raise(eCurlErrInvalidPostField, "You must use PostFields only with multipart form posts");
         return Qnil;
@@ -2395,10 +2405,9 @@ static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
-  if( onoff == Qtrue ) {
+  if (onoff == Qtrue) {
     curl_easy_setopt(rbce->curl, CURLOPT_NOBODY, 1);
-  }
-  else {
+  } else {
     curl_easy_setopt(rbce->curl, CURLOPT_NOBODY, 0);
   }
 
@@ -2415,13 +2424,13 @@ static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
 static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   ruby_curl_easy *rbce;
   CURL *curl;
-  
+
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
-  
+
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   ruby_curl_easy_put_data_set(self, data);
-  
+
   return rb_funcall(self, rb_intern("perform"), 0);
 }
 
