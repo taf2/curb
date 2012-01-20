@@ -120,7 +120,7 @@ Same thing, more manual:
 
     c = Curl::Easy.new("http://my.rails.box/files/upload")
     c.multipart_form_post = true
-    c.http_post(Curl::PostField.file('myfile.rb'))
+    c.http_post(Curl::PostField.file('thing[file]', 'myfile.rb'))
 
 ### Multi Interface (Basic HTTP GET):
 
