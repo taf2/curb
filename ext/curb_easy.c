@@ -2722,6 +2722,36 @@ static VALUE ruby_curl_easy_redirect_count_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.redirect_url                               => "http://some.url" or nil
+ *
+ * Retrieve  the URL a redirect would take you to if you 
+ * would enable CURLOPT_FOLLOWLOCATION.
+ *
+ * Requires libcurl 7.18.2 or higher, otherwise -1 is always returned.
+ */
+static VALUE ruby_curl_easy_redirect_url_get(VALUE self) {
+#ifdef HAVE_CURLINFO_REDIRECT_URL
+  ruby_curl_easy *rbce;
+  char* url;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl_easy_getinfo(rbce->curl, CURLINFO_REDIRECT_URL, &url);
+
+  if (url && url[0]) {    // curl returns empty string if none
+    return rb_str_new2(url);
+  } else {
+    return Qnil;
+  }
+#else
+  rb_warn("Installed libcurl is too old to support redirect_url");
+  return INT2FIX(-1);
+#endif
+}
+
+
+
+/*
+ * call-seq:
  *   easy.uploaded_bytes                              => float
  *
  * Retrieve the total amount of bytes that were uploaded in the
@@ -3378,6 +3408,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "start_transfer_time", ruby_curl_easy_start_transfer_time_get, 0);
   rb_define_method(cCurlEasy, "redirect_time", ruby_curl_easy_redirect_time_get, 0);
   rb_define_method(cCurlEasy, "redirect_count", ruby_curl_easy_redirect_count_get, 0);
+  rb_define_method(cCurlEasy, "redirect_url", ruby_curl_easy_redirect_url_get, 0);
   rb_define_method(cCurlEasy, "downloaded_bytes", ruby_curl_easy_downloaded_bytes_get, 0);
   rb_define_method(cCurlEasy, "uploaded_bytes", ruby_curl_easy_uploaded_bytes_get, 0);
   rb_define_method(cCurlEasy, "download_speed", ruby_curl_easy_download_speed_get, 0);

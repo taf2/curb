@@ -119,6 +119,9 @@ have_constant "curle_again"
 have_constant "curle_ssl_crl_badfile"
 have_constant "curle_ssl_issuer_error"
 
+# added in 7.18.2
+have_constant "curlinfo_redirect_url"
+
 # username/password added in 7.19.1
 have_constant "curlopt_username"
 have_constant "curlopt_password"
