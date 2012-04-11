@@ -3,6 +3,20 @@ module Curl
 
     #
     # call-seq:
+    #   easy.status  => String
+    #
+    def status
+      parts = self.header_str.split(/\s/)
+      status = []
+      parts.shift
+      while parts.size > 0 && parts.first != ''
+        status << parts.shift
+      end
+      status.join(' ')
+    end
+
+    #
+    # call-seq:
     #   easy.set :sym|Fixnum, value
     # 
     # set options on the curl easy handle see http://curl.haxx.se/libcurl/c/curl_easy_setopt.html

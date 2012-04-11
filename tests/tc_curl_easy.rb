@@ -988,6 +988,12 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert true, "raise in on debug has no effect"
   end
 
+  def test_status_codes
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.perform
+    assert_equal '200 OK', curl.status
+  end
+
   include TestServerMethods 
 
   def setup
