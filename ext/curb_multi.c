@@ -354,7 +354,9 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   if (!rb_easy_nil("complete_proc")) {
     callargs = rb_ary_new3(2, rb_easy_get("complete_proc"), easy);
+    rbce->callback_active = 1;
     val = rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    rbce->callback_active = 0;
     //rb_funcall( rb_easy_get("complete_proc"), idCall, 1, easy );
   }
 
@@ -363,7 +365,9 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   if (result != 0) {
     if (!rb_easy_nil("failure_proc")) {
       callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
+      rbce->callback_active = 1;
       val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+      rbce->callback_active = 0;
       //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
     }
   }
@@ -371,23 +375,31 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
     /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
     callargs = rb_ary_new3(2, rb_easy_get("success_proc"), easy);
+    rbce->callback_active = 1;
     val = rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    rbce->callback_active = 0;
     //rb_funcall( rb_easy_get("success_proc"), idCall, 1, easy );
   }
   else if (!rb_easy_nil("redirect_proc") &&
           (response_code >= 300 && response_code < 400)) {
+    rbce->callback_active = 1;
     callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
+    rbce->callback_active = 0;
     val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
   }
   else if (!rb_easy_nil("missing_proc") &&
           (response_code >= 400 && response_code < 500)) {
+    rbce->callback_active = 1;
     callargs = rb_ary_new3(3, rb_easy_get("missing_proc"), easy, rb_curl_easy_error(result));
+    rbce->callback_active = 0;
     val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
   }
   else if (!rb_easy_nil("failure_proc") &&
           (response_code >= 500 && response_code <= 999)) {
     callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
+    rbce->callback_active = 1;
     val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+    rbce->callback_active = 0;
     //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
   }
 

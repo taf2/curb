@@ -71,6 +71,8 @@ typedef struct {
   char multipart_form_post;
   char enable_cookies;
   char ignore_content_length;
+  char callback_active;
+
   struct curl_slist *curl_headers;
   struct curl_slist *curl_ftp_commands;
 

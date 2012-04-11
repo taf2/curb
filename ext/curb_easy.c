@@ -115,6 +115,30 @@ static size_t proc_data_handler(char *stream,
   }
 }
 
+static size_t proc_data_handler_body(char *stream,
+                                     size_t size,
+                                     size_t nmemb,
+                                     ruby_curl_easy *rbce)
+{
+  size_t ret;
+  rbce->callback_active = 1;
+  ret = proc_data_handler(stream, size, nmemb, rb_easy_get("body_proc"));
+  rbce->callback_active = 0;
+  return ret;
+}
+static size_t proc_data_handler_header(char *stream,
+                                       size_t size,
+                                       size_t nmemb,
+                                       ruby_curl_easy *rbce)
+{
+  size_t ret;
+  rbce->callback_active = 1;
+  ret = proc_data_handler(stream, size, nmemb, rb_easy_get("header_proc"));
+  rbce->callback_active = 0;
+  return ret;
+}
+
+
 static VALUE call_progress_handler(VALUE ary) {
   return rb_funcall(rb_ary_entry(ary, 0), idCall, 4,
                     rb_ary_entry(ary, 1), // rb_float_new(dltotal),
@@ -157,13 +181,14 @@ static int proc_debug_handler(CURL *curl,
                               char *data,
                               size_t data_len,
                               VALUE proc) {
-  VALUE procret;
   VALUE callargs = rb_ary_new2(3);
   rb_ary_store(callargs, 0, proc);
   rb_ary_store(callargs, 1, INT2FIX(type));
   rb_ary_store(callargs, 2, rb_str_new(data, data_len));
   rb_rescue(call_debug_handler, callargs, callback_exception, Qnil);
-  // XXX: no way to indicate to libcurl that we should break out given an exception in the on_debug handler... this means exceptions will be swallowed
+  /* no way to indicate to libcurl that we should break out given an exception in the on_debug handler...
+   * this means exceptions will be swallowed
+   */
   //rb_funcall(proc, idCall, 2, INT2FIX(type), rb_str_new(data, data_len));
   return 0;
 }
@@ -234,6 +259,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->multipart_form_post = 0;
   rbce->enable_cookies = 0;
   rbce->ignore_content_length = 0;
+  rbce->callback_active = 0;
 }
 
 /*
@@ -320,6 +346,10 @@ static VALUE ruby_curl_easy_close(VALUE self) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
+  if (rbce->callback_active) {
+    rb_raise(rb_eRuntimeError, "Cannot close an active curl handle within a callback");
+  }
+
   ruby_curl_easy_free(rbce);
 
   /* reinit the handle */
@@ -358,6 +388,11 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
   ruby_curl_easy *rbce;
   VALUE opts_dup;
   Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (rbce->callback_active) {
+    rb_raise(rb_eRuntimeError, "Cannot close an active curl handle within a callback");
+  }
+
   opts_dup = rb_funcall(rbce->opts, rb_intern("dup"), 0);
 
   curl_easy_reset(rbce->curl);
@@ -1445,17 +1480,6 @@ static VALUE ruby_curl_easy_use_netrc_q(VALUE self) {
 
 /*
  * call-seq:
- *   easy.follow_location = boolean                   => boolean
- *
- * Configure whether this Curl instance will follow Location: headers
- * in HTTP responses. Redirects will only be followed to the extent
- * specified by +max_redirects+.
- */
-static VALUE ruby_curl_easy_follow_location_set(VALUE self, VALUE follow_location) {
-  CURB_BOOLEAN_SETTER(ruby_curl_easy, follow_location);
-}
-/*
- * call-seq:
  *
  * easy = Curl::Easy.new
  * easy.autoreferer=true
@@ -1872,7 +1896,7 @@ static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
  *
  * Always returns Qtrue, rb_raise on error.
  */
-VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
+VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   // TODO this could do with a bit of refactoring...
   CURL *curl;
   VALUE url, _url = rb_easy_get("url");
@@ -1934,8 +1958,8 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
 
   // body/header procs
   if (!rb_easy_nil("body_proc")) {
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&proc_data_handler);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, rb_easy_get("body_proc"));//rbce->body_proc);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&proc_data_handler_body);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, rbce);
     /* clear out the body_data if it was set */
     rb_easy_del("body_data");
   } else {
@@ -1945,8 +1969,8 @@ VALUE ruby_curl_easy_setup( ruby_curl_easy *rbce ) {
   }
 
   if (!rb_easy_nil("header_proc")) {
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&proc_data_handler);
-    curl_easy_setopt(curl, CURLOPT_HEADERDATA, rb_easy_get("header_proc"));
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&proc_data_handler_header);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, rbce);
     /* clear out the header_data if it was set */
     rb_easy_del("header_data");
   } else {
@@ -2203,27 +2227,6 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 }
 
 /*
- * call-seq:
- *   easy.http_get                                    => true
- *
- * GET the currently configured URL using the current options set for
- * this Curl::Easy instance. This method always returns true, or raises
- * an exception (defined under Curl::Err) on error.
- */
-static VALUE ruby_curl_easy_perform_get(VALUE self) {
-  ruby_curl_easy *rbce;
-  CURL *curl;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = rbce->curl;
-
-  curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
-  curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
-
-  return rb_funcall(self, rb_intern("perform"), 0);
-}
-
-/*
  * Common implementation of easy.http(verb) and easy.http_delete
  */
 static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
@@ -2241,18 +2244,6 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
   return retval;
-}
-
-/*
- * call-seq:
- *   easy.http_delete
- *
- * DELETE the currently configured URL using the current options set for
- * this Curl::Easy instance. This method always returns true, or raises
- * an exception (defined under Curl::Err) on error.
- */
-static VALUE ruby_curl_easy_perform_delete(VALUE self) {
-  return ruby_curl_easy_perform_verb_str(self, "DELETE");
 }
 
 /*
@@ -2367,52 +2358,6 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
   }
 }
 
-/*
- * call-seq:
- *   easy.http_head                                   => true
- *
- * Request headers from the currently configured URL using the HEAD
- * method and current options set for this Curl::Easy instance. This
- * method always returns true, or raises an exception (defined under
- * Curl::Err) on error.
- *
- */
-static VALUE ruby_curl_easy_perform_head(VALUE self) {
-  ruby_curl_easy *rbce;
-  CURL *curl;
-  VALUE ret;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl = rbce->curl;
-
-  curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
-
-  ret = rb_funcall(self, rb_intern("perform"), 0);
-
-  curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
-  return ret;
-}
-
-/*
- *call-seq:
- * easy = Curl::Easy.new("url") do|c|
- *  c.head = true
- * end
- * easy.perform
- */
-static VALUE ruby_curl_easy_set_head_option(VALUE self, VALUE onoff) {
-  ruby_curl_easy *rbce;
-
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
-
-  if (onoff == Qtrue) {
-    curl_easy_setopt(rbce->curl, CURLOPT_NOBODY, 1);
-  } else {
-    curl_easy_setopt(rbce->curl, CURLOPT_NOBODY, 0);
-  }
-
-  return onoff;
-}
 /*
  * call-seq:
  *   easy.http_put(data)                              => true
@@ -3100,11 +3045,10 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE verbose = val;
     CURB_BOOLEAN_SETTER(ruby_curl_easy, verbose);
     } break;
-  case CURLOPT_HEADER:
-  case CURLOPT_NOPROGRESS:
-  case CURLOPT_NOSIGNAL:
-    curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, val == Qtrue ? 1 : 0);
-    break;
+  case CURLOPT_FOLLOWLOCATION: {
+    VALUE follow_location = val;
+    CURB_BOOLEAN_SETTER(ruby_curl_easy, follow_location);
+    } break;
   /* TODO: CALLBACK OPTIONS */
   /* TODO: ERROR OPTIONS */
   /* NETWORK OPTIONS */
@@ -3125,6 +3069,22 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_INTERFACE: {
     VALUE interface_hm = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, interface_hm);
+    } break;
+  case CURLOPT_HEADER:
+  case CURLOPT_NOPROGRESS:
+  case CURLOPT_NOSIGNAL:
+  case CURLOPT_HTTPGET:
+  case CURLOPT_NOBODY: {
+    int type = rb_type(val);
+    VALUE value;
+    if (type == T_TRUE) {
+      value = rb_int_new(1);
+    } else if (type == T_FALSE) {
+      value = rb_int_new(0);
+    } else {
+      value = rb_funcall(val, rb_intern("to_i"), 0);
+    }
+    curl_easy_setopt(rbce->curl, option, FIX2INT(value));
     } break;
   case CURLOPT_USERPWD: {
     VALUE userpwd = val;
@@ -3361,7 +3321,6 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "header_in_body?", ruby_curl_easy_header_in_body_q, 0);
   rb_define_method(cCurlEasy, "use_netrc=", ruby_curl_easy_use_netrc_set, 1);
   rb_define_method(cCurlEasy, "use_netrc?", ruby_curl_easy_use_netrc_q, 0);
-  rb_define_method(cCurlEasy, "follow_location=", ruby_curl_easy_follow_location_set, 1);
   rb_define_method(cCurlEasy, "follow_location?", ruby_curl_easy_follow_location_q, 0);
   rb_define_method(cCurlEasy, "autoreferer=", ruby_curl_easy_autoreferer_set, 1);
   rb_define_method(cCurlEasy, "unrestricted_auth=", ruby_curl_easy_unrestricted_auth_set, 1);
@@ -3388,12 +3347,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "on_complete", ruby_curl_easy_on_complete_set, -1);
 
   rb_define_method(cCurlEasy, "http", ruby_curl_easy_perform_verb, 1);
-  rb_define_method(cCurlEasy, "http_delete", ruby_curl_easy_perform_delete, 0);
-  rb_define_method(cCurlEasy, "http_get", ruby_curl_easy_perform_get, 0);
   rb_define_method(cCurlEasy, "http_post", ruby_curl_easy_perform_post, -1);
-  rb_define_method(cCurlEasy, "http_head", ruby_curl_easy_perform_head, 0);
   rb_define_method(cCurlEasy, "http_put", ruby_curl_easy_perform_put, 1);
-  rb_define_method(cCurlEasy, "head=", ruby_curl_easy_set_head_option, 1);
 
   /* Post-perform info methods */
   rb_define_method(cCurlEasy, "body_str", ruby_curl_easy_body_str_get, 0);

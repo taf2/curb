@@ -1,6 +1,9 @@
 module Curl
   class Easy
 
+    alias post http_post
+    alias put http_put
+
     #
     # call-seq:
     #   easy.status  => String
@@ -226,6 +229,72 @@ module Curl
     def cookiejar=(value)
       set :cookiejar, value
     end
+
+    #
+    # call-seq:
+    #  easy = Curl::Easy.new("url") do|c|
+    #   c.head = true
+    #  end
+    #  easy.perform
+    #
+    def head=(onoff)
+      set :nobody, onoff
+    end
+
+    #
+    # call-seq:
+    #   easy.follow_location = boolean                   => boolean
+    #
+    # Configure whether this Curl instance will follow Location: headers
+    # in HTTP responses. Redirects will only be followed to the extent
+    # specified by +max_redirects+.
+    #
+    def follow_location=(onoff)
+      set :followlocation, onoff
+    end
+
+    #
+    # call-seq:
+    #   easy.http_head                                   => true
+    #
+    # Request headers from the currently configured URL using the HEAD
+    # method and current options set for this Curl::Easy instance. This
+    # method always returns true, or raises an exception (defined under
+    # Curl::Err) on error.
+    #
+    def http_head
+      set :nobody, true
+      ret = self.perform
+      set :nobody, false
+      ret
+    end
+
+    #
+    # call-seq:
+    #   easy.http_get                                    => true
+    #
+    # GET the currently configured URL using the current options set for
+    # this Curl::Easy instance. This method always returns true, or raises
+    # an exception (defined under Curl::Err) on error.
+    #
+    def http_get
+      set :httpget, true
+      http :GET
+    end
+    alias get http_get
+
+    #
+    # call-seq:
+    #   easy.http_delete
+    #
+    # DELETE the currently configured URL using the current options set for
+    # this Curl::Easy instance. This method always returns true, or raises
+    # an exception (defined under Curl::Err) on error.
+    #
+    def http_delete
+      self.http :DELETE
+    end
+    alias delete http_delete
 
     class << self
 

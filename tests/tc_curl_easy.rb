@@ -994,6 +994,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal '200 OK', curl.status
   end
 
+  def test_close_in_on_callbacks
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.on_body {|d| curl.close; d.size }
+    assert_raises RuntimeError do
+      curl.perform
+    end
+  end
+
   include TestServerMethods 
 
   def setup
