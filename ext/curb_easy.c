@@ -3148,8 +3148,10 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     } break;
   case CURLOPT_RESUME_FROM: {
     curl_easy_setopt(rbce->curl, CURLOPT_RESUME_FROM, FIX2LONG(val));
-    break;
-   }
+    } break;
+  case CURLOPT_FAILONERROR: {
+    curl_easy_setopt(rbce->curl, CURLOPT_FAILONERROR, FIX2LONG(val));
+    } break;
   default:
     break;
   }
