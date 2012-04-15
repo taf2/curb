@@ -1,7 +1,5 @@
 # Curb - Libcurl bindings for Ruby
 
-![build status](https://secure.travis-ci.org/taf2/curb.png "Build Status")
-
 + [rubyforge rdoc](http://curb.rubyforge.org/)
 + [rubyforge project](http://rubyforge.org/projects/curb)
 + [github project](http://github.com/taf2/curb/tree/master)
@@ -57,6 +55,19 @@ Curb provides two classes:
 
 + Curl::Easy - simple API, for day-to-day tasks.
 + Curl::Multi - more advanced API, for operating on multiple URLs simultaneously.
+
+### Super simple API (less typing)
+
+    http = Curl.get("http://www.google.com/")
+    puts http.body_str
+
+    http = Curl.post("http://www.google.com/", {:foo => "bar"})
+    puts http.body_str
+
+    http = Curl.get("http://www.google.com/") do|http|
+      http.headers['Cookie'] = 'foo=1;bar=2'
+    end
+    puts http.body_str
 
 ### Simple fetch via HTTP:
 
@@ -122,7 +133,7 @@ Same thing, more manual:
 
     c = Curl::Easy.new("http://my.rails.box/files/upload")
     c.multipart_form_post = true
-    c.http_post(Curl::PostField.file('myfile.rb'))
+    c.http_post(Curl::PostField.file('thing[file]', 'myfile.rb'))
 
 ### Multi Interface (Basic HTTP GET):
 
