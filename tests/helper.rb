@@ -9,7 +9,7 @@ $LIBDIR = File.join($TOPDIR, 'lib')
 $:.unshift($LIBDIR)
 $:.unshift($EXTDIR)
 
-require 'curb'
+require 'curl'
 require 'test/unit'
 require 'fileutils'
 
@@ -73,12 +73,12 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
     elsif req.path.match /error$/
       res.status = 500
     end
-    respond_with(:GET,req,res)
+    respond_with("GET#{req.query_string}",req,res)
   end
 
   def do_HEAD(req,res)
     res['Location'] = "/nonexistent"
-    respond_with(:HEAD, req, res)
+    respond_with("HEAD#{req.query_string}",req,res)
   end
 
   def do_POST(req,res)
@@ -103,15 +103,23 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_DELETE(req,res)
-    respond_with(:DELETE,req,res)
+    respond_with("DELETE#{req.query_string}",req,res)
   end
 
   def do_PURGE(req,res)
-    respond_with(:PURGE,req,res)
+    respond_with("PURGE#{req.query_string}",req,res)
   end
 
   def do_COPY(req,res)
-    respond_with(:COPY,req,res)
+    respond_with("COPY#{req.query_string}",req,res)
+  end
+
+  def do_PATCH(req,res)
+    respond_with("PATCH\n#{req.body}",req,res)
+  end
+
+  def do_OPTIONS(req,res)
+    respond_with("OPTIONS#{req.query_string}",req,res)
   end
 
 end

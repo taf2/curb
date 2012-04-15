@@ -56,6 +56,19 @@ Curb provides two classes:
 + Curl::Easy - simple API, for day-to-day tasks.
 + Curl::Multi - more advanced API, for operating on multiple URLs simultaneously.
 
+### Super simple API (less typing)
+
+    http = Curl.get("http://www.google.com/")
+    puts http.body_str
+
+    http = Curl.post("http://www.google.com/", {:foo => "bar"})
+    puts http.body_str
+
+    http = Curl.get("http://www.google.com/") do|http|
+      http.headers['Cookie'] = 'foo=1;bar=2'
+    end
+    puts http.body_str
+
 ### Simple fetch via HTTP:
 
     c = Curl::Easy.perform("http://www.google.co.uk")
