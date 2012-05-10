@@ -9,7 +9,7 @@ $LIBDIR = File.join($TOPDIR, 'lib')
 $:.unshift($LIBDIR)
 $:.unshift($EXTDIR)
 
-require 'curl'
+require 'curb'
 require 'test/unit'
 require 'fileutils'
 
