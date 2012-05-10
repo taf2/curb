@@ -404,7 +404,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
-  def test_mutli_recieves_500
+  def test_multi_recieves_500
     m = Curl::Multi.new
     e = Curl::Easy.new("http://127.0.0.1:9129/methods")
     failure = false
