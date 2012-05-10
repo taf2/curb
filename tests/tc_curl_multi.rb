@@ -304,7 +304,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
     urls = urls[0..(urls.size/2)] # keep it fast, webrick...
     Curl::Multi.get(urls, {:follow_location => true}, {:pipeline => true}) do|curl|
-      assert_equal 999, curl.response_code
+      assert_equal 200, curl.response_code
     end
   end
 
@@ -325,7 +325,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     # start downloads
     Curl::Multi.download(urls,{},{},downloads) do|curl,download_path|
-      assert_equal 999, curl.response_code
+      assert_equal 200, curl.response_code
       assert File.exist?(download_path)
       store = file_info[File.basename(download_path)]
       assert_equal file_info[File.basename(download_path)][:size], File.size(download_path), "incomplete download: #{download_path}"
@@ -342,7 +342,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     ]
     Curl::Multi.post(urls, {:follow_location => true, :multipart_form_post => true}, {:pipeline => true}) do|easy|
       str = easy.body_str
-      assert_match /BROKEN/, str
+      assert_match /POST/, str
       fields = {}
       str.gsub(/POST\n/,'').split('&').map{|sv| k, v = sv.split('='); fields[k] = v }
       expected = urls.find{|s| s[:url] == easy.last_effective_url }
@@ -357,7 +357,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
            { :url => TestServlet.url, :method => :put, :put_data => "message",
              :headers => {'Content-Type' => 'application/json' } }]
     Curl::Multi.put(urls, {}, {:pipeline => true}) do|easy|
-      assert_match /BROKEN/, easy.body_str
+      assert_match /PUT/, easy.body_str
       assert_match /message/, easy.body_str
     end
   end
@@ -375,11 +375,11 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       assert_equal nil, code
       case method
       when :post
-        assert_match /BROKEN/, easy.body_str
+        assert_match /POST/, easy.body_str
       when :get
-        assert_match /BROKEN/, easy.body_str
+        assert_match /GET/, easy.body_str
       when :put
-        assert_match /BROKEN/, easy.body_str
+        assert_match /PUT/, easy.body_str
       end
       #puts "#{easy.body_str.inspect}, #{method.inspect}, #{code.inspect}"
     end
