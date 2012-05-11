@@ -157,13 +157,17 @@ module Curl
           end
         end
 
-        until urls_with_config.empty?
-          m.perform do
+        if urls_with_config.empty?
+          m.perform
+        else
+          until urls_with_config.empty?
+            m.perform do
+              consume_free_handles.call
+            end
             consume_free_handles.call
           end
-          consume_free_handles.call
+          free_handles = nil
         end
-        free_handles = nil 
       end
 
       # call-seq:
