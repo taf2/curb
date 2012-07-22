@@ -51,7 +51,7 @@ module Curl
   end
 
   def self.postalize(params={})
-    params.map {|k,v| "#{URI.escape(k.to_s)}=#{URI.escape(v.to_s)}" }.join('&')
+    URI.encode_www_form(params)
   end
 
 end
