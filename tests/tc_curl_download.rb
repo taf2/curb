@@ -8,7 +8,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
   end
   
   def test_download_url_to_file_via_string
-    dl_url = "http://localhost:9129/ext/curb_easy.c"
+    dl_url = "http://127.0.0.1:9129/ext/curb_easy.c"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
 
     curb = Curl::Easy.download(dl_url, dl_path)
@@ -19,7 +19,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
   end
 
   def test_download_url_to_file_via_file_io
-    dl_url = "http://localhost:9129/ext/curb_easy.c"
+    dl_url = "http://127.0.0.1:9129/ext/curb_easy.c"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
     io = File.open(dl_path, 'wb')
 
@@ -32,7 +32,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
   end
 
   def test_download_url_to_file_via_io
-    dl_url = "http://localhost:9129/ext/curb_easy.c"
+    dl_url = "http://127.0.0.1:9129/ext/curb_easy.c"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
     reader, writer = IO.pipe
 
@@ -62,7 +62,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
   end
 
   def test_download_bad_url_gives_404
-    dl_url = "http://localhost:9129/this_file_does_not_exist.html"
+    dl_url = "http://127.0.0.1:9129/this_file_does_not_exist.html"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
 
     curb = Curl::Easy.download(dl_url, dl_path)
