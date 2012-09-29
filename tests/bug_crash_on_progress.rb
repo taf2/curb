@@ -16,7 +16,7 @@ class BugCrashOnDebug < Test::Unit::TestCase
       srv.start
     end
 
-    c = Curl::Easy.new('http://localhost:9999/test')
+    c = Curl::Easy.new('http://127.0.0.1:9999/test')
     c.on_progress do|x|
       raise "error"
     end
