@@ -589,8 +589,10 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
       switch(rc) {
       case -1:
-        rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-        break;
+        if(errno != EINTR) {
+          rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+          break;
+        }
       case 0: /* timeout */
       default: /* action */
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
