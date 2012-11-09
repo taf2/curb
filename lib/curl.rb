@@ -45,8 +45,10 @@ module Curl
     query_str = params.map {|k,v| "#{URI.escape(k.to_s)}=#{URI.escape(v.to_s)}" }.join('&')
     if url.match(/\?/)
       "#{url}&#{query_str}"
-    else
+    elsif query_str.size > 0
       "#{url}?#{query_str}"
+    else
+      url
     end
   end
 
