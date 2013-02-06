@@ -310,7 +310,7 @@ module Curl
       # the +http_get+ call.
       #
       def perform(*args)
-        c = Curl::Easy.new *args
+        c = Curl::Easy.new(*args)
         yield c if block_given?
         c.perform
         c
@@ -327,7 +327,7 @@ module Curl
       # the +http_get+ call.
       #
       def http_get(*args)
-        c = Curl::Easy.new *args
+        c = Curl::Easy.new(*args)
         yield c if block_given?
         c.http_get
         c
@@ -344,7 +344,7 @@ module Curl
       # the +http_head+ call.
       #
       def http_head(*args)
-        c = Curl::Easy.new *args
+        c = Curl::Easy.new(*args)
         yield c if block_given?
         c.http_head
         c
@@ -383,7 +383,7 @@ module Curl
         url = args.shift
         c = Curl::Easy.new url
         yield c if block_given?
-        c.http_post *args
+        c.http_post(*args)
         c
       end
 
@@ -398,7 +398,7 @@ module Curl
       # the +http_delete+ call.
       #
       def http_delete(*args)
-        c = Curl::Easy.new *args
+        c = Curl::Easy.new(*args)
         yield c if block_given?
         c.http_delete
         c
