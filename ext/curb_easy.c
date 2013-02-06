@@ -703,8 +703,8 @@ static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
   curl = rbce->curl;
   
   if ( post_body == Qnil ) {
-    //rbce->postdata_buffer = Qnil;
     rb_easy_del("postdata_buffer");
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
     
   } else {  
     if (rb_type(post_body) == T_STRING) {
