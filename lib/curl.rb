@@ -1,4 +1,6 @@
-require 'curb'
+require 'curb_core'
+require 'curl/easy'
+require 'curl/multi'
 require 'uri'
 
 # expose shortcut methods
