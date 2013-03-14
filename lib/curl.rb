@@ -1,4 +1,6 @@
-require 'curb'
+require 'curb_core'
+require 'curl/easy'
+require 'curl/multi'
 require 'uri'
 
 # expose shortcut methods
@@ -45,13 +47,15 @@ module Curl
     query_str = params.map {|k,v| "#{URI.escape(k.to_s)}=#{URI.escape(v.to_s)}" }.join('&')
     if url.match(/\?/)
       "#{url}&#{query_str}"
-    else
+    elsif query_str.size > 0
       "#{url}?#{query_str}"
+    else
+      url
     end
   end
 
   def self.postalize(params={})
-    URI.encode_www_form(params)
+    params.respond_to?(:map) ? URI.encode_www_form(params) : (params.respond_to?(:to_s) ? params.to_s : params)
   end
 
 end

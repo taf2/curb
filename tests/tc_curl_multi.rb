@@ -429,7 +429,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     c = Curl::Easy.new("http://127.9.9.9:999110")
     m.remove(c)
   rescue => e
-    assert_equal 'Invalid easy handle', e.message
+    assert_equal 'CURLError: Invalid easy handle', e.message
     assert_equal 0, m.requests.size
   end
 

@@ -459,7 +459,8 @@ VALUE rb_curl_easy_error(CURLcode code) {
 /* rb_raise an approriate exception for the supplied CURLcode */
 void raise_curl_easy_error_exception(CURLcode code) {
   VALUE obj = rb_curl_easy_error(code);
-  rb_raise(rb_ary_entry(obj,0), "%s", RSTRING_PTR(rb_ary_entry(obj,1)));
+  VALUE exmsg = rb_ary_entry(obj,1);
+  rb_raise(rb_ary_entry(obj,0), "CURLError: %s", StringValueCStr(exmsg));
 }
 VALUE rb_curl_multi_error(CURLMcode code) {
   VALUE exclz;
@@ -509,7 +510,8 @@ VALUE rb_curl_multi_error(CURLMcode code) {
 }
 void raise_curl_multi_error_exception(CURLMcode code) {
   VALUE obj = rb_curl_multi_error(code);
-  rb_raise(rb_ary_entry(obj,0), "%s", RSTRING_PTR(rb_ary_entry(obj,1)));
+  VALUE exmsg = rb_ary_entry(obj,1);
+  rb_raise(rb_ary_entry(obj,0), "CURLError: %s", StringValueCStr(exmsg));
 }
 
 void init_curb_errors() {

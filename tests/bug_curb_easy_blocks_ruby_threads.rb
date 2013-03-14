@@ -21,7 +21,7 @@ class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
 
     5.times do |i|
       t = Thread.new do
-        c = Curl::Easy.perform('http://localhost:9999/test')
+        c = Curl::Easy.perform('http://127.0.0.1:9999/test')
         c.header_str
       end
       threads << t
@@ -37,7 +37,7 @@ class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
     timer = Time.now
     single_responses = []
     5.times do |i|
-      c = Curl::Easy.perform('http://localhost:9999/test')
+      c = Curl::Easy.perform('http://127.0.0.1:9999/test')
       single_responses << c.header_str
     end
     
