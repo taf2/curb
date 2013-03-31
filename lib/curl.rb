@@ -36,7 +36,7 @@ module Curl
   end
 
   def self.head(url, params={}, &block)
-    http :OPTIONS, urlalize(url, params), nil, nil, &block
+    http :HEAD, urlalize(url, params), nil, nil, &block
   end
 
   def self.options(url, params={}, &block)
