@@ -351,6 +351,11 @@ have_constant "curle_not_built_in"
 
 have_constant "curle_obsolete" # removed in 7.24 ?
 
+# gssapi/spnego delegation related constants
+have_constant "curlopt_gssapi_delegation"
+have_constant "curlgssapi_delegation_policy_flag"
+have_constant "curlgssapi_delegation_flag"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end
