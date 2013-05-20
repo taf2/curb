@@ -4,6 +4,21 @@ class FooNoToS
 end
 
 class TestCurbCurlEasy < Test::Unit::TestCase
+  def test_threads
+    t = []
+    5.times do
+      t << Thread.new do
+        5.times do
+          c = Curl.get($TEST_URL)
+          assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
+          assert_equal "", c.header_str
+        end
+      end
+    end
+
+    t.each {|t| t.join }
+  end
+
   def test_class_perform_01   
     assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
