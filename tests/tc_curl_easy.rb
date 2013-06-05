@@ -11,7 +11,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
         5.times do
           c = Curl.get($TEST_URL)
           assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
+          assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body)
           assert_equal "", c.header_str
+          assert_equal "", c.head
         end
       end
     end
@@ -22,6 +24,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_class_perform_01   
     assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
+    assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body)
     assert_equal "", c.header_str
   end    
 
@@ -719,7 +722,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert curl.http_put("message")
     assert_match /^PUT/, curl.body_str
     assert_match /message$/, curl.body_str
+    assert_match /message$/, curl.body
     assert_match /application\/json/, curl.header_str
+    assert_match /application\/json/, curl.head
   end 
   
   def test_put_data
