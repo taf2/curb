@@ -3113,7 +3113,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_FAILONERROR, FIX2LONG(val));
     } break;
   case CURLOPT_GSSAPI_DELEGATION: {
-	curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, FIX2LONG(val));
+    curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, FIX2LONG(val));
     } break;
   default:
     break;
