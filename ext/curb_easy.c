@@ -2588,6 +2588,7 @@ static VALUE ruby_curl_easy_connect_time_get(VALUE self) {
  * pippelining where the pretransfer time can be delayed due to waits in line
  * for the pipeline and more.
  */
+#if defined(HAVE_CURLINFO_APPCONNECT_TIME)
 static VALUE ruby_curl_easy_app_connect_time_get(VALUE self) {
   ruby_curl_easy *rbce;
   double time;
@@ -2597,6 +2598,7 @@ static VALUE ruby_curl_easy_app_connect_time_get(VALUE self) {
 
   return rb_float_new(time);
 }
+#endif
 
 
 /*
@@ -3390,7 +3392,9 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "total_time", ruby_curl_easy_total_time_get, 0);
   rb_define_method(cCurlEasy, "name_lookup_time", ruby_curl_easy_name_lookup_time_get, 0);
   rb_define_method(cCurlEasy, "connect_time", ruby_curl_easy_connect_time_get, 0);
+#if defined(HAVE_CURLINFO_APPCONNECT_TIME)
   rb_define_method(cCurlEasy, "app_connect_time", ruby_curl_easy_app_connect_time_get, 0);
+#endif
   rb_define_method(cCurlEasy, "pre_transfer_time", ruby_curl_easy_pre_transfer_time_get, 0);
   rb_define_method(cCurlEasy, "start_transfer_time", ruby_curl_easy_start_transfer_time_get, 0);
   rb_define_method(cCurlEasy, "redirect_time", ruby_curl_easy_redirect_time_get, 0);
