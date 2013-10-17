@@ -23,7 +23,7 @@ module Curl
     #
     # call-seq:
     #   easy.set :sym|Fixnum, value
-    # 
+    #
     # set options on the curl easy handle see http://curl.haxx.se/libcurl/c/curl_easy_setopt.html
     #
     def set(opt,val)
@@ -58,7 +58,7 @@ module Curl
       ret = self.multi.perform
 
       if self.last_result != 0 && self.on_failure.nil?
-        error = Curl::Easy.error(self.last_result) 
+        error = Curl::Easy.error(self.last_result)
         raise error.first
       end
 
@@ -86,51 +86,51 @@ module Curl
       set :customrequest, onoff ? 'delete' : nil
       onoff
     end
-    # 
+    #
     # call-seq:
-    # 
+    #
     #  easy = Curl::Easy.new("url")
     #  easy.version = Curl::HTTP_1_1
     #  easy.version = Curl::HTTP_1_0
     #  easy.version = Curl::HTTP_NONE
-    # 
+    #
     def version=(http_version)
       set :http_version, http_version
     end
 
-    # 
+    #
     # call-seq:
     #   easy.url = "http://some.url/"                    => "http://some.url/"
-    # 
+    #
     # Set the URL for subsequent calls to +perform+. It is acceptable
     # (and even recommended) to reuse Curl::Easy instances by reassigning
     # the URL between calls to +perform+.
-    # 
+    #
     def url=(u)
       set :url, u
     end
 
-    # 
+    #
     # call-seq:
     #   easy.proxy_url = string                          => string
-    # 
+    #
     # Set the URL of the HTTP proxy to use for subsequent calls to +perform+.
     # The URL should specify the the host name or dotted IP address. To specify
     # port number in this string, append :[port] to the end of the host name.
     # The proxy string may be prefixed with [protocol]:// since any such prefix
     # will be ignored. The proxy's port number may optionally be specified with
     # the separate option proxy_port .
-    # 
+    #
     # When you tell the library to use an HTTP proxy, libcurl will transparently
     # convert operations to HTTP even if you specify an FTP URL etc. This may have
     # an impact on what other features of the library you can use, such as
     # FTP specifics that don't work unless you tunnel through the HTTP proxy. Such
     # tunneling is activated with proxy_tunnel = true.
-    # 
+    #
     # libcurl respects the environment variables *http_proxy*, *ftp_proxy*,
     # *all_proxy* etc, if any of those is set. The proxy_url option does however
     # override any possibly set environment variables.
-    # 
+    #
     # Starting with libcurl 7.14.1, the proxy host string given in environment
     # variables can be specified the exact same way as the proxy can be set with
     # proxy_url, including protocol prefix (http://) and embedded user + password.
@@ -145,89 +145,89 @@ module Curl
       self.ssl_verify_host_integer=value
     end
 
-    # 
+    #
     # call-seq:
     #   easy.ssl_verify_host?                            => boolean
-    # 
+    #
     # Deprecated: call easy.ssl_verify_host instead
     # can be one of [0,1,2]
-    # 
+    #
     # Determine whether this Curl instance will verify that the server cert
     # is for the server it is known as.
-    # 
+    #
     def ssl_verify_host?
       ssl_verify_host.nil? ? false : (ssl_verify_host > 0)
     end
 
-    # 
+    #
     # call-seq:
     #   easy.interface = string                          => string
-    # 
+    #
     # Set the interface name to use as the outgoing network interface.
     # The name can be an interface name, an IP address or a host name.
-    # 
+    #
     def interface=(value)
       set :interface, value
     end
 
-    # 
+    #
     # call-seq:
     #   easy.userpwd = string                            => string
-    # 
+    #
     # Set the username/password string to use for subsequent calls to +perform+.
     # The supplied string should have the form "username:password"
-    # 
+    #
     def userpwd=(value)
       set :userpwd, value
     end
 
-    # 
+    #
     # call-seq:
     #   easy.proxypwd = string                           => string
-    # 
+    #
     # Set the username/password string to use for proxy connection during
     # subsequent calls to +perform+. The supplied string should have the
     # form "username:password"
-    # 
+    #
     def proxypwd=(value)
       set :proxyuserpwd, value
     end
 
-    # 
+    #
     # call-seq:
     #   easy.cookies = "name1=content1; name2=content2;" => string
-    # 
+    #
     # Set cookies to be sent by this Curl::Easy instance. The format of the string should
     # be NAME=CONTENTS, where NAME is the cookie name and CONTENTS is what the cookie should contain.
     # Set multiple cookies in one string like this: "name1=content1; name2=content2;" etc.
-    # 
+    #
     def cookies=(value)
       set :cookie, value
     end
 
-    # 
+    #
     # call-seq:
     #   easy.cookiefile = string                         => string
-    # 
+    #
     # Set a file that contains cookies to be sent in subsequent requests by this Curl::Easy instance.
-    # 
+    #
     # *Note* that you must set enable_cookies true to enable the cookie
     # engine, or this option will be ignored.
-    # 
+    #
     def cookiefile=(value)
       set :cookiefile, value
     end
 
-    # 
+    #
     # call-seq:
     #   easy.cookiejar = string                          => string
-    # 
+    #
     # Set a cookiejar file to use for this Curl::Easy instance.
     # Cookies from the response will be written into this file.
-    # 
+    #
     # *Note* that you must set enable_cookies true to enable the cookie
     # engine, or this option will be ignored.
-    # 
+    #
     def cookiejar=(value)
       set :cookiejar, value
     end
@@ -405,35 +405,35 @@ module Curl
         c.http_delete
         c
       end
-    
+
       # call-seq:
       #   Curl::Easy.download(url, filename = url.split(/\?/).first.split(/\//).last) { |curl| ... }
-      #   
+      #
       # Stream the specified url (via perform) and save the data directly to the
-      # supplied filename (defaults to the last component of the URL path, which will 
+      # supplied filename (defaults to the last component of the URL path, which will
       # usually be the filename most simple urls).
-      # 
+      #
       # If a block is supplied, it will be passed the curl instance prior to the
       # perform call.
-      # 
+      #
       # *Note* that the semantics of the on_body handler are subtly changed when using
-      # download, to account for the automatic routing of data to the specified file: The 
+      # download, to account for the automatic routing of data to the specified file: The
       # data string is passed to the handler *before* it is written
-      # to the file, allowing the handler to perform mutative operations where 
+      # to the file, allowing the handler to perform mutative operations where
       # necessary. As usual, the transfer will be aborted if the on_body handler
-      # returns a size that differs from the data chunk size - in this case, the 
+      # returns a size that differs from the data chunk size - in this case, the
       # offending chunk will *not* be written to the file, the file will be closed,
       # and a Curl::Err::AbortedByCallbackError will be raised.
       def download(url, filename = url.split(/\?/).first.split(/\//).last, &blk)
         curl = Curl::Easy.new(url, &blk)
-        
+
         output = if filename.is_a? IO
           filename.binmode if filename.respond_to?(:binmode)
           filename
         else
           File.open(filename, 'wb')
         end
-        
+
         begin
           old_on_body = curl.on_body do |data|
             result = old_on_body ?  old_on_body.call(data) : data.length
@@ -444,7 +444,7 @@ module Curl
         ensure
           output.close rescue IOError
         end
-        
+
         return curl
       end
     end
