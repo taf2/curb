@@ -466,7 +466,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.add(c)
     m.add(c)
   rescue => e
-    assert_equal Curl::Err::MultiAddedAlready, e.class
+    assert Curl::Err::MultiBadEasyHandle == e.class || Curl::Err::MultiAddedAlready == e.class
   end
 
   def test_multi_default_timeout

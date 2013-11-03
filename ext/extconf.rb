@@ -357,6 +357,8 @@ have_constant "curlopt_gssapi_delegation"
 have_constant "curlgssapi_delegation_policy_flag"
 have_constant "curlgssapi_delegation_flag"
 
+have_constant "CURLM_ADDED_ALREADY"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end

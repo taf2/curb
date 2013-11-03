@@ -116,7 +116,9 @@ extern VALUE mCurlErrOutOfMemory;
 extern VALUE mCurlErrInternalError;
 extern VALUE mCurlErrBadSocket;
 extern VALUE mCurlErrUnknownOption;
+#if HAVE_CURLM_ADDED_ALREADY
 extern VALUE mCurlErrAddedAlready;
+#endif
 
 /* binding errors */
 extern VALUE eCurlErrInvalidPostField;

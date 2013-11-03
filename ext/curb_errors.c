@@ -118,7 +118,9 @@ VALUE mCurlErrBadEasyHandle;
 VALUE mCurlErrOutOfMemory;
 VALUE mCurlErrInternalError;
 VALUE mCurlErrBadSocket;
+#if HAVE_CURLM_ADDED_ALREADY
 VALUE mCurlErrAddedAlready;
+#endif
 VALUE mCurlErrUnknownOption;
 
 /* binding errors */
@@ -494,9 +496,11 @@ VALUE rb_curl_multi_error(CURLMcode code) {
       exclz = mCurlErrUnknownOption;
       break;
 #endif
+#if HAVE_CURLM_ADDED_ALREADY
     case CURLM_ADDED_ALREADY: /* 7 */
       exclz = mCurlErrAddedAlready;
       break;
+#endif
     default:
       exclz = eCurlErrError;
       exmsg = "Unknown error result from libcurl";
@@ -629,7 +633,9 @@ void init_curb_errors() {
   mCurlErrOutOfMemory        = rb_define_class_under(mCurlErr, "MultiOutOfMemory", eCurlErrError);
   mCurlErrInternalError      = rb_define_class_under(mCurlErr, "MultiInternalError", eCurlErrError);
   mCurlErrBadSocket          = rb_define_class_under(mCurlErr, "MultiBadSocket", eCurlErrError);
+#if HAVE_CURLM_ADDED_ALREADY
   mCurlErrAddedAlready       = rb_define_class_under(mCurlErr, "MultiAddedAlready", eCurlErrError);
+#endif
   mCurlErrUnknownOption      = rb_define_class_under(mCurlErr, "MultiUnknownOption", eCurlErrError);
 
   eCurlErrLDAPInvalidURL = rb_define_class_under(mCurlErr, "InvalidLDAPURLError", eCurlErrLDAPError);
