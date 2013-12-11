@@ -24,7 +24,7 @@
 require 'test/unit'
 require 'rbconfig'
 
-$rubycmd = Config::CONFIG['RUBY_INSTALL_NAME'] || 'ruby'
+$rubycmd = RbConfig::CONFIG['RUBY_INSTALL_NAME'] || 'ruby'
 
 class BugTestRequireLastOrSegfault < Test::Unit::TestCase
   def test_bug

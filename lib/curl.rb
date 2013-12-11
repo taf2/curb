@@ -7,7 +7,9 @@ require 'uri'
 module Curl
   
   def self.http(verb, url, post_body=nil, put_data=nil, &block)
-    handle = Curl::Easy.new(url)
+    handle = Thread.current[:curb_curl] ||= Curl::Easy.new
+    handle.reset
+    handle.url = url
     handle.post_body = post_body if post_body
     handle.put_data = put_data if put_data
     yield handle if block_given?
@@ -36,7 +38,7 @@ module Curl
   end
 
   def self.head(url, params={}, &block)
-    http :OPTIONS, urlalize(url, params), nil, nil, &block
+    http :HEAD, urlalize(url, params), nil, nil, &block
   end
 
   def self.options(url, params={}, &block)

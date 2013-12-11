@@ -3,6 +3,8 @@ module Curl
 
     alias post http_post
     alias put http_put
+    alias body body_str
+    alias head header_str
 
     #
     # call-seq:

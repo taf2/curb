@@ -59,6 +59,7 @@ def have_constant(name)
   end
 end
 
+have_constant "curlinfo_appconnect_time"
 have_constant "curlinfo_redirect_time"
 have_constant "curlinfo_response_code"
 have_constant "curlinfo_filetime"
@@ -350,6 +351,11 @@ have_constant "curlopt_telnetoptions"
 have_constant "curle_not_built_in"
 
 have_constant "curle_obsolete" # removed in 7.24 ?
+
+# gssapi/spnego delegation related constants
+have_constant "curlopt_gssapi_delegation"
+have_constant "curlgssapi_delegation_policy_flag"
+have_constant "curlgssapi_delegation_flag"
 
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
