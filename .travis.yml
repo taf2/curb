@@ -5,4 +5,8 @@ rvm:
   - 1.9.2
   - ruby-head
   - rbx
+matrix:
+  allow_failures:
+   - rvm: rbx
+  fast_finish: true
 cache: bundler
