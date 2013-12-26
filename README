@@ -104,6 +104,12 @@ Same thing, more manual:
     c.password = 'bar'
     c.perform
 
+### HTTP "insecure" SSL connections/transfers (like curl -k, --insecure) to avoid Curl::Err::SSLCACertificateError:
+
+    c = Curl::Easy.new("http://github.com/")
+    c.ssl_verify_peer = false
+    c.perform
+
 ### Supplying custom handlers:
 
     c = Curl::Easy.new("http://www.google.co.uk")
