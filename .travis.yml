@@ -4,4 +4,9 @@ rvm:
   - 1.9.3
   - 1.9.2
   - ruby-head
-  - rbx-19mode
+  - rbx
+matrix:
+  allow_failures:
+   - rvm: rbx
+  fast_finish: true
+cache: bundler
