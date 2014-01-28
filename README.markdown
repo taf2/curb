@@ -31,7 +31,7 @@ Or, if you downloaded the archive:
 
     $ rake install 
 
-If you have a wierd setup, you might need extconf options. In this case, pass
+If you have a weird setup, you might need extconf options. In this case, pass
 them like so:
 
     $ rake install EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever'
