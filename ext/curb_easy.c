@@ -2601,6 +2601,29 @@ static VALUE ruby_curl_easy_connect_time_get(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.app_connect_time                         => float
+ *
+ * Retrieve the time, in seconds, it took from the start until the SSL/SSH
+ * connect/handshake to the remote host was completed. This time is most often
+ * very near to the pre transfer time, except for cases such as HTTP
+ * pippelining where the pretransfer time can be delayed due to waits in line
+ * for the pipeline and more.
+ */
+#if defined(HAVE_CURLINFO_APPCONNECT_TIME)
+static VALUE ruby_curl_easy_app_connect_time_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  double time;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl_easy_getinfo(rbce->curl, CURLINFO_APPCONNECT_TIME, &time);
+
+  return rb_float_new(time);
+}
+#endif
+
+
+/*
+ * call-seq:
  *   easy.pre_transfer_time                           => float
  *
  * Retrieve the time, in seconds, it took from the start until the
@@ -3396,6 +3419,9 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "total_time", ruby_curl_easy_total_time_get, 0);
   rb_define_method(cCurlEasy, "name_lookup_time", ruby_curl_easy_name_lookup_time_get, 0);
   rb_define_method(cCurlEasy, "connect_time", ruby_curl_easy_connect_time_get, 0);
+#if defined(HAVE_CURLINFO_APPCONNECT_TIME)
+  rb_define_method(cCurlEasy, "app_connect_time", ruby_curl_easy_app_connect_time_get, 0);
+#endif
   rb_define_method(cCurlEasy, "pre_transfer_time", ruby_curl_easy_pre_transfer_time_get, 0);
   rb_define_method(cCurlEasy, "start_transfer_time", ruby_curl_easy_start_transfer_time_get, 0);
   rb_define_method(cCurlEasy, "redirect_time", ruby_curl_easy_redirect_time_get, 0);

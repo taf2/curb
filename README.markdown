@@ -31,7 +31,7 @@ Or, if you downloaded the archive:
 
     $ rake install 
 
-If you have a wierd setup, you might need extconf options. In this case, pass
+If you have a weird setup, you might need extconf options. In this case, pass
 them like so:
 
     $ rake install EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever'
@@ -114,6 +114,14 @@ c.http_auth_types = :basic
 c.username = 'foo'
 c.password = 'bar'
 c.perform
+```
+
+### HTTP "insecure" SSL connections (like curl -k, --insecure) to avoid Curl::Err::SSLCACertificateError:
+
+```ruby
+    c = Curl::Easy.new("http://github.com/")
+    c.ssl_verify_peer = false
+    c.perform
 ```
 
 ### Supplying custom handlers:
