@@ -83,7 +83,7 @@ module Curl
     #   easy.perform
     #
     def delete=(onoff)
-      set :customrequest, onoff ? 'delete' : nil
+      set :customrequest, onoff ? 'DELETE' : nil
       onoff
     end
     # 
