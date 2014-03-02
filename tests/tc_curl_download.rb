@@ -6,7 +6,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
   def setup
     server_setup
   end
-  
+
   def test_download_url_to_file_via_string
     dl_url = "http://127.0.0.1:9129/ext/curb_easy.c"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
