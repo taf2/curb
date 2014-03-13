@@ -96,6 +96,25 @@ static size_t read_data_handler(void *ptr,
   }
 }
 
+int seek_data_handler(ruby_curl_easy *rbce,
+                      curl_off_t offset,
+                      int origin) {
+
+  VALUE upload = rb_easy_get("upload");
+  VALUE stream = ruby_curl_upload_stream_get(upload);
+
+  if (rb_respond_to(stream, rb_intern("seek"))) {
+    rb_funcall(stream, rb_intern("seek"), 2, SEEK_SET, offset);
+  } else {
+    ruby_curl_upload *rbcu;
+    Data_Get_Struct(upload, ruby_curl_upload, rbcu);
+    // This OK because curl only uses SEEK_SET as per the documentation
+    rbcu->offset = offset;
+  }
+
+  return 0;
+}
+
 static size_t proc_data_handler(char *stream,
                                 size_t size,
                                 size_t nmemb,
@@ -772,7 +791,9 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
+  curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, (curl_seek_callback)seek_data_handler);
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
+  curl_easy_setopt(curl, CURLOPT_SEEKDATA, rbce);
 
   /* 
    * we need to set specific headers for the PUT to work... so
@@ -3134,6 +3155,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     } break;
   case CURLOPT_FAILONERROR: {
     curl_easy_setopt(rbce->curl, CURLOPT_FAILONERROR, FIX2LONG(val));
+    } break;
+  case CURLOPT_FRESH_CONNECT: {
+    curl_easy_setopt(rbce->curl, CURLOPT_FRESH_CONNECT, FIX2LONG(val));
+    } break;
+  case CURLOPT_FORBID_REUSE: {
+    curl_easy_setopt(rbce->curl, CURLOPT_FORBID_REUSE, FIX2LONG(val));
     } break;
 #if HAVE_CURLOPT_GSSAPI_DELEGATION
   case CURLOPT_GSSAPI_DELEGATION: {
