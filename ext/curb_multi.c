@@ -7,9 +7,11 @@
 #ifdef HAVE_RUBY19_ST_H
   #include <ruby.h>
   #include <ruby/st.h>
+  #include <ruby/thread.h>
 #else
   #include <ruby.h>
   #include <st.h>
+  #include <ruby/thread.h>
 #endif
 #include "curb_easy.h"
 #include "curb_errors.h"
@@ -471,7 +473,7 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
 }
 #endif
 
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
 struct _select_set {
   int maxfd;
   fd_set *fdread, *fdwrite, *fdexcep;
@@ -511,7 +513,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   long timeout_milliseconds;
   struct timeval tv = {0, 0};
   VALUE block = Qnil;
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
   struct _select_set fdset_args;
 #endif
 
@@ -570,15 +572,20 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       create_crt_fd(&fdexcep, &crt_fdexcep);
 #endif
 
-#ifdef HAVE_RB_THREAD_BLOCKING_REGION
+#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
       fdset_args.maxfd = maxfd+1;
       fdset_args.fdread = &fdread;
       fdset_args.fdwrite = &fdwrite;
       fdset_args.fdexcep = &fdexcep;
       fdset_args.tv = &tv;
+#ifdef HAVE_RB_THREAD_CALL_WITHOUT_GVL
+      rc = (int) rb_thread_call_without_gvl((void *(*)(void *))curb_select, &fdset_args, RUBY_UBF_IO, 0);
+#elif HAVE_RB_THREAD_BLOCKING_REGION
       rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #else
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
+#endif
+
 #endif
 
 #ifdef _WIN32
