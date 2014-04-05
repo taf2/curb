@@ -7,12 +7,15 @@
 #ifdef HAVE_RUBY19_ST_H
   #include <ruby.h>
   #include <ruby/st.h>
-  #include <ruby/thread.h>
 #else
   #include <ruby.h>
   #include <st.h>
+#endif
+
+#ifdef HAVE_RB_THREAD_CALL_WITHOUT_GVL
   #include <ruby/thread.h>
 #endif
+
 #include "curb_easy.h"
 #include "curb_errors.h"
 #include "curb_postfield.h"
