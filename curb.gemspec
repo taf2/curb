@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
 
   #### Documentation and testing.
   s.has_rdoc = true
-  s.homepage = 'http://curb.rubyforge.org/'
+  s.homepage = 'https://github.com/taf2/curb'
   s.rdoc_options = ['--main', 'README']
 
   s.platform = Gem::Platform::RUBY
