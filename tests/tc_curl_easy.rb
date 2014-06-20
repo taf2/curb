@@ -1022,6 +1022,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     end
   end
 
+  def test_set_unsupported_options
+    curl = Curl::Easy.new
+    assert_raises TypeError do
+      curl.set(99999, 1)
+    end
+  end
+
   include TestServerMethods 
 
   def setup
