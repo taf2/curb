@@ -3144,7 +3144,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     } break;
 #endif
   default:
-    break;
+    rb_raise(rb_eTypeError, "Curb unsupported option");
   }
 
   return val;

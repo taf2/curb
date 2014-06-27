@@ -28,9 +28,15 @@ module Curl
     #
     def set(opt,val)
       if opt.is_a?(Symbol)
-        setopt(sym2curl(opt), val)
+        option = sym2curl(opt)
       else
-        setopt(opt.to_i, val)
+        option = opt.to_i
+      end
+
+      begin
+        setopt(option, val)
+      rescue TypeError
+        raise TypeError, "Curb doesn't support setting #{opt} [##{option}] option"
       end
     end
 
