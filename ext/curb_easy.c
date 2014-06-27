@@ -3129,6 +3129,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE cookiejar = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
     } break;
+  case CURLOPT_TCP_NODELAY: {
+    curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, FIX2LONG(val));
+    } break;
   case CURLOPT_RESUME_FROM: {
     curl_easy_setopt(rbce->curl, CURLOPT_RESUME_FROM, FIX2LONG(val));
     } break;
