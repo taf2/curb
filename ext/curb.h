@@ -37,12 +37,8 @@
   #define RSTRING_PTR(x) RSTRING(x)->ptr
 #endif
 
-#ifndef RHASH_LEN
-#ifdef HAVE_RUBY19_HASH
-  #define RHASH_LEN(hash) RHASH(hash)->ntbl->num_entries
-#else
-  #define RHASH_LEN(hash) RHASH(hash)->tbl->num_entries
-#endif
+#ifndef RHASH_SIZE
+  #define RHASH_SIZE(hash) RHASH(hash)->tbl->num_entries
 #endif
 
 extern VALUE mCurl;

@@ -69,7 +69,7 @@ rb_hash_clear_i(VALUE key, VALUE value, VALUE dummy) {
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
 
-  if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_LEN(rbcm->requests) > 0) {
+  if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_SIZE(rbcm->requests) > 0) {
 
     rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
 
