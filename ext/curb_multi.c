@@ -4,11 +4,10 @@
  *
  */
 #include "curb_config.h"
-#ifdef HAVE_RUBY19_ST_H
-  #include <ruby.h>
+#include <ruby.h>
+#ifdef HAVE_RUBY_ST_H
   #include <ruby/st.h>
 #else
-  #include <ruby.h>
   #include <st.h>
 #endif
 

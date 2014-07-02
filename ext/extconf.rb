@@ -374,23 +374,6 @@ def test_for(name, const, src)
     end
   end
 end
-test_for("Ruby 1.9 Hash", "RUBY19_HASH", %{
-  #include <ruby.h>
-  int main() {
-    VALUE hash = rb_hash_new();
-    if( RHASH(hash)->ntbl->num_entries ) {
-      return 0;
-    }
-    return 1;
-  }
-})
-test_for("Ruby 1.9 st.h", "RUBY19_ST_H", %{
-  #include <ruby.h>
-  #include <ruby/st.h>
-  int main() {
-    return 0;
-  }
-})
 
 test_for("curl_easy_escape", "CURL_EASY_ESCAPE", %{
   #include <curl/curl.h>
