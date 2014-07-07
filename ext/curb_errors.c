@@ -32,13 +32,13 @@ VALUE eCurlErrNotBuiltIn;
 VALUE eCurlErrProxyResolution;
 VALUE eCurlErrHostResolution;
 VALUE eCurlErrConnectFailed;
-VALUE eCurlErrFTPWierdReply;
+VALUE eCurlErrFTPWeirdReply;
 VALUE eCurlErrFTPAccessDenied;
 VALUE eCurlErrFTPBadPassword;
-VALUE eCurlErrFTPWierdPassReply;
-VALUE eCurlErrFTPWierdUserReply;
-VALUE eCurlErrFTPWierdPasvReply;
-VALUE eCurlErrFTPWierd227Format;
+VALUE eCurlErrFTPWeirdPassReply;
+VALUE eCurlErrFTPWeirdUserReply;
+VALUE eCurlErrFTPWeirdPasvReply;
+VALUE eCurlErrFTPWeird227Format;
 VALUE eCurlErrFTPCantGetHost;
 VALUE eCurlErrFTPCantReconnect;
 VALUE eCurlErrFTPCouldntSetBinary;
@@ -164,7 +164,7 @@ VALUE rb_curl_easy_error(CURLcode code) {
       exclz = eCurlErrConnectFailed;
       break;
     case CURLE_FTP_WEIRD_SERVER_REPLY:  /* 8 */
-      exclz = eCurlErrFTPWierdReply;
+      exclz = eCurlErrFTPWeirdReply;
       break;
     case CURLE_FTP_ACCESS_DENIED:       /* 9 denied due to lack of access. */
       exclz = eCurlErrFTPAccessDenied;
@@ -173,16 +173,16 @@ VALUE rb_curl_easy_error(CURLcode code) {
       exclz = eCurlErrFTPBadPassword;
       break;
     case CURLE_FTP_WEIRD_PASS_REPLY:    /* 11 */
-      exclz = eCurlErrFTPWierdPassReply;
+      exclz = eCurlErrFTPWeirdPassReply;
       break;
     case CURLE_FTP_WEIRD_USER_REPLY:    /* 12 */
-      exclz = eCurlErrFTPWierdUserReply;
+      exclz = eCurlErrFTPWeirdUserReply;
       break;
     case CURLE_FTP_WEIRD_PASV_REPLY:    /* 13 */
-      exclz = eCurlErrFTPWierdPasvReply;
+      exclz = eCurlErrFTPWeirdPasvReply;
       break;
     case CURLE_FTP_WEIRD_227_FORMAT:    /* 14 */
-      exclz = eCurlErrFTPWierd227Format;
+      exclz = eCurlErrFTPWeird227Format;
       break;
     case CURLE_FTP_CANT_GET_HOST:       /* 15 */
       exclz = eCurlErrFTPCantGetHost;
@@ -543,13 +543,13 @@ void init_curb_errors() {
   eCurlErrHostResolution = rb_define_class_under(mCurlErr, "HostResolutionError", eCurlErrError);
   eCurlErrConnectFailed = rb_define_class_under(mCurlErr, "ConnectionFailedError", eCurlErrError);
 
-  eCurlErrFTPWierdReply = rb_define_class_under(mCurlErr, "WierdReplyError", eCurlErrFTPError);
+  eCurlErrFTPWeirdReply = rb_define_class_under(mCurlErr, "WeirdReplyError", eCurlErrFTPError);
   eCurlErrFTPAccessDenied = rb_define_class_under(mCurlErr, "AccessDeniedError", eCurlErrFTPError);
   eCurlErrFTPBadPassword = rb_define_class_under(mCurlErr, "BadPasswordError", eCurlErrFTPError);
-  eCurlErrFTPWierdPassReply = rb_define_class_under(mCurlErr, "WierdPassReplyError", eCurlErrFTPError);
-  eCurlErrFTPWierdUserReply = rb_define_class_under(mCurlErr, "WierdUserReplyError", eCurlErrFTPError);
-  eCurlErrFTPWierdPasvReply = rb_define_class_under(mCurlErr, "WierdPasvReplyError", eCurlErrFTPError);
-  eCurlErrFTPWierd227Format = rb_define_class_under(mCurlErr, "Wierd227FormatError", eCurlErrFTPError);
+  eCurlErrFTPWeirdPassReply = rb_define_class_under(mCurlErr, "WeirdPassReplyError", eCurlErrFTPError);
+  eCurlErrFTPWeirdUserReply = rb_define_class_under(mCurlErr, "WeirdUserReplyError", eCurlErrFTPError);
+  eCurlErrFTPWeirdPasvReply = rb_define_class_under(mCurlErr, "WeirdPasvReplyError", eCurlErrFTPError);
+  eCurlErrFTPWeird227Format = rb_define_class_under(mCurlErr, "Weird227FormatError", eCurlErrFTPError);
   eCurlErrFTPCantGetHost = rb_define_class_under(mCurlErr, "CantGetHostError", eCurlErrFTPError);
   eCurlErrFTPCantReconnect = rb_define_class_under(mCurlErr, "CantReconnectError", eCurlErrFTPError);
   eCurlErrFTPCouldntSetBinary = rb_define_class_under(mCurlErr, "CouldntSetBinaryError", eCurlErrFTPError);
