@@ -545,7 +545,7 @@ void init_curb_errors() {
 
   eCurlErrFTPWierdReply = rb_define_class_under(mCurlErr, "WierdReplyError", eCurlErrFTPError);
   eCurlErrFTPAccessDenied = rb_define_class_under(mCurlErr, "AccessDeniedError", eCurlErrFTPError);
-  eCurlErrFTPBadPassword = rb_define_class_under(mCurlErr, "BadBasswordError", eCurlErrFTPError);
+  eCurlErrFTPBadPassword = rb_define_class_under(mCurlErr, "BadPasswordError", eCurlErrFTPError);
   eCurlErrFTPWierdPassReply = rb_define_class_under(mCurlErr, "WierdPassReplyError", eCurlErrFTPError);
   eCurlErrFTPWierdUserReply = rb_define_class_under(mCurlErr, "WierdUserReplyError", eCurlErrFTPError);
   eCurlErrFTPWierdPasvReply = rb_define_class_under(mCurlErr, "WierdPasvReplyError", eCurlErrFTPError);
