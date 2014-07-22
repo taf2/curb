@@ -11,13 +11,9 @@ module Curl
     #   easy.status  => String
     #
     def status
-      parts = self.header_str.split(/\s/)
-      status = []
-      parts.shift
-      while parts.size > 0 && parts.first != ''
-        status << parts.shift
-      end
-      status.join(' ')
+      # Matches the last HTTP Status - following the HTTP protocol specification 'Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF'
+      statuses = self.header_str.scan(/HTTP\/\d\.\d\s(\d+\s.+)\r\n/).map{ |match|  match[0] }
+      statuses.last.strip
     end
 
     #
