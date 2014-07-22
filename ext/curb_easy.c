@@ -1637,9 +1637,10 @@ static VALUE ruby_curl_easy_ignore_content_length_q(VALUE self) {
  */
 static VALUE ruby_curl_easy_resolve_mode(VALUE self) {
   ruby_curl_easy *rbce;
+  unsigned short rm;
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
-  unsigned short rm = rbce->resolve_mode;
+  rm = rbce->resolve_mode;
 
   switch(rm) {
     case CURL_IPRESOLVE_V4:
@@ -1668,9 +1669,10 @@ static VALUE ruby_curl_easy_resolve_mode_set(VALUE self, VALUE resolve_mode) {
     return Qnil;
   } else {
     ruby_curl_easy *rbce;
+    ID resolve_mode_id;
     Data_Get_Struct(self, ruby_curl_easy, rbce);
 
-    ID resolve_mode_id = rb_to_id(resolve_mode);
+    resolve_mode_id = rb_to_id(resolve_mode);
 
     if (resolve_mode_id == rb_intern("auto")) {
       rbce->resolve_mode = CURL_IPRESOLVE_WHATEVER;
@@ -1850,9 +1852,9 @@ static VALUE ruby_curl_easy_on_debug_set(int argc, VALUE *argv, VALUE self) {
  */
 static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
   struct curl_slist **list;
-  Data_Get_Struct(wrap, struct curl_slist *, list);
-
   VALUE header_str = Qnil;
+
+  Data_Get_Struct(wrap, struct curl_slist *, list);
 
   //rb_p(header);
 
@@ -1882,9 +1884,10 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
  */
 static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
   struct curl_slist **list;
+  VALUE ftp_command_string;
   Data_Get_Struct(wrap, struct curl_slist *, list);
 
-  VALUE ftp_command_string = rb_obj_as_string(ftp_command);
+  ftp_command_string = rb_obj_as_string(ftp_command);
   *list = curl_slist_append(*list, StringValuePtr(ftp_command));
 
   return ftp_command_string;
