@@ -266,11 +266,8 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
  */
 VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
   ruby_curl_multi *rbcm;
-  ruby_curl_easy *rbce;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
-
-  Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   rb_curl_multi_remove(rbcm,easy);
 
@@ -581,7 +578,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       fdset_args.fdexcep = &fdexcep;
       fdset_args.tv = &tv;
 #ifdef HAVE_RB_THREAD_CALL_WITHOUT_GVL
-      rc = (int) rb_thread_call_without_gvl((void *(*)(void *))curb_select, &fdset_args, RUBY_UBF_IO, 0);
+      rc = (int)(VALUE) rb_thread_call_without_gvl((void *(*)(void *))curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #elif HAVE_RB_THREAD_BLOCKING_REGION
       rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #else
