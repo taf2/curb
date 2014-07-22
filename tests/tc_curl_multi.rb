@@ -325,6 +325,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     # start downloads
     Curl::Multi.download(urls,{},{},downloads) do|curl,download_path|
+      puts curl.response_code
+      puts curl.header_str
+      puts curl.body_str
       assert_equal 200, curl.response_code
       assert File.exist?(download_path)
       store = file_info[File.basename(download_path)]

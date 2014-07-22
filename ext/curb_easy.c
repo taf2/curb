@@ -3274,7 +3274,7 @@ static VALUE ruby_curl_easy_unescape(VALUE self, VALUE str) {
 
 /*
  * call-seq:
- *   Curl::Easy.error(code)    => String
+ *   Curl::Easy.error(code)    => [ErrCode, String]
  *
  * translate an internal libcurl error to ruby error class
  */

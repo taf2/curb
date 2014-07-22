@@ -6,6 +6,14 @@ module Curl
     alias body body_str
     alias head header_str
 
+    class Error < Exception
+      attr_accessor :message, :code
+      def initialize(code, msg)
+        self.message = msg
+        self.code = code
+      end
+    end
+
     #
     # call-seq:
     #   easy.status  => String
@@ -61,7 +69,7 @@ module Curl
 
       if self.last_result != 0 && self.on_failure.nil?
         error = Curl::Easy.error(self.last_result)
-        raise error.first
+        raise error.first.new(error.last)
       end
 
       ret
