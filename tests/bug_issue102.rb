@@ -4,7 +4,7 @@ class BugIssue102 < Test::Unit::TestCase
 
   def test_interface
     test = "https://api.twitter.com/1/users/show.json?screen_name=TwitterAPI&include_entities=true"
-    ip = "192.168.1.61"
+    ip = "0.0.0.0"
 
     c = Curl::Easy.new do |curl|
       curl.url = test
