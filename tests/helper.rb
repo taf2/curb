@@ -10,7 +10,12 @@ $:.unshift($LIBDIR)
 $:.unshift($EXTDIR)
 
 require 'curb'
-require 'test/unit'
+begin
+  require 'test/unit'
+rescue LoadError
+  gem 'test/unit'
+  require 'test/unit'
+end
 require 'fileutils'
 
 $TEST_URL = "file://#{URI.escape(File.expand_path(__FILE__).tr('\\','/').tr(':','|'))}"
