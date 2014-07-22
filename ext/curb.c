@@ -304,6 +304,13 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURLPROXY_SOCKS4", INT2FIX(-2));
 #endif
 
+  /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS4A proxy. (libcurl >= 7.18.0) */
+#ifdef HAVE_CURLPROXY_SOCKS4A
+  rb_define_const(mCurl, "CURLPROXY_SOCKS4A", INT2FIX(CURLPROXY_SOCKS4A));
+#else
+  rb_define_const(mCurl, "CURLPROXY_SOCKS4A", INT2FIX(-2));
+#endif
+
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS5 proxy. (libcurl >= 7.10) */
 #ifdef HAVE_CURLPROXY_SOCKS5
   rb_define_const(mCurl, "CURLPROXY_SOCKS5", INT2FIX(CURLPROXY_SOCKS5));
