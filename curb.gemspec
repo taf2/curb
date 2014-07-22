@@ -5,6 +5,7 @@ Gem::Specification.new do |s|
   s.date    = '2013-06-05'
   s.description = %q{Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the libcurl(3), a fully-featured client-side URL transfer library. cURL and libcurl live at http://curl.haxx.se/}
   s.email   = 'todd.fisher@gmail.com'
+  s.license = 'Ruby'
   s.extra_rdoc_files = ['LICENSE', 'README']
   s.add_development_dependency "test-unit"
 
