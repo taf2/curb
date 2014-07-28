@@ -3153,6 +3153,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE cookiejar = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
     } break;
+#if HAVE_CURLOPT_SEEKFUNCTION
   case CURLOPT_TCP_NODELAY: {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, FIX2LONG(val));
     } break;
@@ -3162,6 +3163,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_FAILONERROR: {
     curl_easy_setopt(rbce->curl, CURLOPT_FAILONERROR, FIX2LONG(val));
     } break;
+#endif
 #if HAVE_CURLOPT_GSSAPI_DELEGATION
   case CURLOPT_GSSAPI_DELEGATION: {
     curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, FIX2LONG(val));
