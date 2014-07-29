@@ -791,9 +791,13 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
+#if HAVE_CURLOPT_SEEKFUNCTION
   curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, (curl_seek_callback)seek_data_handler);
+#endif
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
+#if HAVE_CURLOPT_SEEKDATA
   curl_easy_setopt(curl, CURLOPT_SEEKDATA, rbce);
+#endif
 
   /* 
    * we need to set specific headers for the PUT to work... so
