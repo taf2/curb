@@ -791,9 +791,13 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
+#if HAVE_CURLOPT_SEEKFUNCTION
   curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, (curl_seek_callback)seek_data_handler);
+#endif
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
+#if HAVE_CURLOPT_SEEKDATA
   curl_easy_setopt(curl, CURLOPT_SEEKDATA, rbce);
+#endif
 
   /* 
    * we need to set specific headers for the PUT to work... so
@@ -3153,7 +3157,6 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE cookiejar = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
     } break;
-#if HAVE_CURLOPT_SEEKFUNCTION
   case CURLOPT_TCP_NODELAY: {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, FIX2LONG(val));
     } break;
@@ -3163,7 +3166,6 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_FAILONERROR: {
     curl_easy_setopt(rbce->curl, CURLOPT_FAILONERROR, FIX2LONG(val));
     } break;
-#endif
 #if HAVE_CURLOPT_GSSAPI_DELEGATION
   case CURLOPT_GSSAPI_DELEGATION: {
     curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, FIX2LONG(val));
