@@ -5,6 +5,7 @@ gemspec
 group 'development', 'test' do
   gem 'rdoc'
   gem 'rake'
+  gem 'test-unit'
 end
 
 # Need to specify ruby standard library gems for rbx
