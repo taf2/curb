@@ -12,7 +12,6 @@ Gem::Specification.new do |s|
   s.files = `git ls-files -z`.split("\x0")
   #### Load-time details
   s.require_paths = ['lib','ext']
-  s.rubyforge_project = 'curb'
   s.summary = %q{Ruby libcurl bindings}
   s.test_files = s.files.grep(%r{^(test)/})
   s.extensions << 'ext/extconf.rb'
