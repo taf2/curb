@@ -3082,7 +3082,7 @@ static VALUE ruby_curl_easy_last_result(VALUE self) {
  * call-seq:
  *   easy.setopt Fixnum, value  => value
  *
- * Iniital access to libcurl curl_easy_setopt
+ * Initial access to libcurl curl_easy_setopt
  */
 static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   ruby_curl_easy *rbce;
