@@ -50,6 +50,10 @@ On Ubuntu, the dependencies can be satisfied by installing the following package
 
     $ sudo apt-get install libcurl3 libcurl3-gnutls libcurl4-openssl-dev
 
+On RedHat:
+
+    $ sudo yum install libcurl-devel openssl-devel
+    
 Curb has fairly extensive RDoc comments in the source. You can build the
 documentation with:
 
