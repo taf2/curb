@@ -581,6 +581,8 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       rc = (int)(VALUE) rb_thread_call_without_gvl((void *(*)(void *))curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #elif HAVE_RB_THREAD_BLOCKING_REGION
       rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
+#elif HAVE_RB_THREAD_FD_SELECT
+      rc = rb_thread_fd_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
 #else
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
 #endif
