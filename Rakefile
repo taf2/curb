@@ -68,11 +68,6 @@ end
 desc "Compile the shared object"
 task :compile => [CURB_SO]
 
-desc "Create the markdown file"
-task :markdown do
-  cp "README", "README.markdown"
-end
-
 desc "Install to your site_ruby directory"
 task :install => :alltests do
   m = make 'install' 
@@ -171,13 +166,13 @@ else
 
   desc 'Build gem'
   task :package => :gemspec do
-    require 'rubygems/specification'
+    require 'rubygems/package'
     spec_source = File.read File.join(File.dirname(__FILE__),'curb.gemspec')
     spec = nil
     # see: http://gist.github.com/16215
     Thread.new { spec = eval("$SAFE = 3\n#{spec_source}") }.join
     spec.validate
-    Gem::Builder.new(spec).build
+    Gem::Package.build(spec)
   end
 
   task :static do

@@ -5,9 +5,9 @@ Gem::Specification.new do |s|
   s.date    = '<%= Time.now.strftime("%Y-%m-%d") %>'
   s.description = %q{Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the libcurl(3), a fully-featured client-side URL transfer library. cURL and libcurl live at http://curl.haxx.se/}
   s.email   = 'todd.fisher@gmail.com'
-  s.extra_rdoc_files = ['LICENSE', 'README']
+  s.extra_rdoc_files = ['LICENSE', 'README.markdown']
   <%
-    files = ['LICENSE', 'README', 'Rakefile',
+    files = ['LICENSE', 'README.markdown', 'Rakefile',
              'doc.rb', 'ext/extconf.rb'] + Dir["lib/**/**.rb"] + Dir["ext/**/**.c"] + Dir["ext/**/**.h"].reject{|h| h == 'ext/curb_config.h' }
 
     if ENV['BINARY_PACKAGE']
@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
   #### Documentation and testing.
   s.has_rdoc = true
   s.homepage = 'http://curb.rubyforge.org/'
-  s.rdoc_options = ['--main', 'README']
+  s.rdoc_options = ['--main', 'README.markdown']
 
   <% if ENV['BINARY_PACKAGE'] %>
     s.platform = Gem::Platform::CURRENT
