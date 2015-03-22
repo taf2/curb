@@ -4,6 +4,12 @@ class FooNoToS
 end
 
 class TestCurbCurlEasy < Test::Unit::TestCase
+  def test_global_reset
+    c = Curl.get($TEST_URL)
+    # in a Timeout block you should reset the thread current handle 
+    Curl.reset
+  end
+
   def test_threads
     t = []
     5.times do

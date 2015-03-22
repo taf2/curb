@@ -61,4 +61,8 @@ module Curl
     params.respond_to?(:map) ? URI.encode_www_form(params) : (params.respond_to?(:to_s) ? params.to_s : params)
   end
 
+  def self.reset
+    Thread.current[:curb_curl] = Curl::Easy.new
+  end
+
 end
