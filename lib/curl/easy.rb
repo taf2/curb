@@ -100,6 +100,7 @@ module Curl
     # call-seq:
     #
     #  easy = Curl::Easy.new("url")
+    #  easy.version = Curl::HTTP_2_0
     #  easy.version = Curl::HTTP_1_1
     #  easy.version = Curl::HTTP_1_0
     #  easy.version = Curl::HTTP_NONE
