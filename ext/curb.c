@@ -223,7 +223,7 @@ static VALUE ruby_curl_conv_q(VALUE mod) {
  * call-seq:
  *   Curl.http2?                                       => true or false
  *
- * Returns true if the installed nghttp2 was built with support for HTTP2.
+ * Returns true if the installed libcurl was built with support for HTTP2.
  * For libcurl versions < 7.33.0, always returns false.
  */
 static VALUE ruby_curl_http2_q(VALUE mod) {
