@@ -219,6 +219,22 @@ static VALUE ruby_curl_conv_q(VALUE mod) {
 #endif
 }
 
+/*
+ * call-seq:
+ *   Curl.http2?                                       => true or false
+ *
+ * Returns true if the installed nghttp2 was built with support for HTTP2.
+ * For libcurl versions < 7.33.0, always returns false.
+ */
+static VALUE ruby_curl_http2_q(VALUE mod) {
+#ifdef HAVE_CURL_VERSION_HTTP2
+  curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);
+  return((ver->features & CURL_VERSION_HTTP2) ? Qtrue : Qfalse);
+#else
+  return Qfalse;
+#endif
+}
+
 void Init_curb_core() {
   // TODO we need to call curl_global_cleanup at exit!
   curl_version_info_data *ver;
@@ -990,6 +1006,7 @@ void Init_curb_core() {
   rb_define_singleton_method(mCurl, "idn?", ruby_curl_idn_q, 0);
   rb_define_singleton_method(mCurl, "sspi?", ruby_curl_sspi_q, 0);
   rb_define_singleton_method(mCurl, "conv?", ruby_curl_conv_q, 0);
+  rb_define_singleton_method(mCurl, "http2?", ruby_curl_http2_q, 0);
 
   init_curb_errors();
   init_curb_easy();
