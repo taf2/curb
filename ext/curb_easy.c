@@ -3125,13 +3125,6 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_NOPROGRESS:
   case CURLOPT_NOSIGNAL:
   case CURLOPT_HTTPGET:
-    break;
-  case CURLOPT_POST: {
-    curl_easy_setopt(rbce->curl, CURLOPT_POST, rb_type(val) == T_TRUE);
-  } break;
-  case CURLOPT_POSTFIELDS: {
-    curl_easy_setopt(rbce->curl, CURLOPT_POSTFIELDS, NIL_P(val) ? NULL : StringValueCStr(val));
-  } break;
   case CURLOPT_NOBODY: {
     int type = rb_type(val);
     VALUE value;
@@ -3144,6 +3137,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     }
     curl_easy_setopt(rbce->curl, option, FIX2INT(value));
     } break;
+  case CURLOPT_POST: {
+    curl_easy_setopt(rbce->curl, CURLOPT_POST, rb_type(val) == T_TRUE);
+  } break;
+  case CURLOPT_POSTFIELDS: {
+    curl_easy_setopt(rbce->curl, CURLOPT_POSTFIELDS, NIL_P(val) ? NULL : StringValueCStr(val));
+  } break;
   case CURLOPT_USERPWD: {
     VALUE userpwd = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, userpwd);
