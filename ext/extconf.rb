@@ -361,6 +361,9 @@ have_constant "curlgssapi_delegation_flag"
 
 have_constant "CURLM_ADDED_ALREADY"
 
+# added in 7.40.0
+have_constant "curlopt_unix_socket_path"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end
