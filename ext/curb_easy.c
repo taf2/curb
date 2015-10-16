@@ -3237,9 +3237,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, FIX2LONG(val));
     } break;
 #endif
+#if HAVE_CURLOPT_UNIX_SOCKET_PATH
   case CURLOPT_UNIX_SOCKET_PATH: {
 	curl_easy_setopt(rbce->curl, CURLOPT_UNIX_SOCKET_PATH, StringValueCStr(val));
     } break;
+#endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
