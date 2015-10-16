@@ -341,7 +341,19 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c.timeout = nil
     assert_nil c.timeout
   end
-  
+
+  def test_timeout_ms_01
+    c = Curl::Easy.new($TEST_URL)
+
+    assert_nil c.timeout_ms
+
+    c.timeout_ms = 100
+    assert_equal 100, c.timeout_ms
+
+    c.timeout_ms = nil
+    assert_nil c.timeout_ms
+  end
+
   def test_connect_timeout_01
     c = Curl::Easy.new($TEST_URL)
     
@@ -353,7 +365,19 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c.connect_timeout = nil
     assert_nil c.connect_timeout
   end
-  
+
+  def test_connect_timeout_ms_01
+    c = Curl::Easy.new($TEST_URL)
+
+    assert_nil c.connect_timeout_ms
+
+    c.connect_timeout_ms = 100
+    assert_equal 100, c.connect_timeout_ms
+
+    c.connect_timeout_ms = nil
+    assert_nil c.connect_timeout_ms
+  end
+
   def test_ftp_response_timeout_01
     c = Curl::Easy.new($TEST_URL)
     

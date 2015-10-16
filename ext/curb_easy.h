@@ -48,7 +48,9 @@ typedef struct {
   long proxy_auth_types;
   long max_redirs;
   unsigned long timeout;
+  unsigned long timeout_ms;
   unsigned long connect_timeout;
+  unsigned long connect_timeout_ms;
   long dns_cache_timeout;
   unsigned long ftp_response_timeout;
   long low_speed_limit;
