@@ -255,7 +255,9 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->proxy_auth_types = 0;
   rbce->max_redirs = -1;
   rbce->timeout = 0;
+  rbce->timeout_ms = 0;
   rbce->connect_timeout = 0;
+  rbce->connect_timeout_ms = 0;
   rbce->dns_cache_timeout = 60;
   rbce->ftp_response_timeout = 0;
   rbce->low_speed_limit = 0;
@@ -1118,6 +1120,33 @@ static VALUE ruby_curl_easy_timeout_get(VALUE self, VALUE timeout) {
 
 /*
  * call-seq:
+ *   easy.timeout_ms = fixnum or nil                  => fixnum or nil
+ *
+ * Set the maximum time in milliseconds that you allow the libcurl transfer
+ * operation to take. Normally, name lookups can take a considerable time
+ * and limiting operations to less than a few minutes risk aborting
+ * perfectly normal operations.
+ *
+ * Set to nil (or zero) to disable timeout (it will then only timeout
+ * on the system's internal timeouts).
+ */
+static VALUE ruby_curl_easy_timeout_ms_set(VALUE self, VALUE timeout_ms) {
+  CURB_IMMED_SETTER(ruby_curl_easy, timeout_ms, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.timeout_ms                                  => fixnum or nil
+ *
+ * Obtain the maximum time in milliseconds that you allow the libcurl transfer
+ * operation to take.
+ */
+static VALUE ruby_curl_easy_timeout_ms_get(VALUE self, VALUE timeout_ms) {
+  CURB_IMMED_GETTER(ruby_curl_easy, timeout_ms, 0);
+}
+
+/*
+ * call-seq:
  *   easy.connect_timeout = fixnum or nil             => fixnum or nil
  *
  * Set the maximum time in seconds that you allow the connection to the
@@ -1140,6 +1169,32 @@ static VALUE ruby_curl_easy_connect_timeout_set(VALUE self, VALUE connect_timeou
  */
 static VALUE ruby_curl_easy_connect_timeout_get(VALUE self, VALUE connect_timeout) {
   CURB_IMMED_GETTER(ruby_curl_easy, connect_timeout, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.connect_timeout_ms = fixnum or nil          => fixnum or nil
+ *
+ * Set the maximum time in milliseconds that you allow the connection to the
+ * server to take. This only limits the connection phase, once it has
+ * connected, this option is of no more use.
+ *
+ * Set to nil (or zero) to disable connection timeout (it will then only
+ * timeout on the system's internal timeouts).
+ */
+static VALUE ruby_curl_easy_connect_timeout_ms_set(VALUE self, VALUE connect_timeout_ms) {
+  CURB_IMMED_SETTER(ruby_curl_easy, connect_timeout_ms, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.connect_timeout_ms                          => fixnum or nil
+ *
+ * Obtain the maximum time in milliseconds that you allow the connection to the
+ * server to take.
+ */
+static VALUE ruby_curl_easy_connect_timeout_ms_get(VALUE self, VALUE connect_timeout_ms) {
+  CURB_IMMED_GETTER(ruby_curl_easy, connect_timeout_ms, 0);
 }
 
 /*
@@ -2052,7 +2107,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   curl_easy_setopt(curl, CURLOPT_UNRESTRICTED_AUTH, rbce->unrestricted_auth);
 
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, rbce->timeout);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rbce->timeout_ms);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, rbce->connect_timeout);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, rbce->connect_timeout_ms);
   curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, rbce->dns_cache_timeout);
 
   curl_easy_setopt(curl, CURLOPT_IGNORE_CONTENT_LENGTH, rbce->ignore_content_length);
@@ -3180,9 +3237,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, FIX2LONG(val));
     } break;
 #endif
+#if HAVE_CURLOPT_UNIX_SOCKET_PATH
   case CURLOPT_UNIX_SOCKET_PATH: {
 	curl_easy_setopt(rbce->curl, CURLOPT_UNIX_SOCKET_PATH, StringValueCStr(val));
     } break;
+#endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
@@ -3358,8 +3417,12 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "max_redirects", ruby_curl_easy_max_redirects_get, 0);
   rb_define_method(cCurlEasy, "timeout=", ruby_curl_easy_timeout_set, 1);
   rb_define_method(cCurlEasy, "timeout", ruby_curl_easy_timeout_get, 0);
+  rb_define_method(cCurlEasy, "timeout_ms=", ruby_curl_easy_timeout_ms_set, 1);
+  rb_define_method(cCurlEasy, "timeout_ms", ruby_curl_easy_timeout_ms_get, 0);
   rb_define_method(cCurlEasy, "connect_timeout=", ruby_curl_easy_connect_timeout_set, 1);
   rb_define_method(cCurlEasy, "connect_timeout", ruby_curl_easy_connect_timeout_get, 0);
+  rb_define_method(cCurlEasy, "connect_timeout_ms=", ruby_curl_easy_connect_timeout_ms_set, 1);
+  rb_define_method(cCurlEasy, "connect_timeout_ms", ruby_curl_easy_connect_timeout_ms_get, 0);
   rb_define_method(cCurlEasy, "dns_cache_timeout=", ruby_curl_easy_dns_cache_timeout_set, 1);
   rb_define_method(cCurlEasy, "dns_cache_timeout", ruby_curl_easy_dns_cache_timeout_get, 0);
   rb_define_method(cCurlEasy, "ftp_response_timeout=", ruby_curl_easy_ftp_response_timeout_set, 1);

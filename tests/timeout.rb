@@ -13,7 +13,7 @@ class TestCurbTimeouts < Test::Unit::TestCase
     elapsed = Time.now - start
     assert elapsed > 2
   end
-  
+
   def test_overall_timeout_on_dead_transfer
     curl = Curl::Easy.new(wait_url(2))
     curl.timeout = 1
@@ -21,7 +21,15 @@ class TestCurbTimeouts < Test::Unit::TestCase
       curl.http_get
     end
   end
-  
+
+  def test_overall_timeout_ms_on_dead_transfer
+    curl = Curl::Easy.new(wait_url(2))
+    curl.timeout_ms = 1000
+    assert_raise(Curl::Err::TimeoutError) do
+      curl.http_get
+    end
+  end
+
   def test_clearing_timeout
     curl = Curl::Easy.new(wait_url(2))
     curl.timeout = 1
