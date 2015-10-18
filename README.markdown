@@ -1,7 +1,6 @@
 # Curb - Libcurl bindings for Ruby
 
-* [rubyforge rdoc](http://curb.rubyforge.org/)
-* [rubyforge project](http://rubyforge.org/projects/curb)
+* [rubydoc rdoc](http://www.rubydoc.info/github/taf2/curb/)
 * [github project](http://github.com/taf2/curb/tree/master)
 
 Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
