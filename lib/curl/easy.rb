@@ -6,7 +6,7 @@ module Curl
     alias body body_str
     alias head header_str
 
-    class Error < Exception
+    class Error < StandardError
       attr_accessor :message, :code
       def initialize(code, msg)
         self.message = msg
