@@ -321,6 +321,9 @@ have_constant "curl_sslversion_default"
 have_constant :CURL_SSLVERSION_TLSv1
 have_constant :CURL_SSLVERSION_SSLv2
 have_constant :CURL_SSLVERSION_SSLv3
+have_constant :CURL_SSLVERSION_TLSv1_0
+have_constant :CURL_SSLVERSION_TLSv1_1
+have_constant :CURL_SSLVERSION_TLSv1_2
 have_constant "curlopt_ssl_verifypeer"
 have_constant "curlopt_cainfo"
 have_constant "curlopt_issuercert"
