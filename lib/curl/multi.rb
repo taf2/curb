@@ -135,9 +135,9 @@ module Curl
           #
           c.each { |k,v| easy.send("#{k}=",v) }
 
-          easy.on_complete {|curl,code|
+          easy.on_complete {|curl|
             free_handles << curl
-            blk.call(curl,code,method) if blk
+            blk.call(curl,curl.response_code,method) if blk
           }
           m.add(easy)
         end
