@@ -3,7 +3,7 @@ module Curl
   class Multi
     class << self
       # call-seq:
-      #   Curl::Multi.get('url1','url2','url3','url4','url5', :follow_location => true) do|easy|
+      #   Curl::Multi.get(['url1','url2','url3','url4','url5'], :follow_location => true) do|easy|
       #     easy
       #   end
       # 
