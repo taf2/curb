@@ -67,12 +67,14 @@ rb_hash_clear_i(VALUE key, VALUE value, VALUE dummy) {
 }
 
 static void curl_multi_free(ruby_curl_multi *rbcm) {
+  VALUE hash = rbcm->requests;
 
-  if (rbcm && !rbcm->requests == Qnil && rb_type(rbcm->requests) == T_HASH && RHASH_SIZE(rbcm->requests) > 0) {
+  if (rbcm && !NIL_P(hash) && rb_type(hash) == T_HASH && RHASH_SIZE(hash) > 0) {
 
-    rb_hash_foreach( rbcm->requests, (int (*)())curl_multi_flush_easy, (VALUE)rbcm );
+    rb_hash_foreach(hash, (int (*)())curl_multi_flush_easy, (VALUE)rbcm);
+    rb_hash_foreach(hash, rb_hash_clear_i, 0);
+    /* rb_hash_clear(rbcm->requests); */
 
-    rb_hash_foreach(rbcm->requests, rb_hash_clear_i, 0); //rb_hash_clear(rbcm->requests);
     rbcm->requests = Qnil;
   }
   curl_multi_cleanup(rbcm->handle);
