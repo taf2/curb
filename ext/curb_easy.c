@@ -2160,11 +2160,12 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 #endif
   }
 
+  /*
+   * NOTE: we used to set CURLAUTH_ANY but see: http://curl.haxx.se/mail/lib-2015-06/0033.html
+   */
   if (rbce->http_auth_types > 0) {
 #if LIBCURL_VERSION_NUM >= 0x070a06
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, rbce->http_auth_types);
-  } else {
-    curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
 #else
     rb_warn("Installed libcurl is too old to support http_auth_types");
 #endif
@@ -2173,8 +2174,6 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   if (rbce->proxy_auth_types > 0) {
 #if LIBCURL_VERSION_NUM >= 0x070a07
     curl_easy_setopt(curl, CURLOPT_PROXYAUTH, rbce->proxy_auth_types);
-  } else {
-    curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 #else
     rb_warn("Installed libcurl is too old to support proxy_auth_types");
 #endif

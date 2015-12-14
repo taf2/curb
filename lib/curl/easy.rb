@@ -66,6 +66,7 @@ module Curl
       self.multi = Curl::Multi.new if self.multi.nil?
       self.multi.add self
       ret = self.multi.perform
+      self.multi.remove self
 
       if self.last_result != 0 && self.on_failure.nil?
         error = Curl::Easy.error(self.last_result)
