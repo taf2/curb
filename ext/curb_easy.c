@@ -2106,8 +2106,13 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   curl_easy_setopt(curl, CURLOPT_UNRESTRICTED_AUTH, rbce->unrestricted_auth);
 
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT, rbce->timeout);
-  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rbce->timeout_ms);
+  /* timeouts override each other we cannot blindly set timeout and timeout_ms */
+  if (rbce->timeout && rbce->timeout > 0) {
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, rbce->timeout);
+  }
+  if (rbce->timeout_ms && rbce->timeout_ms > 0) {
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rbce->timeout_ms);
+  }
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, rbce->connect_timeout);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, rbce->connect_timeout_ms);
   curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, rbce->dns_cache_timeout);
