@@ -3237,7 +3237,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_SSL_CIPHER_LIST, StringValueCStr(val));
     } break;
   case CURLOPT_FORBID_REUSE: {
-    curl_easy_setopt(rbce->curl, CURLOPT_FORBID_REUSE, FIX2INT(val))
+    curl_easy_setopt(rbce->curl, CURLOPT_FORBID_REUSE, FIX2INT(val));
     } break;
 #if HAVE_CURLOPT_GSSAPI_DELEGATION
   case CURLOPT_GSSAPI_DELEGATION: {
