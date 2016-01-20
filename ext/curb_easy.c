@@ -3186,9 +3186,6 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_NOPROGRESS:
   case CURLOPT_NOSIGNAL:
   case CURLOPT_HTTPGET:
-  case CURLOPT_MAXCONNECTS: {
-    curl_easy_setopt(rbce->curl, CURLOPT_MAXCONNECTS, FIX2LONG(val));
-  } break;
   case CURLOPT_NOBODY: {
     int type = rb_type(val);
     VALUE value;
@@ -3203,6 +3200,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     } break;
   case CURLOPT_POST: {
     curl_easy_setopt(rbce->curl, CURLOPT_POST, rb_type(val) == T_TRUE);
+  } break;
+  case CURLOPT_MAXCONNECTS: {
+    curl_easy_setopt(rbce->curl, CURLOPT_MAXCONNECTS, FIX2LONG(val));
   } break;
   case CURLOPT_POSTFIELDS: {
     curl_easy_setopt(rbce->curl, CURLOPT_POSTFIELDS, NIL_P(val) ? NULL : StringValueCStr(val));
