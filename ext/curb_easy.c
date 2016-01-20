@@ -1353,8 +1353,15 @@ static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
  *   easy.ssl_version = value                         => fixnum or nil
  *
  * Sets the version of SSL/TLS that libcurl will attempt to use. Valid
- * options are Curl::CURL_SSLVERSION_TLSv1, Curl::CURL_SSLVERSION::SSLv2,
- * Curl::CURL_SSLVERSION_SSLv3 and Curl::CURL_SSLVERSION_DEFAULT
+ * options are:
+ *
+ *   Curl::CURL_SSLVERSION_DEFAULT
+ *   Curl::CURL_SSLVERSION_TLSv1 (TLS 1.x)
+ *   Curl::CURL_SSLVERSION_SSLv2
+ *   Curl::CURL_SSLVERSION_SSLv3
+ *   Curl::CURL_SSLVERSION_TLSv1_0
+ *   Curl::CURL_SSLVERSION_TLSv1_1
+ *   Curl::CURL_SSLVERSION_TLSv1_2
  */
 static VALUE ruby_curl_easy_ssl_version_set(VALUE self, VALUE ssl_version) {
   CURB_IMMED_SETTER(ruby_curl_easy, ssl_version, -1);

@@ -296,6 +296,9 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   INT2FIX(CURL_SSLVERSION_TLSv1));
   rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   INT2FIX(CURL_SSLVERSION_SSLv2));
   rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   INT2FIX(CURL_SSLVERSION_SSLv3));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0",   INT2FIX(CURL_SSLVERSION_TLSv1_0));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1",   INT2FIX(CURL_SSLVERSION_TLSv1_1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2",   INT2FIX(CURL_SSLVERSION_TLSv1_2));
 
   rb_define_const(mCurl, "CURL_USESSL_CONTROL", INT2FIX(CURB_FTPSSL_CONTROL));
   rb_define_const(mCurl, "CURL_USESSL_NONE", INT2FIX(CURB_FTPSSL_NONE));
@@ -306,6 +309,9 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   INT2FIX(-1));
   rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   INT2FIX(-1));
   rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   INT2FIX(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0", INT2FIX(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1", INT2FIX(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2", INT2FIX(-1));
 
   rb_define_const(mCurl, "CURL_USESSL_CONTROL", INT2FIX(-1));
   rb_define_const(mCurl, "CURL_USESSL_NONE", INT2FIX(-1));
@@ -885,6 +891,15 @@ void Init_curb_core() {
 #endif
 #if HAVE_CURL_SSLVERSION_SSLv3
   CURB_DEFINE(CURL_SSLVERSION_SSLv3);
+#endif
+#if HAVE_CURL_SSLVERSION_TLSv1_0
+  CURB_DEFINE(CURL_SSLVERSION_TLSv1_0);
+#endif
+#if HAVE_CURL_SSLVERSION_TLSv1_1
+  CURB_DEFINE(CURL_SSLVERSION_TLSv1_1);
+#endif
+#if HAVE_CURL_SSLVERSION_TLSv1_2
+  CURB_DEFINE(CURL_SSLVERSION_TLSv1_2);
 #endif
 #if HAVE_CURLOPT_SSL_VERIFYPEER
   CURB_DEFINE(CURLOPT_SSL_VERIFYPEER);
