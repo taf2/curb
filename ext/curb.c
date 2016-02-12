@@ -591,6 +591,9 @@ void Init_curb_core() {
     CURB_DEFINE(CURL_HTTP_VERSION_NONE);
     CURB_DEFINE(CURL_HTTP_VERSION_1_0);
     CURB_DEFINE(CURL_HTTP_VERSION_1_1);
+#if LIBCURL_VERSION_NUM >= 0x072100 /* 7.33.0 */
+    CURB_DEFINE(CURL_HTTP_VERSION_2_0);
+#endif
 #if HAVE_CURLOPT_IGNORE_CONTENT_LENGTH
   CURB_DEFINE(CURLOPT_IGNORE_CONTENT_LENGTH);
 #endif
@@ -1005,12 +1008,24 @@ void Init_curb_core() {
   CURB_DEFINE(CURLOPT_UNIX_SOCKET_PATH);
 #endif
 
+#if LIBCURL_VERSION_NUM >= 0x072B00 /* 7.43.0 */
+  CURB_DEFINE(CURLPIPE_NOTHING);
+  CURB_DEFINE(CURLPIPE_HTTP1);
+  CURB_DEFINE(CURLPIPE_MULTIPLEX);
+
+  rb_define_const(mCurl, "PIPE_NOTHING", LONG2NUM(CURLPIPE_NOTHING));
+  rb_define_const(mCurl, "PIPE_HTTP1", LONG2NUM(CURLPIPE_HTTP1));
+  rb_define_const(mCurl, "PIPE_MULTIPLEX", LONG2NUM(CURLPIPE_MULTIPLEX));
+#endif
+
 #if LIBCURL_VERSION_NUM >= 0x072100 /* 7.33.0 */
   rb_define_const(mCurl, "HTTP_2_0", LONG2NUM(CURL_HTTP_VERSION_2_0));
 #endif
   rb_define_const(mCurl, "HTTP_1_1", LONG2NUM(CURL_HTTP_VERSION_1_1));
   rb_define_const(mCurl, "HTTP_1_0", LONG2NUM(CURL_HTTP_VERSION_1_0));
   rb_define_const(mCurl, "HTTP_NONE", LONG2NUM(CURL_HTTP_VERSION_NONE));
+
+
 
   rb_define_singleton_method(mCurl, "ipv6?", ruby_curl_ipv6_q, 0);
   rb_define_singleton_method(mCurl, "kerberos4?", ruby_curl_kerberos4_q, 0);
