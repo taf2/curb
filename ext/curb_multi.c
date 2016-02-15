@@ -200,20 +200,31 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
  * multi = Curl::Multi.new
  * multi.pipeline = true
  *
- * Pass a long set to 1 to enable or 0 to disable. Enabling pipelining on a multi handle will make it
- * attempt to perform HTTP Pipelining as far as possible for transfers using this handle. This means
- * that if you add a second request that can use an already existing connection, the second request will
- * be "piped" on the same connection rather than being executed in parallel. (Added in 7.16.0)
+ * Pass a long set to 1 for HTTP/1.1 pipelining, 2 for HTTP/2 multiplexing, or 0 to disable.
+ *  Enabling pipelining on a multi handle will make it attempt to perform HTTP Pipelining as 
+ * far as possible for transfers using this handle. This means that if you add a second request 
+ * that can use an already existing connection, the second request will be "piped" on the same
+ * connection rather than being executed in parallel. (Added in 7.16.0, multiplex added in 7.43.0)
  *
  */
-static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE onoff) {
+static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE method) {
 #ifdef HAVE_CURLMOPT_PIPELINING
   ruby_curl_multi *rbcm;
 
+  int value;
+
+  if (method == Qtrue) {
+    value = 1;
+  } else if (method == Qfalse) {
+    value  = 0;
+  } else {
+    value = NUM2INT(method)
+  } 
+
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
-  curl_multi_setopt(rbcm->handle, CURLMOPT_PIPELINING, onoff == Qtrue ? 1 : 0);
+  curl_multi_setopt(rbcm->handle, CURLMOPT_PIPELINING, value);
 #endif
-  return onoff;
+  return method == Qtrue ? 1 : 0;
 }
 
 /*
@@ -646,7 +657,7 @@ void init_curb_multi() {
   rb_define_method(cCurlMulti, "requests", ruby_curl_multi_requests, 0);
   rb_define_method(cCurlMulti, "idle?", ruby_curl_multi_idle, 0);
   
-  /* Instnace methods */
+  /* Instance methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
   rb_define_method(cCurlMulti, "add", ruby_curl_multi_add, 1);

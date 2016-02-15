@@ -15,7 +15,7 @@ Memory.usage("Curl::Multi.pipelined(#{N})") do
   count = 0
   multi = Curl::Multi.new
 
-  multi.pipeline = true
+  multi.pipeline = Curl::CURLPIPE_HTTP1
   multi.max_connects = 10
 
   # maintain a free list of easy handles, better to reuse an open connection than create a new one...

@@ -172,14 +172,25 @@ c.multipart_form_post = true
 c.http_post(Curl::PostField.file('thing[file]', 'myfile.rb'))
 ```
 
+### Using HTTP/2
+
+```ruby
+c = Curl::Easy.new("https://http2.akamai.com")
+c.set(:HTTP_VERSION, Curl::HTTP_2_0)
+
+c.perform
+puts (c.body_str.include? "You are using HTTP/2 right now!") ? "HTTP/2" : "HTTP/1.x"
+```
+
 ### Multi Interface (Basic HTTP GET):
 
 ```ruby
 # make multiple GET requests
 easy_options = {:follow_location => true}
-multi_options = {:pipeline => true}
+# Use Curl::CURLPIPE_MULTIPLEX for HTTP/2 multiplexing
+multi_options = {:pipeline => Curl::CURLPIPE_HTTP1} 
 
-Curl::Multi.get('url1','url2','url3','url4','url5', easy_options, multi_options) do|easy|
+Curl::Multi.get(['url1','url2','url3','url4','url5'], easy_options, multi_options) do|easy|
   # do something interesting with the easy response
   puts easy.last_effective_url
 end
@@ -190,7 +201,8 @@ end
 ```ruby
 # make multiple POST requests
 easy_options = {:follow_location => true, :multipart_form_post => true}
-multi_options = {:pipeline => true}
+multi_options = {:pipeline => Curl::CURLPIPE_HTTP1}
+
 
 url_fields = [
   { :url => 'url1', :post_fields => {'f1' => 'v1'} },

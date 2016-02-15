@@ -22,7 +22,7 @@ module Curl
       #                     {:url => 'url2', :post_fields => {'field1' => 'value1', 'field2' => 'value2'}},
       #                     {:url => 'url3', :post_fields => {'field1' => 'value1', 'field2' => 'value2'}}],
       #                    { :follow_location => true, :multipart_form_post => true },
-      #                    {:pipeline => true }) do|easy|
+      #                    {:pipeline => Curl::CURLPIPE_HTTP1}) do|easy|
       #     easy_handle_on_request_complete
       #   end
       # 
@@ -46,7 +46,7 @@ module Curl
       #                    {:url => 'url2', :put_data => IO.read('filepath')},
       #                    {:url => 'url3', :put_data => "maybe another string or socket?"],
       #                    {:follow_location => true},
-      #                    {:pipeline => true }) do|easy|
+      #                    {:pipeline => Curl::CURLPIPE_HTTP1}) do|easy|
       #     easy_handle_on_request_complete
       #   end
       # 
@@ -74,7 +74,7 @@ module Curl
       #     :follow_location => true, :max_redirects => 3 },
       #   { :url => 'url3', :method => :put, :put_data => File.open('file.txt','rb') },
       #   { :url => 'url4', :method => :head }
-      # ], {:pipeline => true})
+      # ], {:pipeline => Curl::CURLPIPE_HTTP1})
       #
       # Blocking call to issue multiple HTTP requests with varying verb's.
       #

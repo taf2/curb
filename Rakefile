@@ -69,7 +69,7 @@ desc "Compile the shared object"
 task :compile => [CURB_SO]
 
 desc "Install to your site_ruby directory"
-task :install => :alltests do
+task :install do
   m = make 'install' 
   fail "Make install failed (status #{m})" unless m == 0
 end
