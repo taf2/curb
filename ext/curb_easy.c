@@ -978,16 +978,16 @@ static VALUE ruby_curl_easy_proxy_type_get(VALUE self) {
   (!strncmp("digest",node,6)) ? CURLAUTH_DIGEST : \
   (!strncmp("gssnegotiate",node,12)) ? CURLAUTH_GSSNEGOTIATE : \
   (!strncmp("ntlm",node,4)) ? CURLAUTH_NTLM : \
-  (!strncmp("any",node,3)) ? CURLAUTH_ANY : \
-  (!strncmp("anysafe",node,7)) ? CURLAUTH_ANYSAFE : 0
+  (!strncmp("anysafe",node,7)) ? CURLAUTH_ANYSAFE : \
+  (!strncmp("any",node,3)) ? CURLAUTH_ANY : 0
 #else 
 #define CURL_HTTPAUTH_STR_TO_NUM(node) \
   (!strncmp("basic",node,5)) ? CURLAUTH_BASIC : \
   (!strncmp("digest",node,6)) ? CURLAUTH_DIGEST : \
   (!strncmp("gssnegotiate",node,12)) ? CURLAUTH_GSSNEGOTIATE : \
   (!strncmp("ntlm",node,4)) ? CURLAUTH_NTLM : \
-  (!strncmp("any",node,3)) ? CURLAUTH_ANY : \
-  (!strncmp("anysafe",node,7)) ? CURLAUTH_ANYSAFE : 0
+  (!strncmp("anysafe",node,7)) ? CURLAUTH_ANYSAFE : \
+  (!strncmp("any",node,3)) ? CURLAUTH_ANY : 0
 #endif
 /*
  * call-seq:
@@ -2175,7 +2175,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   /*
    * NOTE: we used to set CURLAUTH_ANY but see: http://curl.haxx.se/mail/lib-2015-06/0033.html
    */
-  if (rbce->http_auth_types > 0) {
+  if (rbce->http_auth_types != 0) {
 #if LIBCURL_VERSION_NUM >= 0x070a06
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, rbce->http_auth_types);
 #else
@@ -2183,7 +2183,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 #endif
   }
 
-  if (rbce->proxy_auth_types > 0) {
+  if (rbce->proxy_auth_types != 0) {
 #if LIBCURL_VERSION_NUM >= 0x070a07
     curl_easy_setopt(curl, CURLOPT_PROXYAUTH, rbce->proxy_auth_types);
 #else
