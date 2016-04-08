@@ -56,7 +56,7 @@ VALUE ruby_curl_upload_stream_get(VALUE self) {
 VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
-  rbcu->offset = FIX2LONG(offset);
+  rbcu->offset = NUM2LONG(offset);
   return offset;
 }
 /*
@@ -66,7 +66,7 @@ VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset) {
 VALUE ruby_curl_upload_offset_get(VALUE self) {
   ruby_curl_upload *rbcu;
   Data_Get_Struct(self, ruby_curl_upload, rbcu);
-  return INT2FIX(rbcu->offset);
+  return LONG2NUM(rbcu->offset);
 }
 
 /* =================== INIT LIB =====================*/

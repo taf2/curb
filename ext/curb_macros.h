@@ -99,7 +99,7 @@
                                                                         \
             return oldproc;
 
-/* setter for numerics that are kept in c ints */
+/* setter for numerics that are kept in c longs */
 #define CURB_IMMED_SETTER(type, attr, nilval)                       \
             type *ptr;                                              \
                                                                     \
@@ -107,12 +107,12 @@
             if (attr == Qnil) {                                     \
               ptr->attr = nilval;                                   \
             } else {                                                \
-              ptr->attr = NUM2INT(attr);                            \
+              ptr->attr = NUM2LONG(attr);                           \
             }                                                       \
                                                                     \
             return attr;                                            \
 
-/* setter for numerics that are kept in c ints */
+/* setter for numerics that are kept in c longs */
 #define CURB_IMMED_GETTER(type, attr, nilval)                       \
             type *ptr;                                              \
                                                                     \
@@ -120,7 +120,7 @@
             if (ptr->attr == nilval) {                              \
               return Qnil;                                          \
             } else {                                                \
-              return INT2NUM(ptr->attr);                            \
+              return LONG2NUM(ptr->attr);                           \
             }
 
 /* special setter for port / port ranges */
@@ -131,7 +131,7 @@
             if (attr == Qnil) {                                     \
               ptr->attr = 0;                                        \
             } else {                                                \
-              int port = FIX2INT(attr);                             \
+              int port = NUM2INT(attr);                             \
                                                                     \
               if ((port) && ((port & 0xFFFF) == port)) {            \
                 ptr->attr = port;                                   \
@@ -150,10 +150,10 @@
             if (ptr->attr == 0) {                                   \
               return Qnil;                                          \
             } else {                                                \
-              return INT2FIX(ptr->attr);                            \
+              return INT2NUM(ptr->attr);                            \
             }
 
 #define CURB_DEFINE(name) \
-  rb_define_const(mCurl, #name, INT2FIX(name))
+  rb_define_const(mCurl, #name, LONG2NUM(name))
 
 #endif

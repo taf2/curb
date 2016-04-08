@@ -120,7 +120,7 @@ VALUE ruby_curl_multi_new(VALUE klass) {
  *
  */
 VALUE ruby_curl_multi_set_default_timeout(VALUE klass, VALUE timeout) {
-  cCurlMutiDefaulttimeout = FIX2LONG(timeout);
+  cCurlMutiDefaulttimeout = NUM2LONG(timeout);
   return timeout;
 }
 
@@ -132,7 +132,7 @@ VALUE ruby_curl_multi_set_default_timeout(VALUE klass, VALUE timeout) {
  *
  */
 VALUE ruby_curl_multi_get_default_timeout(VALUE klass) {
-  return INT2FIX(cCurlMutiDefaulttimeout);
+  return LONG2NUM(cCurlMutiDefaulttimeout);
 }
 
 /* Hash#foreach callback for ruby_curl_multi_requests */
@@ -201,7 +201,7 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
     }
   }
 
-  curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2INT(count));
+  curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2LONG(count));
 #endif
 
   return count;
@@ -223,14 +223,14 @@ static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE method) {
 #ifdef HAVE_CURLMOPT_PIPELINING
   ruby_curl_multi *rbcm;
 
-  int value;
+  long value;
 
   if (method == Qtrue) {
     value = 1;
   } else if (method == Qfalse) {
     value  = 0;
   } else {
-    value = NUM2INT(method)
+    value = NUM2LONG(method);
   } 
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
@@ -352,7 +352,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
 
   ruby_curl_easy_cleanup( easy, rbce );
 
-  // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
+  // active should equal LONG2NUM(RHASH(rbcm->requests)->tbl->num_entries)
   r = rb_hash_delete( rbcm->requests, LONG2NUM((long)rbce->curl) );
   if( r != easy || r == Qnil ) {
     rb_warn("Possibly lost track of Curl::Easy VALUE, it may not be reclaimed by GC");
@@ -573,7 +573,7 @@ static VALUE curb_select(void *args) {
 VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   CURLMcode mcode;
   ruby_curl_multi *rbcm;
-  int maxfd, rc;
+  int maxfd, rc = -1;
   fd_set fdread, fdwrite, fdexcep;
 #ifdef _WIN32
   fd_set crt_fdread, crt_fdwrite, crt_fdexcep;
