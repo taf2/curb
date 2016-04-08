@@ -267,6 +267,9 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
    * If this number is not correct, the next call to curl_multi_perform will correct it. */
   rbcm->running++;
 
+  /* track a reference to associated multi handle */
+  rbce->multi = self;
+
   rb_hash_aset( rbcm->requests, LONG2NUM((long)rbce->curl), easy );
 
   return self;

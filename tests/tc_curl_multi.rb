@@ -109,7 +109,11 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert(m.idle?, 'A new Curl::Multi handle should be idle')
 
+    assert_nil e.multi
+
     m.add(e)
+
+    assert_not_nil e.multi
 
     assert((not m.idle?), 'A Curl::Multi handle with a request should not be idle')
 
