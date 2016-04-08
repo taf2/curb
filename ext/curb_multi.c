@@ -47,36 +47,38 @@ static VALUE callback_exception(VALUE unused) {
 } 
 
 static void curl_multi_mark(ruby_curl_multi *rbcm) {
-  rb_gc_mark(rbcm->requests);
+  if (!NIL_P(rbcm->requests)) rb_gc_mark(rbcm->requests);
 }
 
-static void curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) {
+/* Hash#foreach callback for curl_multi_free */
+static int curl_multi_flush_easy(VALUE key, VALUE easy, ruby_curl_multi *rbcm) {
   CURLMcode result;
   ruby_curl_easy *rbce;
 
-  Data_Get_Struct(easy, ruby_curl_easy, rbce);
-  result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
-  if (result != 0) {
-    raise_curl_multi_error_exception(result);
-  }
-}
+  // sometimes the type is T_ZOMBIE, e.g. after Ruby has received the SIGTERM signal
+  if (rb_type(easy) == T_DATA) {
+    Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
-static int
-rb_hash_clear_i(VALUE key, VALUE value, VALUE dummy) {
+    result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
+    if (result != 0) {
+      raise_curl_multi_error_exception(result);
+    }
+  }
+
   return ST_DELETE;
 }
 
-static void curl_multi_free(ruby_curl_multi *rbcm) {
+void curl_multi_free(ruby_curl_multi *rbcm) {
   VALUE hash = rbcm->requests;
 
-  if (rbcm && !NIL_P(hash) && rb_type(hash) == T_HASH && RHASH_SIZE(hash) > 0) {
+  if (!NIL_P(hash) && rb_type(hash) == T_HASH && RHASH_SIZE(hash) > 0) {
 
-    rb_hash_foreach(hash, (int (*)())curl_multi_flush_easy, (VALUE)rbcm);
-    rb_hash_foreach(hash, rb_hash_clear_i, 0);
+    rb_hash_foreach(hash, curl_multi_flush_easy, (VALUE)rbcm);
     /* rb_hash_clear(rbcm->requests); */
 
     rbcm->requests = Qnil;
   }
+
   curl_multi_cleanup(rbcm->handle);
   free(rbcm);
 }
@@ -170,7 +172,7 @@ static VALUE ruby_curl_multi_idle(VALUE self) {
   
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
   
-  if ( FIX2INT( rb_funcall(rbcm->requests, rb_intern("length"), 0) ) == 0 ) {
+  if (RHASH_SIZE(rbcm->requests) > 0) {
     return Qtrue;
   } else {
     return Qfalse;
