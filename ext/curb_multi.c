@@ -248,7 +248,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   // check if this curl handle has been added before adding again
-  r = rb_hash_aref(rbcm->requests, INT2NUM((int)rbce->curl));
+  r = rb_hash_aref(rbcm->requests, LONG2NUM((long)rbce->curl));
   if ( r != Qnil ) {
     return Qnil;
   }
@@ -267,7 +267,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
    * If this number is not correct, the next call to curl_multi_perform will correct it. */
   rbcm->running++;
 
-  rb_hash_aset( rbcm->requests, INT2NUM((int)rbce->curl), easy );
+  rb_hash_aset( rbcm->requests, LONG2NUM((long)rbce->curl), easy );
 
   return self;
 }
@@ -303,7 +303,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   Data_Get_Struct(easy, ruby_curl_easy, rbce);
 
   // check if this curl handle has been added before removing
-  r = rb_hash_aref(rbcm->requests, INT2NUM((int)rbce->curl));
+  r = rb_hash_aref(rbcm->requests, LONG2NUM((long)rbce->curl));
   if ( r == Qnil ) {
     return;
   }
@@ -318,7 +318,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   ruby_curl_easy_cleanup( easy, rbce );
 
   // active should equal INT2FIX(RHASH(rbcm->requests)->tbl->num_entries)
-  r = rb_hash_delete( rbcm->requests, INT2NUM((int)rbce->curl) );
+  r = rb_hash_delete( rbcm->requests, LONG2NUM((long)rbce->curl) );
   if( r != easy || r == Qnil ) {
     rb_warn("Possibly lost track of Curl::Easy VALUE, it may not be reclaimed by GC");
   }
