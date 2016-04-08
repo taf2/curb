@@ -79,7 +79,9 @@ void curl_multi_free(ruby_curl_multi *rbcm) {
     rbcm->requests = Qnil;
   }
 
-  curl_multi_cleanup(rbcm->handle);
+  if (rbcm->handle) {
+    curl_multi_cleanup(rbcm->handle);
+  }
   free(rbcm);
 }
 
@@ -191,6 +193,14 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
   ruby_curl_multi *rbcm;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
+
+  if (!rbcm->handle) {
+    rbcm->handle = curl_multi_init();
+    if (!rbcm->handle) {
+      rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+    }
+  }
+
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2INT(count));
 #endif
 
@@ -224,6 +234,14 @@ static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE method) {
   } 
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
+
+  if (!rbcm->handle) {
+    rbcm->handle = curl_multi_init();
+    if (!rbcm->handle) {
+      rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+    }
+  }
+
   curl_multi_setopt(rbcm->handle, CURLMOPT_PIPELINING, value);
 #endif
   return method == Qtrue ? 1 : 0;
@@ -255,6 +273,13 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 
   /* setup the easy handle */
   ruby_curl_easy_setup( rbce );
+
+  if (!rbcm->handle) {
+    rbcm->handle = curl_multi_init();
+    if (!rbcm->handle) {
+      rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+    }
+  }
 
   mcode = curl_multi_add_handle(rbcm->handle, rbce->curl);
   if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
@@ -293,6 +318,13 @@ VALUE ruby_curl_multi_remove(VALUE self, VALUE easy) {
   ruby_curl_multi *rbcm;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
+
+  if (!rbcm->handle) {
+    rbcm->handle = curl_multi_init();
+    if (!rbcm->handle) {
+      rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+    }
+  }
 
   rb_curl_multi_remove(rbcm,easy);
 
@@ -344,6 +376,13 @@ static VALUE ruby_curl_multi_cancel(VALUE self) {
   ruby_curl_multi *rbcm;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
+
+  if (!rbcm->handle) {
+    rbcm->handle = curl_multi_init();
+    if (!rbcm->handle) {
+      rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+    }
+  }
   
   rb_hash_foreach( rbcm->requests, ruby_curl_multi_cancel_callback, (VALUE)rbcm );
   
@@ -466,10 +505,11 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
     mcode = curl_multi_perform(multi_handle, still_running);
   } while (mcode == CURLM_CALL_MULTI_PERFORM);
 
+
   if (mcode != CURLM_OK) {
     raise_curl_multi_error_exception(mcode);
   }
-  
+
 }
 
 #ifdef _WIN32
@@ -643,7 +683,15 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   rb_curl_multi_read_info( self, rbcm->handle );
   if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
-    
+
+  /* do early cleanup */
+  VALUE hash = rbcm->requests;
+  if (!NIL_P(hash) && rb_type(hash) == T_HASH && RHASH_SIZE(hash) > 0) {
+    rb_hash_foreach(hash, curl_multi_flush_easy, (VALUE)rbcm);
+  }
+  curl_multi_cleanup(rbcm->handle);
+  rbcm->handle = NULL;
+ 
   return Qtrue;
 }
 
