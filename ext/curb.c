@@ -258,128 +258,128 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURL_LONG_VERSION", curllongver);
 
   /* Passed to on_debug handler to indicate that the data is informational text. */
-  rb_define_const(mCurl, "CURLINFO_TEXT", INT2FIX(CURLINFO_TEXT));
+  rb_define_const(mCurl, "CURLINFO_TEXT", LONG2NUM(CURLINFO_TEXT));
 
   /* Passed to on_debug handler to indicate that the data is header (or header-like) data received from the peer. */
-  rb_define_const(mCurl, "CURLINFO_HEADER_IN", INT2FIX(CURLINFO_HEADER_IN));
+  rb_define_const(mCurl, "CURLINFO_HEADER_IN", LONG2NUM(CURLINFO_HEADER_IN));
 
   /* Passed to on_debug handler to indicate that the data is header (or header-like) data sent to the peer. */
-  rb_define_const(mCurl, "CURLINFO_HEADER_OUT", INT2FIX(CURLINFO_HEADER_OUT));
+  rb_define_const(mCurl, "CURLINFO_HEADER_OUT", LONG2NUM(CURLINFO_HEADER_OUT));
 
   /* Passed to on_debug handler to indicate that the data is protocol data received from the peer. */
-  rb_define_const(mCurl, "CURLINFO_DATA_IN", INT2FIX(CURLINFO_DATA_IN));
+  rb_define_const(mCurl, "CURLINFO_DATA_IN", LONG2NUM(CURLINFO_DATA_IN));
 
   /* Passed to on_debug handler to indicate that the data is protocol data sent to the peer. */
-  rb_define_const(mCurl, "CURLINFO_DATA_OUT", INT2FIX(CURLINFO_DATA_OUT));
+  rb_define_const(mCurl, "CURLINFO_DATA_OUT", LONG2NUM(CURLINFO_DATA_OUT));
 
 #ifdef HAVE_CURLFTPMETHOD_MULTICWD 
-  rb_define_const(mCurl, "CURL_MULTICWD",  INT2FIX(CURLFTPMETHOD_MULTICWD));
+  rb_define_const(mCurl, "CURL_MULTICWD",  LONG2NUM(CURLFTPMETHOD_MULTICWD));
 #endif
 
 #ifdef HAVE_CURLFTPMETHOD_NOCWD 
-  rb_define_const(mCurl, "CURL_NOCWD",     INT2FIX(CURLFTPMETHOD_NOCWD));
+  rb_define_const(mCurl, "CURL_NOCWD",     LONG2NUM(CURLFTPMETHOD_NOCWD));
 #endif
 
 #ifdef HAVE_CURLFTPMETHOD_SINGLECWD 
-  rb_define_const(mCurl, "CURL_SINGLECWD", INT2FIX(CURLFTPMETHOD_SINGLECWD));
+  rb_define_const(mCurl, "CURL_SINGLECWD", LONG2NUM(CURLFTPMETHOD_SINGLECWD));
 #endif
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is an HTTP proxy. (libcurl >= 7.10) */
 #ifdef HAVE_CURLPROXY_HTTP
-  rb_define_const(mCurl, "CURLPROXY_HTTP", INT2FIX(CURLPROXY_HTTP));
+  rb_define_const(mCurl, "CURLPROXY_HTTP", LONG2NUM(CURLPROXY_HTTP));
 #else
-  rb_define_const(mCurl, "CURLPROXY_HTTP", INT2FIX(-1));
+  rb_define_const(mCurl, "CURLPROXY_HTTP", LONG2NUM(-1));
 #endif
 
 #ifdef CURL_VERSION_SSL
-  rb_define_const(mCurl, "CURL_SSLVERSION_DEFAULT", INT2FIX(CURL_SSLVERSION_DEFAULT));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   INT2FIX(CURL_SSLVERSION_TLSv1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   INT2FIX(CURL_SSLVERSION_SSLv2));
-  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   INT2FIX(CURL_SSLVERSION_SSLv3));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0",   INT2FIX(CURL_SSLVERSION_TLSv1_0));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1",   INT2FIX(CURL_SSLVERSION_TLSv1_1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2",   INT2FIX(CURL_SSLVERSION_TLSv1_2));
+  rb_define_const(mCurl, "CURL_SSLVERSION_DEFAULT", LONG2NUM(CURL_SSLVERSION_DEFAULT));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   LONG2NUM(CURL_SSLVERSION_TLSv1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   LONG2NUM(CURL_SSLVERSION_SSLv2));
+  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   LONG2NUM(CURL_SSLVERSION_SSLv3));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0",   LONG2NUM(CURL_SSLVERSION_TLSv1_0));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1",   LONG2NUM(CURL_SSLVERSION_TLSv1_1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2",   LONG2NUM(CURL_SSLVERSION_TLSv1_2));
 
-  rb_define_const(mCurl, "CURL_USESSL_CONTROL", INT2FIX(CURB_FTPSSL_CONTROL));
-  rb_define_const(mCurl, "CURL_USESSL_NONE", INT2FIX(CURB_FTPSSL_NONE));
-  rb_define_const(mCurl, "CURL_USESSL_TRY", INT2FIX(CURB_FTPSSL_TRY));
-  rb_define_const(mCurl, "CURL_USESSL_ALL", INT2FIX(CURB_FTPSSL_ALL));
+  rb_define_const(mCurl, "CURL_USESSL_CONTROL", LONG2NUM(CURB_FTPSSL_CONTROL));
+  rb_define_const(mCurl, "CURL_USESSL_NONE", LONG2NUM(CURB_FTPSSL_NONE));
+  rb_define_const(mCurl, "CURL_USESSL_TRY", LONG2NUM(CURB_FTPSSL_TRY));
+  rb_define_const(mCurl, "CURL_USESSL_ALL", LONG2NUM(CURB_FTPSSL_ALL));
 #else
-  rb_define_const(mCurl, "CURL_SSLVERSION_DEFAULT", INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0", INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1", INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2", INT2FIX(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_DEFAULT", LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0", LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1", LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2", LONG2NUM(-1));
 
-  rb_define_const(mCurl, "CURL_USESSL_CONTROL", INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_USESSL_NONE", INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_USESSL_TRY", INT2FIX(-1));
-  rb_define_const(mCurl, "CURL_USESSL_ALL", INT2FIX(-1));
+  rb_define_const(mCurl, "CURL_USESSL_CONTROL", LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_USESSL_NONE", LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_USESSL_TRY", LONG2NUM(-1));
+  rb_define_const(mCurl, "CURL_USESSL_ALL", LONG2NUM(-1));
 #endif
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS4 proxy. (libcurl >= 7.15.2) */
 #ifdef HAVE_CURLPROXY_SOCKS4
-  rb_define_const(mCurl, "CURLPROXY_SOCKS4", INT2FIX(CURLPROXY_SOCKS4));
+  rb_define_const(mCurl, "CURLPROXY_SOCKS4", LONG2NUM(CURLPROXY_SOCKS4));
 #else
-  rb_define_const(mCurl, "CURLPROXY_SOCKS4", INT2FIX(-2));
+  rb_define_const(mCurl, "CURLPROXY_SOCKS4", LONG2NUM(-2));
 #endif
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS4A proxy. (libcurl >= 7.18.0) */
 #ifdef HAVE_CURLPROXY_SOCKS4A
-  rb_define_const(mCurl, "CURLPROXY_SOCKS4A", INT2FIX(CURLPROXY_SOCKS4A));
+  rb_define_const(mCurl, "CURLPROXY_SOCKS4A", LONG2NUM(CURLPROXY_SOCKS4A));
 #else
-  rb_define_const(mCurl, "CURLPROXY_SOCKS4A", INT2FIX(-2));
+  rb_define_const(mCurl, "CURLPROXY_SOCKS4A", LONG2NUM(-2));
 #endif
 
   /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS5 proxy. (libcurl >= 7.10) */
 #ifdef HAVE_CURLPROXY_SOCKS5
-  rb_define_const(mCurl, "CURLPROXY_SOCKS5", INT2FIX(CURLPROXY_SOCKS5));
+  rb_define_const(mCurl, "CURLPROXY_SOCKS5", LONG2NUM(CURLPROXY_SOCKS5));
 #else
-  rb_define_const(mCurl, "CURLPROXY_SOCKS5", INT2FIX(-2));
+  rb_define_const(mCurl, "CURLPROXY_SOCKS5", LONG2NUM(-2));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use Basic authentication. */
 #ifdef HAVE_CURLAUTH_BASIC
-  rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(CURLAUTH_BASIC));
+  rb_define_const(mCurl, "CURLAUTH_BASIC", LONG2NUM(CURLAUTH_BASIC));
 #else
-  rb_define_const(mCurl, "CURLAUTH_BASIC", INT2FIX(0));
+  rb_define_const(mCurl, "CURLAUTH_BASIC", LONG2NUM(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use Digest authentication. */
 #ifdef HAVE_CURLAUTH_DIGEST
-  rb_define_const(mCurl, "CURLAUTH_DIGEST", INT2FIX(CURLAUTH_DIGEST));
+  rb_define_const(mCurl, "CURLAUTH_DIGEST", LONG2NUM(CURLAUTH_DIGEST));
 #else
-  rb_define_const(mCurl, "CURLAUTH_DIGEST", INT2FIX(0));
+  rb_define_const(mCurl, "CURLAUTH_DIGEST", LONG2NUM(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use GSS Negotiate authentication. Requires a suitable GSS-API library. */
 #ifdef HAVE_CURLAUTH_GSSNEGOTIATE
-  rb_define_const(mCurl, "CURLAUTH_GSSNEGOTIATE", INT2FIX(CURLAUTH_GSSNEGOTIATE));
+  rb_define_const(mCurl, "CURLAUTH_GSSNEGOTIATE", LONG2NUM(CURLAUTH_GSSNEGOTIATE));
 #else
-  rb_define_const(mCurl, "CURLAUTH_GSSNEGOTIATE", INT2FIX(0));
+  rb_define_const(mCurl, "CURLAUTH_GSSNEGOTIATE", LONG2NUM(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use HTTP NTLM authentication. Requires MS Windows or OpenSSL support. */
 #ifdef HAVE_CURLAUTH_NTLM
-  rb_define_const(mCurl, "CURLAUTH_NTLM", INT2FIX(CURLAUTH_NTLM));
+  rb_define_const(mCurl, "CURLAUTH_NTLM", LONG2NUM(CURLAUTH_NTLM));
 #else
-  rb_define_const(mCurl, "CURLAUTH_NTLM", INT2FIX(0));
+  rb_define_const(mCurl, "CURLAUTH_NTLM", LONG2NUM(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, allows libcurl to select any suitable authentication method except basic. */
 #ifdef HAVE_CURLAUTH_ANYSAFE
-  rb_define_const(mCurl, "CURLAUTH_ANYSAFE", INT2FIX(CURLAUTH_ANYSAFE));
+  rb_define_const(mCurl, "CURLAUTH_ANYSAFE", LONG2NUM(CURLAUTH_ANYSAFE));
 #else
-  rb_define_const(mCurl, "CURLAUTH_ANYSAFE", INT2FIX(0));
+  rb_define_const(mCurl, "CURLAUTH_ANYSAFE", LONG2NUM(0));
 #endif
 
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, allows libcurl to select any suitable authentication method. */
 #ifdef HAVE_CURLAUTH_ANY
-  rb_define_const(mCurl, "CURLAUTH_ANY", INT2FIX(CURLAUTH_ANY));
+  rb_define_const(mCurl, "CURLAUTH_ANY", LONG2NUM(CURLAUTH_ANY));
 #else
-  rb_define_const(mCurl, "CURLAUTH_ANY", INT2FIX(0));
+  rb_define_const(mCurl, "CURLAUTH_ANY", LONG2NUM(0));
 #endif
 
   CURB_DEFINE(CURLOPT_VERBOSE);
