@@ -65,6 +65,12 @@ Curb provides two classes:
 * `Curl::Easy` - simple API, for day-to-day tasks.
 * `Curl::Multi` - more advanced API, for operating on multiple URLs simultaneously.
 
+To use either, you will need to require the curb gem:
+
+```ruby
+require 'curb'
+```
+
 ### Super simple API (less typing)
 
 ```ruby
