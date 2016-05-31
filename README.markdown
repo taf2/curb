@@ -1,5 +1,8 @@
 # Curb - Libcurl bindings for Ruby [![Build Status](https://travis-ci.org/taf2/curb.svg?branch=master)](https://travis-ci.org/taf2/curb)
 
+# Crub 2.0.0 and newer
+[![Build Status](https://travis-ci.org/pavel-jurasek-bcgdv-com/curb.svg?branch=master)](https://travis-ci.org/pavel-jurasek-bcgdv-com/curb)
+
 * [rubydoc rdoc](http://www.rubydoc.info/github/taf2/curb/)
 * [github project](http://github.com/taf2/curb/tree/master)
 

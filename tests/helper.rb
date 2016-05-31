@@ -31,10 +31,40 @@ require 'webrick'
 TEST_SINGLE_THREADED=false
 
 # keep webrick quiet
-module SilenceAccessLog; def access_log(config, req, res); end; end
-module SilenceLog; def log(level, data); end; end
-::WEBrick::HTTPServer.prepend SilenceAccessLog
-::WEBrick::BasicLog.prepend SilenceLog
+if Gem::Dependency.new('', '>= 2.1.0').match?('', RUBY_VERSION)
+  module SilenceAccessLog; def access_log(config, req, res); end; end
+  ::WEBrick::HTTPServer.prepend SilenceAccessLog
+
+  module SilenceLog; def log(level, data); end; end
+  ::WEBrick::BasicLog.prepend SilenceLog
+else
+  module SilenceAccessLog
+    def self.included(base)
+      base.class_eval do
+        alias_method_chain :access_log, :silent
+       end
+    end
+
+    def access_log_with_silent(config, req, res)
+    end
+  end
+
+  ::WEBrick::HTTPServer.send(:include, SilenceAccessLog)
+
+  module SilenceLog
+    def self.included(base)
+      base.class_eval do
+        alias_method_chain :log, :silent
+       end
+    end
+
+    def log_with_silent(level, data)
+    end
+  end
+
+  ::WEBrick::BasicLog.send(:include, SilenceLog)
+end
+
 
 #
 # Simple test server to record number of times a request is sent/recieved of a specific
