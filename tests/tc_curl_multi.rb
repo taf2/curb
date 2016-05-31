@@ -332,7 +332,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       assert_equal 200, curl.response_code
       assert File.exist?(download_path)
       store = file_info[File.basename(download_path)]
-      assert_equal file_info[File.basename(download_path)][:size], File.size(download_path), "incomplete download: #{download_path}"
+      assert_equal store[:size], File.size(download_path), "incomplete download: #{download_path}"
     end
   ensure
     FileUtils.rm_rf("tmp/")
@@ -346,12 +346,11 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     ]
     Curl::Multi.post(urls, {:follow_location => true, :multipart_form_post => true}, {:pipeline => true}) do|easy|
       str = easy.body_str
-      assert_match /POST/, str
+      assert_match(/POST/, str)
       fields = {}
       str.gsub(/POST\n/,'').split('&').map{|sv| k, v = sv.split('='); fields[k] = v }
       expected = urls.find{|s| s[:url] == easy.last_effective_url }
-      assert_equal expected[:post_fields], fields
-      #puts "#{easy.last_effective_url} #{fields.inspect}"
+      assert_equal(expected[:post_fields], fields)
     end
   end
 
@@ -360,9 +359,20 @@ class TestCurbCurlMulti < Test::Unit::TestCase
              :headers => {'Content-Type' => 'application/json' } },
            { :url => TestServlet.url, :method => :put, :put_data => "message",
              :headers => {'Content-Type' => 'application/json' } }]
-    Curl::Multi.put(urls, {}, {:pipeline => true}) do|easy|
-      assert_match /PUT/, easy.body_str
-      assert_match /message/, easy.body_str
+    Curl::Multi.put(urls, {}, {:pipeline => true}) do |easy|
+      assert_match(/PUT/, easy.body_str)
+      assert_match(/message/, easy.body_str)
+    end
+  end
+
+  def test_multi_easy_patch_01
+    urls = [{ :url => TestServlet.url, :method => :patch, :patch_data => "message",
+             :headers => {'Content-Type' => 'application/json' } },
+           { :url => TestServlet.url, :method => :patch, :patch_data => "message",
+             :headers => {'Content-Type' => 'application/json' } }]
+    Curl::Multi.patch(urls, {}, {:pipeline => true}) do |easy|
+      assert_match(/PATCH/, easy.body_str)
+      assert_match(/message/, easy.body_str)
     end
   end
 
@@ -373,19 +383,22 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       { :url => TestServlet.url + '?q=3', :method => :post, :post_fields => {'field3' => 'value3', 'field4' => 'value4'}},
       { :url => TestServlet.url, :method => :put, :put_data => "message",
         :headers => {'Content-Type' => 'application/json' } },
+      { :url => TestServlet.url, :method => :patch, :patch_data => "message",
+        :headers => {'Content-Type' => 'application/json' } },
       { :url => TestServlet.url, :method => :get }
     ]
     Curl::Multi.http(urls, {:pipeline => true}) do|easy, code, method|
-      assert_equal nil, code
+      assert_equal(nil, code)
       case method
       when :post
-        assert_match /POST/, easy.body_str
+        assert_match(/POST/, easy.body_str)
       when :get
-        assert_match /GET/, easy.body_str
+        assert_match(/GET/, easy.body_str)
       when :put
-        assert_match /PUT/, easy.body_str
+        assert_match(/PUT/, easy.body_str)
+      when :patch
+        assert_match(/PATCH/, easy.body_str)
       end
-      #puts "#{easy.body_str.inspect}, #{method.inspect}, #{code.inspect}"
     end
   end
 
@@ -393,17 +406,20 @@ class TestCurbCurlMulti < Test::Unit::TestCase
         urls = [
       { :url => TestServlet.url + '?q=1', :method => :get },
       { :url => TestServlet.url + '?q=2', :method => :get },
-      { :url => TestServlet.url + '?q=3', :method => :get }
+      { :url => TestServlet.url + '?q=3', :method => :get },
+      { :url => TestServlet.url + '?q=4', :method => :get }
     ]
     Curl::Multi.http(urls, {:pipeline => true, :max_connects => 1}) do|easy, code, method|
       assert_equal nil, code
       case method
       when :post
-        assert_match /POST/, easy.body_str
+        assert_match(/POST/, easy.body_str)
       when :get
-        assert_match /GET/, easy.body_str
+        assert_match(/GET/, easy.body_str)
       when :put
-        assert_match /PUT/, easy.body_str
+        assert_match(/PUT/, easy.body_str)
+      when :patch
+        assert_match(/PATCH/, easy.body_str)
       end
     end
   end
@@ -425,7 +441,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.perform
     failure = false
     assert !failure
-    assert_equal "POST\nhello=world", e2.body_str
+    assert_equal("POST\nhello=world", e2.body_str)
   end
 
   def test_remove_exception_is_descriptive
