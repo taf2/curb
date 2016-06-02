@@ -3,6 +3,7 @@ module Curl
 
     alias post http_post
     alias put http_put
+    alias patch http_patch
     alias body body_str
     alias head header_str
 
@@ -374,6 +375,19 @@ module Curl
         c = Curl::Easy.new url
         yield c if block_given?
         c.http_put data
+        c
+      end
+
+      #
+      # call-seq:
+      #   Curl::Easy.http_patch(url, data) {|c| ... }
+      #
+      # see easy.http_patch
+      #
+      def http_patch(url, data)
+        c = Curl::Easy.new url
+        yield c if block_given?
+        c.http_patch data
         c
       end
 
