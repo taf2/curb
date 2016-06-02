@@ -6,7 +6,7 @@ module Curl
       #   Curl::Multi.get(['url1','url2','url3','url4','url5'], :follow_location => true) do|easy|
       #     easy
       #   end
-      #
+      # 
       # Blocking call to fetch multiple url's in parallel.
       def get(urls, easy_options={}, multi_options={}, &blk)
         url_confs = []
@@ -25,10 +25,10 @@ module Curl
       #                    {:pipeline => Curl::CURLPIPE_HTTP1}) do|easy|
       #     easy_handle_on_request_complete
       #   end
-      #
+      # 
       # Blocking call to POST multiple form's in parallel.
-      #
-      # urls_with_config: is a hash of url's pointing to the postfields to send
+      # 
+      # urls_with_config: is a hash of url's pointing to the postfields to send 
       # easy_options: are a set of common options to set on all easy handles
       # multi_options: options to set on the Curl::Multi handle
       #
@@ -49,10 +49,10 @@ module Curl
       #                    {:pipeline => Curl::CURLPIPE_HTTP1}) do|easy|
       #     easy_handle_on_request_complete
       #   end
-      #
+      # 
       # Blocking call to POST multiple form's in parallel.
-      #
-      # urls_with_config: is a hash of url's pointing to the postfields to send
+      # 
+      # urls_with_config: is a hash of url's pointing to the postfields to send 
       # easy_options: are a set of common options to set on all easy handles
       # multi_options: options to set on the Curl::Multi handle
       #
@@ -60,30 +60,6 @@ module Curl
         url_confs = []
         urls_with_config.each do|uconf|
           url_confs << uconf.merge(:method => :put).merge(easy_options)
-        end
-        self.http(url_confs, multi_options) {|c,code,method| blk.call(c) }
-      end
-
-      # call-seq:
-      #
-      #   Curl::Multi.patch([{:url => 'url1', :patch_data => "some message"},
-      #                    {:url => 'url2', :patch_data => IO.read('filepath')},
-      #                    {:url => 'url3', :patch_data => "maybe another string or socket?"],
-      #                    {:follow_location => true},
-      #                    {:pipeline => Curl::CURLPIPE_HTTP1}) do|easy|
-      #     easy_handle_on_request_complete
-      #   end
-      #
-      # Blocking call to PATCH multiple form's in parallel.
-      #
-      # urls_with_config: is a hash of url's pointing to the postfields to send
-      # easy_options: are a set of common options to set on all easy handles
-      # multi_options: options to set on the Curl::Multi handle
-      #
-      def patch(urls_with_config, easy_options={}, multi_options={}, &blk)
-        url_confs = []
-        urls_with_config.each do|uconf|
-          url_confs << uconf.merge(:method => :patch).merge(easy_options)
         end
         self.http(url_confs, multi_options) {|c,code,method| blk.call(c) }
       end
@@ -103,7 +79,7 @@ module Curl
       # Blocking call to issue multiple HTTP requests with varying verb's.
       #
       # urls_with_config: is a hash of url's pointing to the easy handle options as well as the special option :method, that can by one of [:get, :post, :put, :delete, :head], when no verb is provided e.g. :method => nil -> GET is used
-      # multi_options: options for the multi handle
+      # multi_options: options for the multi handle 
       # blk: a callback, that yeilds when a handle is completed
       #
       def http(urls_with_config, multi_options={}, &blk)
@@ -141,8 +117,6 @@ module Curl
             easy.post_body = fields.map{|f,k| "#{easy.escape(f)}=#{easy.escape(k)}"}.join('&')
           when :put
             easy.put_data = c.delete(:put_data)
-          when :patch
-            easy.patch_data = c.delete(:patch_data)
           when :head
             easy.head = true
           when :delete
@@ -154,7 +128,7 @@ module Curl
 
           # headers is a special key
           headers.each {|k,v| easy.headers[k] = v } if headers
-
+ 
           #
           # use the remaining options as specific configuration to the easy handle
           # bad options should raise an undefined method error
@@ -201,7 +175,7 @@ module Curl
       # Curl::Multi.download(['http://example.com/p/a/t/h/file1.txt','http://example.com/p/a/t/h/file2.txt']){|c|}
       #
       # will create 2 new files file1.txt and file2.txt
-      #
+      # 
       # 2 files will be opened, and remain open until the call completes
       #
       # when using the :post or :put method, urls should be a hash, including the individual post fields per post

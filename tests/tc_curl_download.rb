@@ -1,7 +1,7 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 
 class TestCurbCurlDownload < Test::Unit::TestCase
-  include TestServerMethods
+  include TestServerMethods 
 
   def setup
     server_setup
@@ -11,8 +11,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
     dl_url = "http://127.0.0.1:9129/ext/curb_easy.c"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
 
-    Curl::Easy.download(dl_url, dl_path)
-
+    curb = Curl::Easy.download(dl_url, dl_path)
     assert File.exist?(dl_path)
     assert_equal File.read(File.join(File.dirname(__FILE__), '..','ext','curb_easy.c')), File.read(dl_path)
   ensure
@@ -24,8 +23,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
     io = File.open(dl_path, 'wb')
 
-    Curl::Easy.download(dl_url, io)
-
+    curb = Curl::Easy.download(dl_url, io)
     assert io.closed?
     assert File.exist?(dl_path)
     assert_equal File.read(File.join(File.dirname(__FILE__), '..','ext','curb_easy.c')), File.read(dl_path)
@@ -51,7 +49,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
     # Download remote source
     begin
       reader.close
-      Curl::Easy.download(dl_url, writer)
+      curb = Curl::Easy.download(dl_url, writer)
       Process.wait
     ensure
       writer.close rescue IOError # if the stream has already been closed, which occurs in Easy::download

@@ -10,7 +10,6 @@ $:.unshift($LIBDIR)
 $:.unshift($EXTDIR)
 
 require 'curb'
-require 'addressable'
 begin
   require 'test/unit'
 rescue LoadError
@@ -19,7 +18,7 @@ rescue LoadError
 end
 require 'fileutils'
 
-$TEST_URL = "file://#{Addressable::URI::escape(File.expand_path(__FILE__).tr('\\','/').tr(':','|'))}"
+$TEST_URL = "file://#{URI.escape(File.expand_path(__FILE__).tr('\\','/').tr(':','|'))}"
 
 require 'thread'
 require 'webrick'
@@ -31,20 +30,19 @@ require 'webrick'
 TEST_SINGLE_THREADED=false
 
 # keep webrick quiet
-if Gem::Dependency.new('', '>= 2.1.0').match?('', RUBY_VERSION)
-  module SilenceAccessLog; def access_log(config, req, res); end; end
-  ::WEBrick::HTTPServer.prepend SilenceAccessLog
-
-  module SilenceLog; def log(level, data); end; end
-  ::WEBrick::BasicLog.prepend SilenceLog
-else
-  ::WEBrick::HTTPServer.class_eval do; def access_log(config, req, res); end; end
-  ::WEBrick::BasicLog.class_eval do; def log(level, data); end; end
+class ::WEBrick::HTTPServer
+  def access_log(config, req, res)
+    # nop
+  end
+end
+class ::WEBrick::BasicLog
+  def log(level, data)
+    # nop
+  end
 end
 
-
 #
-# Simple test server to record number of times a request is sent/recieved of a specific
+# Simple test server to record number of times a request is sent/recieved of a specific 
 # request type, e.g. GET,POST,PUT,DELETE
 #
 class TestServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -54,7 +52,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def self.port
-    defined?(@port) ? @port : 9129
+    (@port or 9129)
   end
 
   def self.path
@@ -72,12 +70,12 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_GET(req,res)
-    if req.path.match(/redirect$/)
+    if req.path.match /redirect$/
       res.status = 302
       res['Location'] = '/foo'
-    elsif req.path.match(/not_here$/)
+    elsif req.path.match /not_here$/
       res.status = 404
-    elsif req.path.match(/error$/)
+    elsif req.path.match /error$/
       res.status = 500
     end
     respond_with("GET#{req.query_string}",req,res)
@@ -122,7 +120,6 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_PATCH(req,res)
-    res['X-Requested-Content-Type'] = req.content_type
     respond_with("PATCH\n#{req.body}",req,res)
   end
 
@@ -139,7 +136,7 @@ module TestServerMethods
 
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
-    if not(defined?(@server)) and !File.exist?(locked_file)
+    if @server.nil? and !File.exist?(locked_file)
 
       File.open(locked_file,'w') {|f| f << 'locked' }
       if TEST_SINGLE_THREADED
@@ -148,7 +145,7 @@ module TestServerMethods
           rd.close
           rd = nil
 
-          # start up a webrick server for testing delete
+          # start up a webrick server for testing delete 
           server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
           server.mount(servlet.path, servlet)
@@ -164,7 +161,7 @@ module TestServerMethods
         rd.read
         rd.close
       else
-        # start up a webrick server for testing delete
+        # start up a webrick server for testing delete 
         @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
         @server.mount(servlet.path, servlet)

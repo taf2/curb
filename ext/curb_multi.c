@@ -44,7 +44,7 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
 
 static VALUE callback_exception(VALUE unused) {
   return Qfalse;
-}
+} 
 
 static void curl_multi_mark(ruby_curl_multi *rbcm) {
   if (!NIL_P(rbcm->requests)) rb_gc_mark(rbcm->requests);
@@ -138,14 +138,14 @@ VALUE ruby_curl_multi_get_default_timeout(VALUE klass) {
 /* Hash#foreach callback for ruby_curl_multi_requests */
 static int ruby_curl_multi_requests_callback(VALUE key, VALUE value, VALUE result_array) {
   rb_ary_push(result_array, value);
-
+  
   return ST_CONTINUE;
 }
 
 /*
  * call-seq:
  *   multi.requests                                   => [#&lt;Curl::Easy...&gt;, ...]
- *
+ * 
  * Returns an array containing all the active requests on this Curl::Multi object.
  */
 static VALUE ruby_curl_multi_requests(VALUE self) {
@@ -153,27 +153,27 @@ static VALUE ruby_curl_multi_requests(VALUE self) {
   VALUE result_array;
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
-
+  
   result_array = rb_ary_new();
-
+  
   /* iterate over the requests hash, and stuff references into the array. */
   rb_hash_foreach(rbcm->requests, ruby_curl_multi_requests_callback, result_array);
-
+  
   return result_array;
 }
 
 /*
  * call-seq:
  *   multi.idle?                                      => true or false
- *
+ * 
  * Returns whether or not this Curl::Multi handle is processing any requests.  E.g. this returns
  * true when multi.requests.length == 0.
  */
 static VALUE ruby_curl_multi_idle(VALUE self) {
   ruby_curl_multi *rbcm;
-
+  
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
-
+  
   if (RHASH_SIZE(rbcm->requests) == 0) {
     return Qtrue;
   } else {
@@ -213,8 +213,8 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
  * multi.pipeline = true
  *
  * Pass a long set to 1 for HTTP/1.1 pipelining, 2 for HTTP/2 multiplexing, or 0 to disable.
- *  Enabling pipelining on a multi handle will make it attempt to perform HTTP Pipelining as
- * far as possible for transfers using this handle. This means that if you add a second request
+ *  Enabling pipelining on a multi handle will make it attempt to perform HTTP Pipelining as 
+ * far as possible for transfers using this handle. This means that if you add a second request 
  * that can use an already existing connection, the second request will be "piped" on the same
  * connection rather than being executed in parallel. (Added in 7.16.0, multiplex added in 7.43.0)
  *
@@ -231,7 +231,7 @@ static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE method) {
     value  = 0;
   } else {
     value = NUM2LONG(method);
-  }
+  } 
 
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
 
@@ -362,15 +362,15 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
 /* Hash#foreach callback for ruby_curl_multi_cancel */
 static int ruby_curl_multi_cancel_callback(VALUE key, VALUE value, ruby_curl_multi *rbcm) {
   rb_curl_multi_remove(rbcm, value);
-
+  
   return ST_CONTINUE;
 }
 
 /*
  * call-seq:
  *   multi.cancel!
- *
- * Cancels all requests currently being made on this Curl::Multi handle.
+ * 
+ * Cancels all requests currently being made on this Curl::Multi handle.  
  */
 static VALUE ruby_curl_multi_cancel(VALUE self) {
   ruby_curl_multi *rbcm;
@@ -383,9 +383,9 @@ static VALUE ruby_curl_multi_cancel(VALUE self) {
       rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
     }
   }
-
+  
   rb_hash_foreach( rbcm->requests, ruby_curl_multi_cancel_callback, (VALUE)rbcm );
-
+  
   /* for chaining */
   return self;
 }
@@ -474,13 +474,10 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     //rb_funcall( rb_easy_get("failure_proc"), idCall, 2, easy, rb_curl_easy_error(result) );
   }
 
-  if (
-    val == Qfalse &&
-    (!rb_easy_nil("success_proc") && response_code != 0) &&
-    (!rb_easy_nil("complete_proc") && response_code == 200)
-  ) {
+  if (val == Qfalse) {
     rb_warn("uncaught exception from callback");
   }
+
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
@@ -597,7 +594,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
   rb_curl_multi_read_info( self, rbcm->handle );
   if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
-
+ 
   do {
     while (rbcm->running) {
 
@@ -694,7 +691,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   }
   curl_multi_cleanup(rbcm->handle);
   rbcm->handle = NULL;
-
+ 
   return Qtrue;
 }
 
@@ -708,11 +705,11 @@ void init_curb_multi() {
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
   rb_define_singleton_method(cCurlMulti, "default_timeout=", ruby_curl_multi_set_default_timeout, 1);
   rb_define_singleton_method(cCurlMulti, "default_timeout", ruby_curl_multi_get_default_timeout, 0);
-
+  
   /* "Attributes" */
   rb_define_method(cCurlMulti, "requests", ruby_curl_multi_requests, 0);
   rb_define_method(cCurlMulti, "idle?", ruby_curl_multi_idle, 0);
-
+  
   /* Instance methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
