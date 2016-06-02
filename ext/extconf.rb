@@ -373,6 +373,9 @@ have_constant "CURLM_ADDED_ALREADY"
 # added in 7.40.0
 have_constant "curlopt_unix_socket_path"
 
+# added in 7.42.0
+have_constant "curlopt_path_as_is"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end

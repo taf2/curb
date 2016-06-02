@@ -3193,6 +3193,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_HEADER:
   case CURLOPT_NOPROGRESS:
   case CURLOPT_NOSIGNAL:
+#if HAVE_CURLOPT_PATH_AS_IS
+  case CURLOPT_PATH_AS_IS:
+#endif
   case CURLOPT_HTTPGET:
   case CURLOPT_NOBODY: {
     int type = rb_type(val);
