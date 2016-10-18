@@ -25,5 +25,5 @@ Gem::Specification.new do |s|
   
     s.platform = Gem::Platform::RUBY
   
-  s.licenses = ['MIT']
+  s.licenses = ['Ruby']
 end
