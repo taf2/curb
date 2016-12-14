@@ -3103,7 +3103,7 @@ static VALUE ruby_curl_easy_cookielist_get(VALUE self) {
 #else
     rb_warn("Installed libcurl is too old to support cookielist");
     return INT2FIX(-1);
-  #endif
+#endif
 }
 
 
