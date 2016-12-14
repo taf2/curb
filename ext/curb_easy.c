@@ -3072,13 +3072,19 @@ static VALUE ruby_curl_easy_num_connects_get(VALUE self) {
 }
 
 
-/* TODO this needs to be implemented.
-
-CURLINFO_COOKIELIST
-
-Pass a pointer to a 'struct curl_slist *' to receive a linked-list of all cookies cURL knows (expired ones, too). Don't forget to curl_slist_free_all(3) the list after it has been used. If there are no cookies (cookies for the handle have not been enabled or simply none have been received) 'struct curl_slist *' will be set to point to NULL. (Added in 7.14.1)
+/*
+ * call-seq:
+ *   easy.cookielist                                => array
+ *
+ * Retrieves the cookies curl knows in an array of strings.
+ * Returned strings are in Netscape cookiejar format or in Set-Cookie format.
+ *
+ * See also option CURLINFO_COOKIELIST of curl_easy_getopt(3) to see how libcurl behaves.
+ *
+ * (requires libcurl 7.14.1 or higher, otherwise -1 is always returned).
 */
 static VALUE ruby_curl_easy_cookielist_get(VALUE self) {
+#ifdef HAVE_CURLINFO_COOKIELIST
   ruby_curl_easy *rbce;
   struct curl_slist *cookies;
   struct curl_slist *cookie;
@@ -3093,6 +3099,11 @@ static VALUE ruby_curl_easy_cookielist_get(VALUE self) {
     rb_ary_push(rb_cookies, rb_str_new2(cookie->data));
   curl_slist_free_all(cookies);
   return rb_cookies;
+
+#else
+    rb_warn("Installed libcurl is too old to support cookielist");
+    return INT2FIX(-1);
+  #endif
 }
 
 
