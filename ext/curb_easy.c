@@ -3078,6 +3078,23 @@ CURLINFO_COOKIELIST
 
 Pass a pointer to a 'struct curl_slist *' to receive a linked-list of all cookies cURL knows (expired ones, too). Don't forget to curl_slist_free_all(3) the list after it has been used. If there are no cookies (cookies for the handle have not been enabled or simply none have been received) 'struct curl_slist *' will be set to point to NULL. (Added in 7.14.1)
 */
+static VALUE ruby_curl_easy_cookielist_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  struct curl_slist *cookies;
+  struct curl_slist *cookie;
+  VALUE rb_cookies;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  curl_easy_getinfo(rbce->curl, CURLINFO_COOKIELIST, &cookies);
+  if (!cookies)
+    return Qnil;
+  rb_cookies = rb_ary_new();
+  for (cookie = cookies; cookie; cookie = cookie->next)
+    rb_ary_push(rb_cookies, rb_str_new2(cookie->data));
+  curl_slist_free_all(cookies);
+  return rb_cookies;
+}
+
 
 /* TODO this needs to be implemented. Could probably support CONNECT_ONLY by having this
  *      return an open Socket or something.
@@ -3539,6 +3556,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "content_type", ruby_curl_easy_content_type_get, 0);
   rb_define_method(cCurlEasy, "os_errno", ruby_curl_easy_os_errno_get, 0);
   rb_define_method(cCurlEasy, "num_connects", ruby_curl_easy_num_connects_get, 0);
+  rb_define_method(cCurlEasy, "cookielist", ruby_curl_easy_cookielist_get, 0);
   rb_define_method(cCurlEasy, "ftp_entry_path", ruby_curl_easy_ftp_entry_path_get, 0);
 
   rb_define_method(cCurlEasy, "close", ruby_curl_easy_close, 0);
