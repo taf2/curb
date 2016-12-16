@@ -595,6 +595,15 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal "some.file", c.cookiejar        
   end
 
+  def test_cookielist
+    c = Curl::Easy.new TestServlet.url
+    c.enable_cookies = true
+    c.post_body = URI.encode_www_form c: 'somename=somevalue'
+    assert_nil c.cookielist
+    c.perform
+    assert_match(/somevalue/, c.cookielist.join(''))
+  end
+
   def test_on_success
     curl = Curl::Easy.new($TEST_URL)    
     on_success_called = false
