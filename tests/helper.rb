@@ -18,7 +18,7 @@ rescue LoadError
 end
 require 'fileutils'
 
-$TEST_URL = "file://#{'/' if RUBY_PLATFORM =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/}#{URI.escape(File.expand_path(__FILE__).tr('\\','/'))}"
+$TEST_URL = "file://#{'/' if RUBY_DESCRIPTION =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/}#{URI.escape(File.expand_path(__FILE__).tr('\\','/'))}"
 
 require 'thread'
 require 'webrick'
