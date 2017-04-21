@@ -18,7 +18,7 @@ rescue LoadError
 end
 require 'fileutils'
 
-$TEST_URL = "file://#{URI.escape(File.expand_path(__FILE__).tr('\\','/').tr(':','|'))}"
+$TEST_URL = "file://#{URI.escape(File.expand_path(__FILE__).tr('\\','/'))}"
 
 require 'thread'
 require 'webrick'
