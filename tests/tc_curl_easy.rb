@@ -799,7 +799,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     File.open(__FILE__,'rb') do|f|
       assert curl.http_put(f)
     end
-    assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str
+    assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str.tr("\r", '')
   end
   
   def test_put_class_method
@@ -809,7 +809,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       assert_equal Curl::Easy, c.class
     end
     assert_equal 1, count
-    assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str
+    assert_equal "PUT\n#{File.read(__FILE__)}", curl.body_str.tr("\r", '')
   end
 
   # Generate a self-signed cert with
@@ -905,7 +905,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.http_post(pf)
 
     assert_not_equal(0,easy.body_str.size)
-    assert_equal(easy.body_str,File.read(readme))
+    assert_equal(easy.body_str.tr("\r", ''), File.read(readme))
   end
 
 
