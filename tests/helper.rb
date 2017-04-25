@@ -52,13 +52,12 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def self.port
-    (@port or 9129)
+    @port ||= 9129
   end
 
   def self.path
     '/methods'
   end
-
   def self.url
     "http://127.0.0.1:#{port}#{path}"
   end
@@ -139,7 +138,7 @@ module TestServerMethods
 
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
-    if @server.nil? and !File.exist?(locked_file)
+    if (@server ||= nil).nil? and !File.exist?(locked_file)
 
       File.open(locked_file,'w') {|f| f << 'locked' }
       if TEST_SINGLE_THREADED
