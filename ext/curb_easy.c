@@ -2018,6 +2018,38 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
 }
 
 /***********************************************
+ * This is an rb_iterate callback used to set up http proxy headers.
+ */
+static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap) {
+  struct curl_slist **list;
+  VALUE proxy_header_str = Qnil;
+
+  Data_Get_Struct(wrap, struct curl_slist *, list);
+
+  //rb_p(proxy_header);
+
+  if (rb_type(proxy_header) == T_ARRAY) {
+    // we're processing a hash, proxy header is [name, val]
+    VALUE name, value;
+
+    name = rb_obj_as_string(rb_ary_entry(proxy_header, 0));
+    value = rb_obj_as_string(rb_ary_entry(proxy_header, 1));
+
+    // This is a bit inefficient, but we don't want to be modifying
+    // the actual values in the original hash.
+    proxy_header_str = rb_str_plus(name, rb_str_new2(": "));
+    proxy_header_str = rb_str_plus(proxy_header_str, value);
+  } else {
+    proxy_header_str = rb_obj_as_string(proxy_header);
+  }
+
+  //rb_p(header_str);
+
+  *list = curl_slist_append(*list, StringValuePtr(proxy_header_str));
+  return proxy_header_str;
+}
+
+/***********************************************
  * This is an rb_iterate callback used to set up ftp commands.
  */
 static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
@@ -2042,7 +2074,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   CURL *curl;
   VALUE url, _url = rb_easy_get("url");
   struct curl_slist **hdrs = &(rbce->curl_headers);
-  struct curl_slist **cmds = &(rbce->curl_proxy_headers);
+  struct curl_slist **phdrs = &(rbce->curl_proxy_headers);
   struct curl_slist **cmds = &(rbce->curl_ftp_commands);
 
   curl = rbce->curl;
@@ -2325,34 +2357,17 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
-  /* Setup HTTP headers if necessary */
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
-
-  if (!rb_easy_nil("headers")) {
-    if (rb_easy_type_check("headers", T_ARRAY) || rb_easy_type_check("headers", T_HASH)) {
-      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, hdrs);
-      rb_iterate(rb_each, rb_easy_get("headers"), cb_each_http_header, wrap);
-    } else {
-      VALUE headers_str = rb_obj_as_string(rb_easy_get("headers"));
-      *hdrs = curl_slist_append(*hdrs, StringValuePtr(headers_str));
-    }
-
-    if (*hdrs) {
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *hdrs);
-    }
-  }
-
   if (!rb_easy_nil("proxy_headers")) {
     if (rb_easy_type_check("proxy_headers", T_ARRAY) || rb_easy_type_check("proxy_headers", T_HASH)) {
-      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, hdrs);
-      rb_iterate(rb_each, rb_easy_get("proxy_headers"), cb_each_http_header, wrap);
+      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, phdrs);
+      rb_iterate(rb_each, rb_easy_get("proxy_headers"), cb_each_http_proxy_header, wrap);
     } else {
-      VALUE headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
-      *hdrs = curl_slist_append(*hdrs, StringValuePtr(proxy_headers_str));
+      VALUE proxy_headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
+      *phdrs = curl_slist_append(*hdrs, StringValuePtr(proxy_headers_str));
     }
 
-    if (*hdrs) {
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *hdrs);
+    if (*phdrs) {
+      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *phdrs);
     }
   }
 
