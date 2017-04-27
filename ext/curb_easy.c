@@ -495,6 +495,10 @@ static VALUE ruby_curl_easy_headers_set(VALUE self, VALUE headers) {
   CURB_OBJECT_HSETTER(ruby_curl_easy, headers);
 }
 
+static VALUE ruby_curl_easy_proxy_headers_set(VALUE self, VALUE proxy_headers) {
+  CURB_OBJECT_HSETTER(ruby_curl_easy, proxy_headers);
+}
+
 /*
  * call-seq:
  *   easy.headers                                     => Hash, Array or Str
@@ -529,9 +533,6 @@ static VALUE ruby_curl_easy_headers_get(VALUE self) {
  * Anything passed to libcurl as a header will be converted to a string during
  * the perform step.
  */
-static VALUE ruby_curl_easy_proxy_headers_set(VALUE self, VALUE proxy_headers) {
-  CURB_OBJECT_HSETTER(ruby_curl_easy, proxy_headers);
-}
 
 /*
  * call-seq:
@@ -2357,6 +2358,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
+  /* Setup HTTP proxy headers if necessary */
+  curl_easy_setopt(curl, CURLOPT_PROXYHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
+
   if (!rb_easy_nil("proxy_headers")) {
     if (rb_easy_type_check("proxy_headers", T_ARRAY) || rb_easy_type_check("proxy_headers", T_HASH)) {
       VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, phdrs);
@@ -2367,7 +2371,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
 
     if (*phdrs) {
-      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *phdrs);
+      curl_easy_setopt(curl, CURLOPT_PROXYHEADER, *phdrs);
     }
   }
 
