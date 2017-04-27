@@ -76,6 +76,7 @@ typedef struct {
   char callback_active;
 
   struct curl_slist *curl_headers;
+  struct curl_slist *curl_proxy_headers;
   struct curl_slist *curl_ftp_commands;
 
   int last_result; /* last result code from multi loop */
