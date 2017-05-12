@@ -94,8 +94,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
   end
 
-  # test invalid use of new
+  class Bar < Curl::Easy; def initialize(url, bar); super(url); @bar = bar; end; end
   def test_new_06
+    # can use Curl::Easy as a base class; calls #initialize
+    c = Bar.new($TEST_URL, 42)
+    assert_equal $TEST_URL, c.url
+    assert_equal 42, c.instance_variable_get(:@bar)
+  end
+
+  # test invalid use of new
+  def test_new_07
     Curl::Easy.new(TestServlet.url) do|curl|
       curl.http_post
       assert_equal "POST\n", curl.body_str

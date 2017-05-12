@@ -283,23 +283,10 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->callback_active = 0;
 }
 
-/*
- * call-seq:
- *   Curl::Easy.new                                   => #&lt;Curl::Easy...&gt;
- *   Curl::Easy.new(url = nil)                        => #&lt;Curl::Easy...&gt;
- *   Curl::Easy.new(url = nil) { |self| ... }         => #&lt;Curl::Easy...&gt;
- *
- * Create a new Curl::Easy instance, optionally supplying the URL.
- * The block form allows further configuration to be supplied before
- * the instance is returned.
- */
-static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
+static VALUE ruby_curl_easy_alloc(VALUE klass) {
   CURLcode ecode;
-  VALUE url, blk;
   VALUE new_curl;
   ruby_curl_easy *rbce;
-
-  rb_scan_args(argc, argv, "01&", &url, &blk);
 
   rbce = ALLOC(ruby_curl_easy);
 
@@ -316,19 +303,39 @@ static VALUE ruby_curl_easy_new(int argc, VALUE *argv, VALUE klass) {
 
   ruby_curl_easy_zero(rbce);
 
-  rb_easy_set("url", url);
-
   /* set the new_curl pointer to the curl handle */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)new_curl);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
   }
 
+  return new_curl;
+}
+
+/*
+ * call-seq:
+ *   Curl::Easy.new                                   => #&lt;Curl::Easy...&gt;
+ *   Curl::Easy.new(url = nil)                        => #&lt;Curl::Easy...&gt;
+ *   Curl::Easy.new(url = nil) { |self| ... }         => #&lt;Curl::Easy...&gt;
+ *
+ * Create a new Curl::Easy instance, optionally supplying the URL.
+ * The block form allows further configuration to be supplied before
+ * the instance is returned.
+ */
+static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
+  VALUE url, blk;
+  ruby_curl_easy *rbce;
+
+  rb_scan_args(argc, argv, "01&", &url, &blk);
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  rb_easy_set("url", url);
+
   if (blk != Qnil) {
-    rb_funcall(blk, idCall, 1, new_curl);
+    rb_funcall(blk, idCall, 1, self);
   }
 
-  return new_curl;
+  return self;
 }
 
 /*
@@ -3415,9 +3422,9 @@ void init_curb_easy() {
   rb_global_variable(&rbstrAmp);
 
   cCurlEasy = rb_define_class_under(mCurl, "Easy", rb_cObject);
+  rb_define_alloc_func(cCurlEasy, ruby_curl_easy_alloc);
 
   /* Class methods */
-  rb_define_singleton_method(cCurlEasy, "new", ruby_curl_easy_new, -1);
   rb_define_singleton_method(cCurlEasy, "error", ruby_curl_easy_error_message, 1);
 
   /* Attributes for config next perform */
@@ -3580,6 +3587,7 @@ void init_curb_easy() {
   /* Runtime support */
   rb_define_method(cCurlEasy, "clone", ruby_curl_easy_clone, 0);
   rb_define_alias(cCurlEasy, "dup", "clone");
+  rb_define_method(cCurlEasy, "initialize", ruby_curl_easy_initialize, -1);
   rb_define_method(cCurlEasy, "inspect", ruby_curl_easy_inspect, 0);
 
   rb_define_method(cCurlEasy, "multi", ruby_curl_easy_multi_get, 0);
