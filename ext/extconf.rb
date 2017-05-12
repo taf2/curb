@@ -62,6 +62,7 @@ end
 have_constant "curlinfo_appconnect_time"
 have_constant "curlinfo_redirect_time"
 have_constant "curlinfo_response_code"
+have_constant "curlinfo_status_message"
 have_constant "curlinfo_filetime"
 have_constant "curlinfo_redirect_count"
 have_constant "curlinfo_os_errno"

@@ -2552,6 +2552,39 @@ static VALUE ruby_curl_easy_response_code_get(VALUE self) {
   return LONG2NUM(code);
 }
 
+/*
+ * call-seq:
+ *   easy.status_message                              => "response message"
+ *
+ * Return the response status message, e.g. "200 OK" from the previous call
+ * to +perform+.
+ */
+static VALUE ruby_curl_easy_status_message_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  char *header = NULL, *h = NULL, *start = NULL, *end = NULL;
+  VALUE status;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  header = rb_easy_get_str("header_data");
+  h = malloc(strlen(header));
+  strcpy(h, header);
+  start = h;
+  do {
+    start = strchr(start, ' ');
+    if (0 < atoi(start+1)) break; // search space followed with positive number
+  } while (start!=NULL);
+  if (start==NULL) return Qnil;   // no such space in header?
+  end = strstr(start, "\r\n");
+  if (end==NULL) return Qnil;     // no \r\n found afterwards?
+  do {
+    end[0] = '\0';
+    end--;
+  } while (end[0]==' ');
+  status = rb_str_new2(start+1);
+  free(h);
+  return status;
+}
+
 #if defined(HAVE_CURLINFO_PRIMARY_IP)
 /*
  * call-seq:
@@ -3539,6 +3572,7 @@ void init_curb_easy() {
 
   rb_define_method(cCurlEasy, "last_effective_url", ruby_curl_easy_last_effective_url_get, 0);
   rb_define_method(cCurlEasy, "response_code", ruby_curl_easy_response_code_get, 0);
+  rb_define_method(cCurlEasy, "status_message", ruby_curl_easy_status_message_get, 0);
 #if defined(HAVE_CURLINFO_PRIMARY_IP)
   rb_define_method(cCurlEasy, "primary_ip", ruby_curl_easy_primary_ip_get, 0);
 #endif
