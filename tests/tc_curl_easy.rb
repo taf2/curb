@@ -5,7 +5,7 @@ end
 
 class TestCurbCurlEasy < Test::Unit::TestCase
   def test_global_reset
-    c = Curl.get($TEST_URL)
+    Curl.get($TEST_URL)
     # in a Timeout block you should reset the thread current handle 
     Curl.reset
   end
@@ -24,7 +24,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       end
     end
 
-    t.each {|t| t.join }
+    t.each {|x| x.join }
   end
 
   def test_class_perform_01   
@@ -44,7 +44,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end    
 
   def test_class_perform_03
-    assert_raise(Curl::Err::CouldntReadError) { c = Curl::Easy.perform($TEST_URL + "nonexistent") }
+    assert_raise(Curl::Err::CouldntReadError) { Curl::Easy.perform($TEST_URL + "nonexistent") }
   end    
   
   def test_new_01
@@ -666,7 +666,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       retries = 0
       begin
         count = 0
-        curl = Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
+        Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
           count += 1
           assert_equal Curl::Easy, c.class
         end
@@ -688,8 +688,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
     ]
     curl.http_post(fields)
-    assert_match /HTTP POST file upload/, curl.body_str
-    assert_match /Content-Disposition: form-data/, curl.body_str
+    assert_match(/HTTP POST file upload/, curl.body_str)
+    assert_match(/Content-Disposition: form-data/, curl.body_str)
   end
   
   def test_post_with_body_remote
@@ -715,8 +715,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.multipart_form_post = true
     pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
     curl.http_post(pf)
-    assert_match /HTTP POST file upload/, curl.body_str
-    assert_match /Content-Disposition: form-data/, curl.body_str
+    assert_match(/HTTP POST file upload/, curl.body_str)
+    assert_match(/Content-Disposition: form-data/, curl.body_str)
   end
 
   def test_delete_remote
@@ -738,7 +738,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     redirect = curl.header_str.match(/Location: (.*)/)
 
     assert_equal '', curl.body_str
-    assert_match '/nonexistent', redirect[1]
+    assert_match('/nonexistent', redirect[1])
   end
 
   def test_head_accessor
@@ -749,7 +749,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     redirect = curl.header_str.match(/Location: (.*)/)
 
     assert_equal '', curl.body_str
-    assert_match '/nonexistent', redirect[1]
+    assert_match('/nonexistent', redirect[1])
     curl.head = false
     curl.perform
     assert_equal 'GET', curl.body_str
@@ -759,11 +759,11 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl = Curl::Easy.new(TestServlet.url)
     curl.headers['Content-Type'] = 'application/json'
     assert curl.http_put("message")
-    assert_match /^PUT/, curl.body_str
-    assert_match /message$/, curl.body_str
-    assert_match /message$/, curl.body
-    assert_match /application\/json/, curl.header_str
-    assert_match /application\/json/, curl.head
+    assert_match(/^PUT/, curl.body_str)
+    assert_match(/message$/, curl.body_str)
+    assert_match(/message$/, curl.body)
+    assert_match(/application\/json/, curl.header_str)
+    assert_match(/application\/json/, curl.head)
   end 
   
   def test_put_data
@@ -772,8 +772,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     
     curl.perform
     
-    assert_match /^PUT/, curl.body_str
-    assert_match /message$/, curl.body_str
+    assert_match(/^PUT/, curl.body_str)
+    assert_match(/message$/, curl.body_str)
   end
 
   # https://github.com/taf2/curb/issues/101
@@ -783,8 +783,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
  
     curl.perform
     
-    assert_match /^PUT/, curl.body_str
-    assert_match "a\0b", curl.body_str
+    assert_match(/^PUT/, curl.body_str)
+    assert_match("a\0b", curl.body_str)
   end
 
   def test_put_nil_data_no_crash
@@ -818,7 +818,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_cert
     curl = Curl::Easy.new(TestServlet.url)
     curl.cert= File.join(File.dirname(__FILE__),"cert.pem")
-    assert_match /cert.pem$/,curl.cert
+    assert_match(/cert.pem$/,curl.cert)
   end
 
   def test_cert_with_password
@@ -826,7 +826,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     path = File.join(File.dirname(__FILE__),"cert.pem")
     curl.certpassword = 'password'
     curl.cert = path
-    assert_match /cert.pem$/,curl.cert
+    assert_match(/cert.pem$/,curl.cert)
   end
 
   def test_cert_type
@@ -847,7 +847,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_ca_cert
     curl = Curl::Easy.new(TestServlet.url)
     curl.cacert= File.join(File.dirname(__FILE__),"cacert.pem")
-    assert_match /cacert.pem$/, curl.cacert
+    assert_match(/cacert.pem$/, curl.cacert)
   end
 
   def test_user_agent
@@ -1001,8 +1001,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       curl.headers['Accept']         = '*/*'
       curl.headers['Authorization']  = 'Foo Bar Biz Baz'
       curl.http_put(rd)
-      assert_match /^PUT/, curl.body_str
-      assert_match /hello$/, curl.body_str
+      assert_match(/^PUT/, curl.body_str)
+      assert_match(/hello$/, curl.body_str)
       curl.header_str
       curl.body_str
     end

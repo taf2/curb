@@ -69,12 +69,12 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_GET(req,res)
-    if req.path.match /redirect$/
+    if req.path.match(/redirect$/)
       res.status = 302
       res['Location'] = '/foo'
-    elsif req.path.match /not_here$/
+    elsif req.path.match(/not_here$/)
       res.status = 404
-    elsif req.path.match /error$/
+    elsif req.path.match(/error$/)
       res.status = 500
     end
     respond_with("GET#{req.query_string}",req,res)
