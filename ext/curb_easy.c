@@ -227,6 +227,10 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     curl_slist_free_all(rbce->curl_ftp_commands);
   }
 
+  if (rbce->curl_resolve) {
+    curl_slist_free_all(rbce->curl_resolve);
+  }
+
   if (rbce->curl) {
     curl_easy_cleanup(rbce->curl);
   }
@@ -245,6 +249,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
 
   rbce->curl_headers = NULL;
   rbce->curl_ftp_commands = NULL;
+  rbce->curl_resolve = NULL;
 
   /* various-typed opts */
   rbce->local_port = 0;
@@ -349,6 +354,7 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   newrbce->curl = curl_easy_duphandle(rbce->curl);
   newrbce->curl_headers = NULL;
   newrbce->curl_ftp_commands = NULL;
+  newrbce->curl_resolve = NULL;
 
   return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
 }
@@ -868,6 +874,25 @@ static VALUE ruby_curl_easy_ftp_commands_set(VALUE self, VALUE ftp_commands) {
  */
 static VALUE ruby_curl_easy_ftp_commands_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, ftp_commands);
+}
+
+/*
+ * call-seq:
+ *   easy.resolve = [ "example.com:80:127.0.0.1" ]   => [ "example.com:80:127.0.0.1" ]
+ *
+ * Set the resolve list to statically resolve hostnames to IP addresses,
+ * bypassing DNS for matching hostname/port combinations.
+ */
+static VALUE ruby_curl_easy_resolve_set(VALUE self, VALUE resolve) {
+  CURB_OBJECT_HSETTER(ruby_curl_easy, resolve);
+}
+
+/*
+ * call-seq
+ *   easy.resolve                                => array or nil
+ */
+static VALUE ruby_curl_easy_resolve_get(VALUE self) {
+  CURB_OBJECT_HGETTER(ruby_curl_easy, resolve);
 }
 
 /* ================== IMMED ATTRS ==================*/
@@ -1982,6 +2007,20 @@ static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
 }
 
 /***********************************************
+ * This is an rb_iterate callback used to set up the resolve list.
+ */
+static VALUE cb_each_resolve(VALUE resolve, VALUE wrap) {
+  struct curl_slist **list;
+  VALUE resolve_string;
+  Data_Get_Struct(wrap, struct curl_slist *, list);
+
+  resolve_string = rb_obj_as_string(resolve);
+  *list = curl_slist_append(*list, StringValuePtr(resolve));
+
+  return resolve_string;
+}
+
+/***********************************************
  *
  * Setup a connection
  *
@@ -1993,6 +2032,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   VALUE url, _url = rb_easy_get("url");
   struct curl_slist **hdrs = &(rbce->curl_headers);
   struct curl_slist **cmds = &(rbce->curl_ftp_commands);
+  struct curl_slist **rslv = &(rbce->curl_resolve);
 
   curl = rbce->curl;
 
@@ -2286,6 +2326,18 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
+  /* Setup resolve list if necessary */
+  if (!rb_easy_nil("resolve_list")) {
+    if (rb_easy_type_check("resolve_list", T_ARRAY)) {
+      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, rslv);
+      rb_iterate(rb_each, rb_easy_get("resolve_list"), cb_each_resolve, wrap);
+    }
+
+    if (*rslv) {
+      curl_easy_setopt(curl, CURLOPT_RESOLVE, *rslv);
+    }
+  }
+
   return Qnil;
 }
 /***********************************************
@@ -2298,6 +2350,7 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 
   CURL *curl = rbce->curl;
   struct curl_slist *ftp_commands;
+  struct curl_slist *resolve;
 
   /* Free everything up */
   if (rbce->curl_headers) {
@@ -2309,6 +2362,12 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
   if (ftp_commands) {
     curl_slist_free_all(ftp_commands);
     rbce->curl_ftp_commands = NULL;
+  }
+
+  resolve = rbce->curl_resolve;
+  if (resolve) {
+    curl_slist_free_all(resolve);
+    rbce->curl_resolve = NULL;
   }
 
   /* clean up a PUT request's curl options. */
@@ -3449,6 +3508,8 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "put_data=", ruby_curl_easy_put_data_set, 1);
   rb_define_method(cCurlEasy, "ftp_commands=", ruby_curl_easy_ftp_commands_set, 1);
   rb_define_method(cCurlEasy, "ftp_commands", ruby_curl_easy_ftp_commands_get, 0);
+  rb_define_method(cCurlEasy, "resolve=", ruby_curl_easy_resolve_set, 1);
+  rb_define_method(cCurlEasy, "resolve", ruby_curl_easy_resolve_get, 0);
 
   rb_define_method(cCurlEasy, "local_port=", ruby_curl_easy_local_port_set, 1);
   rb_define_method(cCurlEasy, "local_port", ruby_curl_easy_local_port_get, 0);
