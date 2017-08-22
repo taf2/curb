@@ -13,11 +13,4 @@ class TestCurbCurlEasyResolve < Test::Unit::TestCase
   def test_empty_resolve
     assert_equal @easy.resolve, nil
   end
-
-#  def test_opt_url
-#    url = "http://google.com/"
-#    @easy.set :url, url
-#    assert_equal url, @easy.url
-#  end
-
 end
