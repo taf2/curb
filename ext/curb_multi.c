@@ -634,6 +634,15 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         raise_curl_multi_error_exception(mcode);
       }
 
+      if (maxfd == -1) {
+        /* libcurl recommends sleeping for 100ms */
+        rb_thread_wait_for(rb_time_timeval(DBL2NUM(0.1)));
+        rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
+        rb_curl_multi_read_info( self, rbcm->handle );
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        continue;
+      }
+
 #ifdef _WIN32
       create_crt_fd(&fdread, &crt_fdread);
       create_crt_fd(&fdwrite, &crt_fdwrite);
