@@ -47,14 +47,9 @@ module Curl
   end
 
   def self.urlalize(url, params={})
-    query_str = params.map {|k,v| "#{URI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join('&')
-    if url.match(/\?/) && query_str.size > 0
-      "#{url}&#{query_str}"
-    elsif query_str.size > 0
-      "#{url}?#{query_str}"
-    else
-      url
-    end
+    uri = URI(url)
+    uri.query = params.map {|k,v| "#{URI.escape(k.to_s)}=#{URI.escape(v.to_s)}" }.join("&")
+    uri.to_s
   end
 
   def self.postalize(params={})
