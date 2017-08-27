@@ -228,6 +228,16 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
   }
 
   if (rbce->curl) {
+    /* disable any progress or debug events */
+    curl_easy_setopt(rbce->curl, CURLOPT_WRITEFUNCTION, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_WRITEDATA, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_HEADERFUNCTION, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_HEADERDATA, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_DEBUGFUNCTION, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_DEBUGDATA, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_VERBOSE, 0);
+    curl_easy_setopt(rbce->curl, CURLOPT_PROGRESSFUNCTION, NULL);
+    curl_easy_setopt(rbce->curl, CURLOPT_NOPROGRESS, 1);
     curl_easy_cleanup(rbce->curl);
   }
 }
