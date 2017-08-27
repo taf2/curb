@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name    = "curb"
   s.authors = ["Ross Bamford", "Todd A. Fisher"]
-  s.version = '0.9.3'
-  s.date    = '2016-04-11'
+  s.version = '0.9.4'
+  s.date    = '2017-08-26'
   s.description = %q{Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the libcurl(3), a fully-featured client-side URL transfer library. cURL and libcurl live at http://curl.haxx.se/}
   s.email   = 'todd.fisher@gmail.com'
   s.extra_rdoc_files = ['LICENSE', 'README.markdown']
@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
 
   #### Documentation and testing.
   s.has_rdoc = true
-  s.homepage = 'https://github.com/taf2/curb'
+  s.homepage = 'http://curb.rubyforge.org/'
   s.rdoc_options = ['--main', 'README.markdown']
 
   
