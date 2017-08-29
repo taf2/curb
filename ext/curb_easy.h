@@ -77,6 +77,7 @@ typedef struct {
 
   struct curl_slist *curl_headers;
   struct curl_slist *curl_ftp_commands;
+  struct curl_slist *curl_resolve;
 
   int last_result; /* last result code from multi loop */
 
