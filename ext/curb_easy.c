@@ -2327,10 +2327,10 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   }
 
   /* Setup resolve list if necessary */
-  if (!rb_easy_nil("resolve_list")) {
-    if (rb_easy_type_check("resolve_list", T_ARRAY)) {
+  if (!rb_easy_nil("resolve")) {
+    if (rb_easy_type_check("resolve", T_ARRAY)) {
       VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, rslv);
-      rb_iterate(rb_each, rb_easy_get("resolve_list"), cb_each_resolve, wrap);
+      rb_iterate(rb_each, rb_easy_get("resolve"), cb_each_resolve, wrap);
     }
 
     if (*rslv) {
