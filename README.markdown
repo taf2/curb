@@ -134,7 +134,7 @@ c.perform
 ### HTTP "insecure" SSL connections (like curl -k, --insecure) to avoid Curl::Err::SSLCACertificateError:
 
 ```ruby
-    c = Curl::Easy.new("http://github.com/")
+    c = Curl::Easy.new("https://github.com/")
     c.ssl_verify_peer = false
     c.perform
 ```
