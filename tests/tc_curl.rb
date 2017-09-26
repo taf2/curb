@@ -31,7 +31,7 @@ class TestCurl < Test::Unit::TestCase
     assert_equal "OPTIONSfoo=bar", curl.body_str
   end
 
-  include TestServerMethods 
+  include TestServerMethods
 
   def setup
     server_setup

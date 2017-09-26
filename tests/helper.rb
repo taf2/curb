@@ -18,7 +18,7 @@ rescue LoadError
 end
 require 'fileutils'
 
-$TEST_URL = "file://#{'/' if RUBY_DESCRIPTION =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/}#{URI.escape(File.expand_path(__FILE__).tr('\\','/'))}"
+$TEST_URL = "file://#{'/' if RUBY_DESCRIPTION =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/}#{File.expand_path(__FILE__).tr('\\','/')}"
 
 require 'thread'
 require 'webrick'
@@ -42,7 +42,7 @@ class ::WEBrick::BasicLog
 end
 
 #
-# Simple test server to record number of times a request is sent/recieved of a specific 
+# Simple test server to record number of times a request is sent/recieved of a specific
 # request type, e.g. GET,POST,PUT,DELETE
 #
 class TestServlet < WEBrick::HTTPServlet::AbstractServlet
@@ -147,7 +147,7 @@ module TestServerMethods
           rd.close
           rd = nil
 
-          # start up a webrick server for testing delete 
+          # start up a webrick server for testing delete
           server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
           server.mount(servlet.path, servlet)
@@ -163,7 +163,7 @@ module TestServerMethods
         rd.read
         rd.close
       else
-        # start up a webrick server for testing delete 
+        # start up a webrick server for testing delete
         @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
 
         @server.mount(servlet.path, servlet)
