@@ -70,7 +70,7 @@ module Curl
 
       if self.last_result != 0 && self.on_failure.nil?
         error = Curl::Easy.error(self.last_result)
-        raise error.first.new(error.last)
+        raise error.first.new(self.head)
       end
 
       ret
