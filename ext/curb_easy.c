@@ -3293,6 +3293,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #if HAVE_CURLOPT_PATH_AS_IS
   case CURLOPT_PATH_AS_IS:
 #endif
+#if HAVE_CURLOPT_PIPEWAIT
+  case CURLOPT_PIPEWAIT:
+#endif
   case CURLOPT_HTTPGET:
   case CURLOPT_NOBODY: {
     int type = rb_type(val);
@@ -3358,6 +3361,16 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #if HAVE_CURLOPT_UNIX_SOCKET_PATH
   case CURLOPT_UNIX_SOCKET_PATH: {
 	curl_easy_setopt(rbce->curl, CURLOPT_UNIX_SOCKET_PATH, StringValueCStr(val));
+    } break;
+#endif
+#if HAVE_CURLOPT_MAX_SEND_SPEED_LARGE
+  case CURLOPT_MAX_SEND_SPEED_LARGE: {
+    curl_easy_setopt(rbce->curl, CURLOPT_MAX_SEND_SPEED_LARGE, (curl_off_t) NUM2LL(val));
+    } break;
+#endif
+#if HAVE_CURLOPT_MAX_RECV_SPEED_LARGE
+  case CURLOPT_MAX_RECV_SPEED_LARGE: {
+    curl_easy_setopt(rbce->curl, CURLOPT_MAX_RECV_SPEED_LARGE, (curl_off_t) NUM2LL(val));
     } break;
 #endif
   default:
