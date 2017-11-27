@@ -272,15 +272,15 @@ void Init_curb_core() {
   /* Passed to on_debug handler to indicate that the data is protocol data sent to the peer. */
   rb_define_const(mCurl, "CURLINFO_DATA_OUT", LONG2NUM(CURLINFO_DATA_OUT));
 
-#ifdef HAVE_CURLFTPMETHOD_MULTICWD 
+#ifdef HAVE_CURLFTPMETHOD_MULTICWD
   rb_define_const(mCurl, "CURL_MULTICWD",  LONG2NUM(CURLFTPMETHOD_MULTICWD));
 #endif
 
-#ifdef HAVE_CURLFTPMETHOD_NOCWD 
+#ifdef HAVE_CURLFTPMETHOD_NOCWD
   rb_define_const(mCurl, "CURL_NOCWD",     LONG2NUM(CURLFTPMETHOD_NOCWD));
 #endif
 
-#ifdef HAVE_CURLFTPMETHOD_SINGLECWD 
+#ifdef HAVE_CURLFTPMETHOD_SINGLECWD
   rb_define_const(mCurl, "CURL_SINGLECWD", LONG2NUM(CURLFTPMETHOD_SINGLECWD));
 #endif
 
@@ -296,13 +296,13 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1",   LONG2NUM(CURL_SSLVERSION_TLSv1));
   rb_define_const(mCurl, "CURL_SSLVERSION_SSLv2",   LONG2NUM(CURL_SSLVERSION_SSLv2));
   rb_define_const(mCurl, "CURL_SSLVERSION_SSLv3",   LONG2NUM(CURL_SSLVERSION_SSLv3));
-#if HAVE_CURL_SSLVERSION_TLSv1_0
+#if HAVE_CURL_SSLVERSION_TLSV1_0
   rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_0",   LONG2NUM(CURL_SSLVERSION_TLSv1_0));
 #endif
-#if HAVE_CURL_SSLVERSION_TLSv1_1
+#if HAVE_CURL_SSLVERSION_TLSV1_1
   rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_1",   LONG2NUM(CURL_SSLVERSION_TLSv1_1));
 #endif
-#if HAVE_CURL_SSLVERSION_TLSv1_2
+#if HAVE_CURL_SSLVERSION_TLSV1_2
   rb_define_const(mCurl, "CURL_SSLVERSION_TLSv1_2",   LONG2NUM(CURL_SSLVERSION_TLSv1_2));
 #endif
 
