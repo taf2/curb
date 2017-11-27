@@ -11,8 +11,8 @@ Curb is a work-in-progress, and currently only supports libcurl's 'easy' and 'mu
 
 ## License
 
-Curb is copyright (c)2006 Ross Bamford, and released under the terms of the 
-Ruby license. See the LICENSE file for the gory details. 
+Curb is copyright (c)2006 Ross Bamford, and released under the terms of the
+Ruby license. See the LICENSE file for the gory details.
 
 ## You will need
 
@@ -32,17 +32,17 @@ line (alter paths to your curl location, but remember to use forward slashes):
 
     gem install curb --platform=ruby -- --with-curl-lib=C:/curl-7.39.0-devel-mingw32/bin --with-curl-include=C:/curl-7.39.0-devel-mingw32/include
 
-Or, if you downloaded the archive:  
+Or, if you downloaded the archive:
 
-    $ rake install 
+    $ rake compile && rake install
 
 If you have a weird setup, you might need extconf options. In this case, pass
 them like so:
 
-    $ rake install EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever'
-  
+    $ rake compile EXTCONF_OPTS='--with-curl-dir=/path/to/libcurl --prefix=/what/ever' && rake install
+
 Curb is tested only on GNU/Linux x86 and Mac OSX - YMMV on other platforms.
-If you do use another platform and experience problems, or if you can 
+If you do use another platform and experience problems, or if you can
 expand on the above instructions, please report the issue at http://github.com/taf2/curb/issues
 
 On Ubuntu, the dependencies can be satisfied by installing the following packages:
@@ -52,7 +52,7 @@ On Ubuntu, the dependencies can be satisfied by installing the following package
 On RedHat:
 
     $ sudo yum install ruby-devel libcurl-devel openssl-devel
-    
+
 Curb has fairly extensive RDoc comments in the source. You can build the
 documentation with:
 
@@ -104,7 +104,7 @@ puts c.body_str
 ### Additional config:
 
 ```ruby
-Curl::Easy.perform("http://www.google.co.uk") do |curl| 
+Curl::Easy.perform("http://www.google.co.uk") do |curl|
   curl.headers["User-Agent"] = "myapp-0.0"
   curl.verbose = true
 end
@@ -113,7 +113,7 @@ end
 Same thing, more manual:
 
 ```ruby
-c = Curl::Easy.new("http://www.google.co.uk") do |curl| 
+c = Curl::Easy.new("http://www.google.co.uk") do |curl|
   curl.headers["User-Agent"] = "myapp-0.0"
   curl.verbose = true
 end
@@ -194,7 +194,7 @@ puts (c.body_str.include? "You are using HTTP/2 right now!") ? "HTTP/2" : "HTTP/
 # make multiple GET requests
 easy_options = {:follow_location => true}
 # Use Curl::CURLPIPE_MULTIPLEX for HTTP/2 multiplexing
-multi_options = {:pipeline => Curl::CURLPIPE_HTTP1} 
+multi_options = {:pipeline => Curl::CURLPIPE_HTTP1}
 
 Curl::Multi.get(['url1','url2','url3','url4','url5'], easy_options, multi_options) do|easy|
   # do something interesting with the easy response
