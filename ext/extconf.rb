@@ -322,14 +322,14 @@ have_constant "curlopt_sslengine"
 have_constant "curlopt_sslengine_default"
 have_constant "curlopt_sslversion"
 have_constant "curl_sslversion_default"
-have_constant "curl_sslversion_tlsv1"
-have_constant "curl_sslversion_sslv2"
-have_constant "curl_sslversion_sslv3"
+have_constant :CURL_SSLVERSION_TLSv1
+have_constant :CURL_SSLVERSION_SSLv2
+have_constant :CURL_SSLVERSION_SSLv3
 
 # Added in 7.34.0
-have_constant "curl_sslversion_tlsv1_0"
-have_constant "curl_sslversion_tlsv1_1"
-have_constant "curl_sslversion_tlsv1_2"
+have_constant :CURL_SSLVERSION_TLSv1_0
+have_constant :CURL_SSLVERSION_TLSv1_1
+have_constant :CURL_SSLVERSION_TLSv1_2
 
 have_constant "curlopt_ssl_verifypeer"
 have_constant "curlopt_cainfo"
