@@ -80,7 +80,7 @@ puts http.body_str
 http = Curl.post("http://www.google.com/", {:foo => "bar"})
 puts http.body_str
 
-http = Curl.get("http://www.google.com/") do|http|
+http = Curl.get("http://www.google.com/") do |http|
   http.headers['Cookie'] = 'foo=1;bar=2'
 end
 puts http.body_str
