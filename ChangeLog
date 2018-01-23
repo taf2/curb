@@ -9,24 +9,24 @@
   * Minor refactoring to how PostField.file handles strings
   * Accept symbol and any object that responds_to?(:to_s) for easy.http(:verb)
   * Free memory sooner after a request finishes instead of waiting for garabage collection
-  * Fix crash when sending nil for the http_put body 
+  * Fix crash when sending nil for the http_put body
   * Fix inspect for Curl::Easy, thanks Hongli Lai
   * Fix unit test assertions for Curl::Multi, thanks Hongli Lai
 0.7.7
   * Curl::Multi perform is more robust process callbacks before exiting the loop - issue 24. thanks igrigorik and ramsingla
   * improve Curl::Multi idle callback robustness, trigger callbacks more often - issue 24. thanks igrigorik and ramsingla
 0.7.6
-	* fix bug in http_* when http_delete or http("verb") raises an exception
-	* add support for autoreferrer e.g. if follow_location=true it will pass that along
+  * fix bug in http_* when http_delete or http("verb") raises an exception
+  * add support for autoreferrer e.g. if follow_location=true it will pass that along
 0.7.5
   * minor fix for no signal instead of INT2FIX Check boolean value
 0.7.4
-	* add support to set the http version e.g. easy.version = Curl::HTTP_1_1
-	* add support to disable libcurls internal use of signals.
+  * add support to set the http version e.g. easy.version = Curl::HTTP_1_1
+  * add support to disable libcurls internal use of signals.
 0.7.3
-	* Support rubinius
-	* allow Multi.download to be called without a block
-	* add additional Multi.download examples
+  * Support rubinius
+  * allow Multi.download to be called without a block
+  * add additional Multi.download examples
 0.7.2
   * Start tracking high level changes
   * Add Curl::Easy#close - hard close an easy handle
