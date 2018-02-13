@@ -322,14 +322,14 @@ have_constant "curlopt_sslengine"
 have_constant "curlopt_sslengine_default"
 have_constant "curlopt_sslversion"
 have_constant "curl_sslversion_default"
-have_constant "curl_sslversion_tlsv1"
-have_constant "curl_sslversion_sslv2"
-have_constant "curl_sslversion_sslv3"
+have_constant :CURL_SSLVERSION_TLSv1
+have_constant :CURL_SSLVERSION_SSLv2
+have_constant :CURL_SSLVERSION_SSLv3
 
 # Added in 7.34.0
-have_constant "curl_sslversion_tlsv1_0"
-have_constant "curl_sslversion_tlsv1_1"
-have_constant "curl_sslversion_tlsv1_2"
+have_constant :CURL_SSLVERSION_TLSv1_0
+have_constant :CURL_SSLVERSION_TLSv1_1
+have_constant :CURL_SSLVERSION_TLSv1_2
 
 have_constant "curlopt_ssl_verifypeer"
 have_constant "curlopt_cainfo"
@@ -364,6 +364,16 @@ have_constant "curle_not_built_in"
 
 have_constant "curle_obsolete" # removed in 7.24 ?
 
+have_constant "curle_ftp_pret_failed"
+have_constant "curle_rtsp_cseq_error"
+have_constant "curle_rtsp_session_error"
+have_constant "curle_ftp_bad_file_list"
+have_constant "curle_chunk_failed"
+have_constant "curle_no_connection_available"
+have_constant "curle_ssl_pinnedpubkeynotmatch"
+have_constant "curle_ssl_invalidcertstatus"
+have_constant "curle_http2_stream"
+
 # gssapi/spnego delegation related constants
 have_constant "curlopt_gssapi_delegation"
 have_constant "curlgssapi_delegation_policy_flag"
@@ -376,6 +386,9 @@ have_constant "curlopt_unix_socket_path"
 
 # added in 7.42.0
 have_constant "curlopt_path_as_is"
+
+# added in 7.43.0
+have_constant "curlopt_pipewait"
 
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'

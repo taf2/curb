@@ -48,7 +48,13 @@ module Curl
 
   def self.urlalize(url, params={})
     uri = URI(url)
-    uri.query = params.map {|k,v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join("&")
+    params_query = params.map {|k,v| "#{URI.escape(k.to_s)}=#{URI.escape(v.to_s)}" }.join("&")
+    # both uri.query and params_query not blank
+    if !(uri.query.nil? || uri.query.empty?) && !params_query.empty?
+      uri.query = "#{uri.query}&#{params_query}"
+    else
+      uri.query = "#{uri.query}#{params_query}"
+    end
     uri.to_s
   end
 

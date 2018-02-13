@@ -21,6 +21,7 @@ VALUE eCurlErrFileError;
 VALUE eCurlErrLDAPError;
 VALUE eCurlErrTelnetError;
 VALUE eCurlErrTFTPError;
+VALUE eCurlErrRTSPError;
 
 /* Specific libcurl errors */
 VALUE eCurlErrOK; /* not really an error but a return code */
@@ -125,6 +126,18 @@ VALUE mCurlErrUnknownOption;
 
 /* binding errors */
 VALUE eCurlErrInvalidPostField;
+
+
+/* new errors */
+VALUE eCurlErrFTPPRETFailed;
+VALUE eCurlErrRTSPCseqError;
+VALUE eCurlErrRTSPSessionError;
+VALUE eCurlErrFTPBadFileList;
+VALUE eCurlErrChunkFailed;
+VALUE eCurlErrNoConnectionAvailable;
+VALUE eCurlErrSSLPinnedPubKeyNotMatch;
+VALUE eCurlErrSSLInvalidCertStatus;
+VALUE eCurlErrHTTP2Stream;
 
 
 VALUE rb_curl_easy_error(CURLcode code) {
@@ -445,6 +458,61 @@ VALUE rb_curl_easy_error(CURLcode code) {
       exclz = eCurlErrSSLIssuerError;
       break;
 #endif
+
+#ifdef  HAVE_CURLE_FTP_PRET_FAILED
+    case CURLE_FTP_PRET_FAILED:  /* 84 */
+      exclz = eCurlErrFTPPRETFailed;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_RTSP_CSEQ_ERROR
+    case CURLE_RTSP_CSEQ_ERROR:  /* 85 */
+      exclz = eCurlErrRTSPCseqError;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_RTSP_SESSION_ERROR
+    case CURLE_RTSP_SESSION_ERROR:  /* 86 */
+      exclz = eCurlErrRTSPSessionError;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_FTP_BAD_FILE_LIST
+    case CURLE_FTP_BAD_FILE_LIST:  /* 87 */
+      exclz = eCurlErrFTPBadFileList;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_CHUNK_FAILED
+    case CURLE_CHUNK_FAILED:  /* 88 */
+      exclz = eCurlErrChunkFailed;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_NO_CONNECTION_AVAILABLE
+    case CURLE_NO_CONNECTION_AVAILABLE:  /* 89 */
+      exclz = eCurlErrNoConnectionAvailable;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_SSL_PINNEDPUBKEYNOTMATCH
+    case CURLE_SSL_PINNEDPUBKEYNOTMATCH:  /* 90 */
+      exclz = eCurlErrSSLPinnedPubKeyNotMatch;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_SSL_INVALIDCERTSTATUS
+    case CURLE_SSL_INVALIDCERTSTATUS:  /* 91 */
+      exclz = eCurlErrSSLInvalidCertStatus;
+      break;
+#endif
+
+#ifdef  HAVE_CURLE_HTTP2_STREAM
+    case CURLE_HTTP2_STREAM:  /* 92 */
+      exclz = eCurlErrHTTP2Stream;
+      break;
+#endif
+
     default:
       exclz = eCurlErrError;
       exmsg = "Unknown error result from libcurl";
@@ -532,6 +600,7 @@ void init_curb_errors() {
   eCurlErrLDAPError = rb_define_class_under(mCurlErr, "LDAPError", eCurlErrError);
   eCurlErrTelnetError = rb_define_class_under(mCurlErr, "TelnetError", eCurlErrError);
   eCurlErrTFTPError = rb_define_class_under(mCurlErr, "TFTPError", eCurlErrError);
+  eCurlErrRTSPError = rb_define_class_under(mCurlErr, "RTSPError", eCurlErrError);
 
   eCurlErrOK = rb_define_class_under(mCurlErr, "CurlOK", eCurlErrError);
   eCurlErrUnsupportedProtocol = rb_define_class_under(mCurlErr, "UnsupportedProtocolError", eCurlErrError);
@@ -657,4 +726,14 @@ void init_curb_errors() {
   eCurlErrTFTPNoSuchUser = rb_define_class_under(mCurlErr, "NoSuchUserError", eCurlErrTFTPError);
 
   eCurlErrInvalidPostField = rb_define_class_under(mCurlErr, "InvalidPostFieldError", eCurlErrError);
+
+  eCurlErrFTPPRETFailed = rb_define_class_under(mCurlErr, "PPRETFailedError", eCurlErrFTPError);
+  eCurlErrRTSPCseqError = rb_define_class_under(mCurlErr, "CseqError", eCurlErrRTSPError);
+  eCurlErrRTSPSessionError = rb_define_class_under(mCurlErr, "SessionError", eCurlErrRTSPError);
+  eCurlErrFTPBadFileList = rb_define_class_under(mCurlErr, "BadFileListError", eCurlErrFTPError);
+  eCurlErrChunkFailed = rb_define_class_under(mCurlErr, "ChunkFailedError", eCurlErrError);
+  eCurlErrNoConnectionAvailable = rb_define_class_under(mCurlErr, "NoConnectionAvailableError", eCurlErrError);
+  eCurlErrSSLPinnedPubKeyNotMatch = rb_define_class_under(mCurlErr, "SSLPinnedPubKeyNotMatchError", eCurlErrError);
+  eCurlErrSSLInvalidCertStatus = rb_define_class_under(mCurlErr, "SSLInvalidCertStatusError", eCurlErrError);
+  eCurlErrHTTP2Stream = rb_define_class_under(mCurlErr, "HTTP2StreamError", eCurlErrHTTPError);
 }
