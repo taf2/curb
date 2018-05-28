@@ -6,7 +6,7 @@ require 'cgi'
 
 # expose shortcut methods
 module Curl
-  
+
   def self.http(verb, url, post_body=nil, put_data=nil, &block)
     handle = Thread.current[:curb_curl] ||= Curl::Easy.new
     handle.reset
