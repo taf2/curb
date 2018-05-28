@@ -30,12 +30,15 @@ require 'webrick'
 TEST_SINGLE_THREADED=false
 
 # keep webrick quiet
-class ::WEBrick::HTTPServer
+::WEBrick::HTTPServer.send(:remove_method,:access_log) if ::WEBrick::HTTPServer.instance_methods.include?(:access_log)
+::WEBrick::BasicLog.send(:remove_method,:log) if ::WEBrick::BasicLog.instance_methods.include?(:log)
+
+::WEBrick::HTTPServer.class_eval do
   def access_log(config, req, res)
     # nop
   end
 end
-class ::WEBrick::BasicLog
+::WEBrick::BasicLog.class_eval do
   def log(level, data)
     # nop
   end
