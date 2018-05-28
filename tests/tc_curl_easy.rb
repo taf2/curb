@@ -10,6 +10,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     Curl.reset
   end
 
+  def test_exception
+    begin
+      Curl.get('NOT_FOUND_URL')
+    rescue
+      assert true
+    rescue Exception
+      assert false, "We should raise StandardError"
+    end
+  end
+
   def test_threads
     t = []
     5.times do
