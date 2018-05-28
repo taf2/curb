@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    curb (0.9.4)
+    curb (0.9.5)
 
 GEM
   remote: https://rubygems.org/
@@ -229,6 +229,3 @@ DEPENDENCIES
   rubysl (~> 2.0)
   rubysl-test-unit
   test-unit
-
-BUNDLED WITH
-   1.15.4
