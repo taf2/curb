@@ -1,4 +1,5 @@
   * use rb_thread_blocking_region when available in place of rb_thread_select for ruby 1.9.x
+  * Support the status response according to HTTP/2 RFC
 0.7.16
   * Add better support for timeouts issue 48
   * Improve stablity, avoid bus errors when raising in callbacks
@@ -9,7 +10,7 @@
   * Minor refactoring to how PostField.file handles strings
   * Accept symbol and any object that responds_to?(:to_s) for easy.http(:verb)
   * Free memory sooner after a request finishes instead of waiting for garabage collection
-  * Fix crash when sending nil for the http_put body 
+  * Fix crash when sending nil for the http_put body
   * Fix inspect for Curl::Easy, thanks Hongli Lai
   * Fix unit test assertions for Curl::Multi, thanks Hongli Lai
 0.7.7
