@@ -49,7 +49,7 @@ module Curl
   def self.urlalize(url, params={})
     uri = URI(url)
     # early return if we didn't specify any extra params
-    return uri.to_s if params.empty?
+    return uri.to_s if (params || {}).empty?
 
     params_query = URI.encode_www_form(params || {})
     uri.query = [uri.query.to_s, params_query].reject(&:empty?).join('&')

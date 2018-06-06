@@ -39,6 +39,11 @@ class TestCurl < Test::Unit::TestCase
     assert_equal(url_with_params, Curl.urlalize(url_with_params))
   end
 
+  def test_urlalize_with_nil_as_params
+    url = 'http://localhost/test'
+    assert_equal(url, Curl.urlalize(url, nil))
+  end
+
   def test_urlalize_with_extra_params
     url_no_params = 'http://localhost/test'
     url_with_params = 'http://localhost/test?a=1'
