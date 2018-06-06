@@ -48,9 +48,12 @@ module Curl
 
   def self.urlalize(url, params={})
     uri = URI(url)
+    # early return if we didn't specify any extra params
+    return uri.to_s if params.empty?
+
     params_query = URI.encode_www_form(params || {})
     # both uri.query and params_query not blank
-    if !(uri.query.nil? || uri.query.empty?) && !params_query.empty?
+    if !uri.query.to_s.empty? && !params_query.empty?
       uri.query = "#{uri.query}&#{params_query}"
     else
       uri.query = "#{uri.query}#{params_query}"

@@ -31,6 +31,31 @@ class TestCurl < Test::Unit::TestCase
     assert_equal "OPTIONSfoo=bar", curl.body_str
   end
 
+  def test_urlalize_without_extra_params
+    url_no_params = 'http://localhost/test'
+    url_with_params = 'http://localhost/test?a=1'
+
+    assert_equal(url_no_params, Curl.urlalize(url_no_params))
+    assert_equal(url_with_params, Curl.urlalize(url_with_params))
+  end
+
+  def test_urlalize_with_extra_params
+    url_no_params = 'http://localhost/test'
+    url_with_params = 'http://localhost/test?a=1'
+    extra_params = { :b => 2 }
+
+    expected_url_no_params = 'http://localhost/test?b=2'
+    expected_url_with_params = 'http://localhost/test?a=1&b=2'
+
+    assert_equal(expected_url_no_params, Curl.urlalize(url_no_params, extra_params))
+    assert_equal(expected_url_with_params, Curl.urlalize(url_with_params, extra_params))
+  end
+
+  def test_urlalize_does_not_strip_trailing_?
+    url_empty_params = 'http://localhost/test?'
+    assert_equal(url_empty_params, Curl.urlalize(url_empty_params))
+  end
+
   include TestServerMethods
 
   def setup
