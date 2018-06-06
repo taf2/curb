@@ -52,12 +52,7 @@ module Curl
     return uri.to_s if params.empty?
 
     params_query = URI.encode_www_form(params || {})
-    # both uri.query and params_query not blank
-    if !uri.query.to_s.empty? && !params_query.empty?
-      uri.query = "#{uri.query}&#{params_query}"
-    else
-      uri.query = "#{uri.query}#{params_query}"
-    end
+    uri.query = [uri.query.to_s, params_query].reject(&:empty?).join('&')
     uri.to_s
   end
 
