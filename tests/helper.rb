@@ -97,7 +97,7 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
       if params and params['s'] == '500'
         res.status = 500
       elsif params and params['c']
-        cookie = URI.decode_www_form(params['c'])[0][0].split('=')
+        cookie = URI.decode_www_form_component(params['c']).split('=')
         res.cookies << WEBrick::Cookie.new(*cookie)
       else
         respond_with("POST\n#{req.body}",req,res)
