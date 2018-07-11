@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    curb (0.9.5)
+    curb (0.9.6)
 
 GEM
   remote: https://rubygems.org/
@@ -191,6 +191,7 @@ GEM
     rubysl-singleton (2.0.0)
     rubysl-socket (2.2.1)
       rubysl-fcntl (~> 2.0)
+    rubysl-stringio (2.1)
     rubysl-stringio (2.1.0)
     rubysl-strscan (2.0.0)
     rubysl-sync (2.0.0)
@@ -229,3 +230,6 @@ DEPENDENCIES
   rubysl (~> 2.0)
   rubysl-test-unit
   test-unit
+
+BUNDLED WITH
+   1.16.2
