@@ -207,3 +207,81 @@ module TestServerMethods
   rescue Errno::EADDRINUSE
   end
 end
+
+
+
+# Backport for Ruby 1.8
+module Backports
+  module Ruby18
+    module URIFormEncoding
+      TBLENCWWWCOMP_ = {}
+      TBLDECWWWCOMP_ = {}
+
+      def encode_www_form_component(str)
+        if TBLENCWWWCOMP_.empty?
+          256.times do |i|
+            TBLENCWWWCOMP_[i.chr] = '%%%02X' % i
+          end
+          TBLENCWWWCOMP_[' '] = '+'
+          TBLENCWWWCOMP_.freeze
+        end
+        str.to_s.gsub( /([^*\-.0-9A-Z_a-z])/ ) {|*| TBLENCWWWCOMP_[$1] }
+      end
+
+      def decode_www_form_component(str)
+        if TBLDECWWWCOMP_.empty?
+          256.times do |i|
+            h, l = i>>4, i&15
+            TBLDECWWWCOMP_['%%%X%X' % [h, l]] = i.chr
+            TBLDECWWWCOMP_['%%%x%X' % [h, l]] = i.chr
+            TBLDECWWWCOMP_['%%%X%x' % [h, l]] = i.chr
+            TBLDECWWWCOMP_['%%%x%x' % [h, l]] = i.chr
+          end
+          TBLDECWWWCOMP_['+'] = ' '
+          TBLDECWWWCOMP_.freeze
+        end
+
+        raise ArgumentError, "invalid %-encoding (#{str.dump})" unless /\A(?:%[[:xdigit:]]{2}|[^%]+)*\z/ =~ str
+        str.gsub( /(\+|%[[:xdigit:]]{2})/ ) {|*| TBLDECWWWCOMP_[$1] }
+      end
+
+      def encode_www_form( enum )
+        enum.map do |k,v|
+          if v.nil?
+            encode_www_form_component(k)
+          elsif v.respond_to?(:to_ary)
+            v.to_ary.map do |w|
+              str = encode_www_form_component(k)
+              unless w.nil?
+                str << '='
+                str << encode_www_form_component(w)
+              end
+            end.join('&')
+          else
+            str = encode_www_form_component(k)
+            str << '='
+            str << encode_www_form_component(v)
+          end
+        end.join('&')
+      end
+
+      WFKV_ = '(?:%\h\h|[^%#=;&])'
+      def decode_www_form(str, _)
+        return [] if str.to_s == ''
+
+        unless /\A#{WFKV_}=#{WFKV_}(?:[;&]#{WFKV_}=#{WFKV_})*\z/ =~ str
+          raise ArgumentError, "invalid data of application/x-www-form-urlencoded (#{str})"
+        end
+        ary = []
+        $&.scan(/([^=;&]+)=([^;&]*)/) do
+          ary << [decode_www_form_component($1, enc), decode_www_form_component($2, enc)]
+        end
+        ary
+      end
+    end
+  end
+end
+
+unless URI.methods.include?(:encode_www_form)
+  URI.extend(Backports::Ruby18::URIFormEncoding)
+end
