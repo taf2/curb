@@ -2,11 +2,6 @@
 # 
 require 'rake/clean'
 require 'rake/testtask'
-begin
-  require 'rdoc/task'
-rescue LoadError => e
-  require 'rake/rdoctask'
-end
 
 CLEAN.include '**/*.o'
 CLEAN.include "**/*.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
@@ -89,12 +84,12 @@ if ENV['RELTEST']
 else
   task :alltests => [:unittests, :bugtests]
 end
-                    
+
 Rake::TestTask.new(:unittests) do |t|
   t.test_files = FileList['tests/tc_*.rb']
   t.verbose = false
 end
-                          
+
 Rake::TestTask.new(:bugtests) do |t|
   t.test_files = FileList['tests/bug_*.rb']
   t.verbose = false
@@ -136,6 +131,12 @@ end
 
 desc "Publish the RDoc documentation to project web site"
 task :doc_upload => [ :doc ] do
+  begin
+    require 'rdoc/task'
+  rescue LoadError => e
+    require 'rake/rdoctask'
+  end
+
   if ENV['RELTEST']
     announce "Release Task Testing, skipping doc upload"
   else    

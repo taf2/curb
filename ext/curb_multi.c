@@ -537,6 +537,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 #endif
   long timeout_milliseconds;
   struct timeval tv = {0, 0};
+  struct timeval tv_100ms = {0, 100000};
   VALUE block = Qnil;
 #if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
   struct _select_set fdset_args;
@@ -551,7 +552,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
   rb_curl_multi_read_info( self, rbcm->handle );
   if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
- 
+
   do {
     while (rbcm->running) {
 
@@ -593,7 +594,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
       if (maxfd == -1) {
         /* libcurl recommends sleeping for 100ms */
-        rb_thread_wait_for(rb_time_timeval(DBL2NUM(0.1)));
+        rb_thread_wait_for(tv_100ms);
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
@@ -606,12 +607,15 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       create_crt_fd(&fdexcep, &crt_fdexcep);
 #endif
 
-#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+
+#if (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
       fdset_args.maxfd = maxfd+1;
       fdset_args.fdread = &fdread;
       fdset_args.fdwrite = &fdwrite;
       fdset_args.fdexcep = &fdexcep;
       fdset_args.tv = &tv;
+#endif
+
 #ifdef HAVE_RB_THREAD_CALL_WITHOUT_GVL
       rc = (int)(VALUE) rb_thread_call_without_gvl((void *(*)(void *))curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #elif HAVE_RB_THREAD_BLOCKING_REGION
@@ -620,8 +624,6 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       rc = rb_thread_fd_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
 #else
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
-#endif
-
 #endif
 
 #ifdef _WIN32
