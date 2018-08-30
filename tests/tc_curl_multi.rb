@@ -125,7 +125,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   def test_requests
     m = Curl::Multi.new
 
-    assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests')
+    assert_equal(0, m.requests.length, 'A new Curl::Multi handle should have no requests')
 
     10.times do
       m.add(Curl::Easy.new($TEST_URL))
@@ -135,7 +135,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     m.perform
 
-    assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests after a perform')
+    assert_equal(0, m.requests.length, 'A new Curl::Multi handle should have no requests after a perform')
   end
 
   def test_cancel
@@ -148,7 +148,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     m.cancel!
 
-    assert_equal([], m.requests, 'A new Curl::Multi handle should have no requests after being canceled')
+    assert_equal(0, m.requests.size, 'A new Curl::Multi handle should have no requests after being canceled')
   end
 
   def test_with_success
@@ -192,7 +192,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     c1.on_success do|c|
       success_called1 = true
       #puts "success 1 called: #{c.body_str.inspect}"
-      #assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
+      assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     end
 
     c1.on_failure do|c,rc|
@@ -484,5 +484,4 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   def setup
     server_setup
   end
-
 end

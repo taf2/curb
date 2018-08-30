@@ -1,5 +1,4 @@
 module Curl
-
   class Multi
     class << self
       # call-seq:
@@ -168,6 +167,7 @@ module Curl
           end
           free_handles = nil
         end
+
       end
 
       # call-seq:
@@ -242,7 +242,34 @@ module Curl
         }
         raise errors unless errors.empty?
       end
+    end
 
+    def cancel!
+      requests.each do |_,easy|
+        remove(easy)
+      end
+    end
+
+    def idle?
+      requests.empty?
+    end
+
+    def requests
+      @requests ||= {}
+    end
+
+    def add(easy)
+      return self if requests[easy.object_id]
+      requests[easy.object_id] = easy
+      _add(easy)
+      self
+    end
+
+    def remove(easy)
+      return self if !requests[easy.object_id]
+      requests.delete(easy.object_id)
+      _remove(easy)
+      self
     end
   end
 end

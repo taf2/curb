@@ -343,7 +343,8 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
 
   rb_easy_set("url", url);
 
-  /* set the new_curl pointer to the curl handle */
+
+  /* set the pointer to the curl handle */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
@@ -2061,7 +2062,6 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   }
 
   url = rb_check_string_type(_url);
-
   curl_easy_setopt(curl, CURLOPT_URL, StringValuePtr(url));
 
   // network stuff and auth
