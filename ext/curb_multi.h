@@ -14,7 +14,6 @@
 typedef struct {
   int active;
   int running;
-  VALUE requests; /* hash of handles currently added */
   CURLM *handle;
 } ruby_curl_multi;
 
