@@ -339,29 +339,69 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c.max_redirects = nil
     assert_nil c.max_redirects
   end
-  
+
+  def test_timeout_with_floats
+    c = Curl::Easy.new($TEST_URL)
+
+    c.timeout = 1.5
+    assert_equal 1500, c.timeout_ms
+    assert_equal 1.5, c.timeout
+  end
+
+  def test_timeout_with_negative
+    c = Curl::Easy.new($TEST_URL)
+
+    c.timeout = -1.5
+    assert_equal 0, c.timeout
+    assert_equal 0, c.timeout_ms
+
+    c.timeout = -4.8
+    assert_equal 0, c.timeout
+    assert_equal 0, c.timeout_ms
+  end
+
   def test_timeout_01
     c = Curl::Easy.new($TEST_URL)
-    
-    assert_nil c.timeout
-    
+
+    assert_equal 0, c.timeout
+
     c.timeout = 3
     assert_equal 3, c.timeout
-    
-    c.timeout = nil
-    assert_nil c.timeout
+
+    c.timeout = 0
+    assert_equal 0, c.timeout
   end
 
   def test_timeout_ms_01
     c = Curl::Easy.new($TEST_URL)
 
-    assert_nil c.timeout_ms
+    assert_equal 0, c.timeout_ms
 
     c.timeout_ms = 100
     assert_equal 100, c.timeout_ms
 
     c.timeout_ms = nil
-    assert_nil c.timeout_ms
+    assert_equal 0, c.timeout_ms
+  end
+
+  def test_timeout_ms_with_floats
+    c = Curl::Easy.new($TEST_URL)
+
+    c.timeout_ms = 55.5
+    assert_equal 55, c.timeout_ms
+    assert_equal 0.055, c.timeout
+  end
+
+  def test_timeout_ms_with_negative
+    c = Curl::Easy.new($TEST_URL)
+
+    c.timeout_ms = -1.5
+    assert_equal 0, c.timeout
+    assert_equal 0, c.timeout_ms
+
+    c.timeout_ms = -4.8
+    assert_equal 0, c.timeout
+    assert_equal 0, c.timeout_ms
   end
 
   def test_connect_timeout_01

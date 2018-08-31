@@ -1139,7 +1139,7 @@ static VALUE ruby_curl_easy_max_redirects_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.timeout = fixnum or nil                     => fixnum or nil
+ *   easy.timeout = float, fixnum or nil              => numeric
  *
  * Set the maximum time in seconds that you allow the libcurl transfer
  * operation to take. Normally, name lookups can take a considerable time
@@ -1148,20 +1148,39 @@ static VALUE ruby_curl_easy_max_redirects_get(VALUE self) {
  *
  * Set to nil (or zero) to disable timeout (it will then only timeout
  * on the system's internal timeouts).
+ *
+ * Uses timeout_ms internally instead of timeout because it allows for
+ * better precision and libcurl will use the last set value when both
+ * timeout and timeout_ms are set.
+ *
  */
-static VALUE ruby_curl_easy_timeout_set(VALUE self, VALUE timeout) {
-  CURB_IMMED_SETTER(ruby_curl_easy, timeout, 0);
+static VALUE ruby_curl_easy_timeout_set(VALUE self, VALUE timeout_s) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (Qnil == timeout_s || NUM2DBL(timeout_s) <= 0.0) {
+    rbce->timeout_ms = 0;
+  } else {
+    rbce->timeout_ms = (unsigned long)(NUM2DBL(timeout_s) * 1000);
+  }
+
+  return DBL2NUM(rbce->timeout_ms / 1000.0);
 }
 
 /*
  * call-seq:
- *   easy.timeout                                     => fixnum or nil
+ *   easy.timeout                                     => numeric
  *
  * Obtain the maximum time in seconds that you allow the libcurl transfer
  * operation to take.
+ *
+ * Uses timeout_ms internally instead of timeout.
+ *
  */
-static VALUE ruby_curl_easy_timeout_get(VALUE self, VALUE timeout) {
-  CURB_IMMED_GETTER(ruby_curl_easy, timeout, 0);
+static VALUE ruby_curl_easy_timeout_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  return DBL2NUM(rbce->timeout_ms / 1000.0);
 }
 
 /*
@@ -1177,7 +1196,16 @@ static VALUE ruby_curl_easy_timeout_get(VALUE self, VALUE timeout) {
  * on the system's internal timeouts).
  */
 static VALUE ruby_curl_easy_timeout_ms_set(VALUE self, VALUE timeout_ms) {
-  CURB_IMMED_SETTER(ruby_curl_easy, timeout_ms, 0);
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (Qnil == timeout_ms || NUM2DBL(timeout_ms) <= 0.0) {
+    rbce->timeout_ms = 0;
+  } else {
+    rbce->timeout_ms = NUM2ULONG(timeout_ms);
+  }
+
+  return ULONG2NUM(rbce->timeout_ms);
 }
 
 /*
@@ -1188,7 +1216,9 @@ static VALUE ruby_curl_easy_timeout_ms_set(VALUE self, VALUE timeout_ms) {
  * operation to take.
  */
 static VALUE ruby_curl_easy_timeout_ms_get(VALUE self, VALUE timeout_ms) {
-  CURB_IMMED_GETTER(ruby_curl_easy, timeout_ms, 0);
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  return LONG2NUM(rbce->timeout_ms);
 }
 
 /*
