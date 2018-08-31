@@ -1215,7 +1215,7 @@ static VALUE ruby_curl_easy_timeout_ms_set(VALUE self, VALUE timeout_ms) {
  * Obtain the maximum time in milliseconds that you allow the libcurl transfer
  * operation to take.
  */
-static VALUE ruby_curl_easy_timeout_ms_get(VALUE self, VALUE timeout_ms) {
+static VALUE ruby_curl_easy_timeout_ms_get(VALUE self) {
   ruby_curl_easy *rbce;
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   return LONG2NUM(rbce->timeout_ms);
@@ -2204,13 +2204,8 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   curl_easy_setopt(curl, CURLOPT_UNRESTRICTED_AUTH, rbce->unrestricted_auth);
 
-  /* timeouts override each other we cannot blindly set timeout and timeout_ms */
-  if (rbce->timeout && rbce->timeout > 0) {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, rbce->timeout);
-  }
-  if (rbce->timeout_ms && rbce->timeout_ms > 0) {
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rbce->timeout_ms);
-  }
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rbce->timeout_ms);
+
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, rbce->connect_timeout);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, rbce->connect_timeout_ms);
   curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, rbce->dns_cache_timeout);
