@@ -2,6 +2,9 @@ source 'https://rubygems.org'
 
 gemspec
 
+gem 'mixlib-shellout'
+gem 'pry'
+
 group 'development', 'test' do
   gem 'rdoc'
   gem 'rake'

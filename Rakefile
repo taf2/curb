@@ -15,6 +15,22 @@ CLOBBER.include '**/*.log'
 CLOBBER.include '**/Makefile'
 CLOBBER.include '**/extconf.h'
 
+# Not available for really old rubies, but that's ok.
+begin
+  require 'pry'
+rescue LoadError
+  puts "Failed to load pry."
+end
+
+# Load support ruby and rake files (in this order)
+Dir.glob('tasks/*.rb').each { |r| load r}
+Dir.glob('tasks/*.rake').each { |r| load r}
+
+desc 'Print Ruby major version (ie "2_5")'
+task :ruby_version do
+  print current_ruby_major
+end
+
 def announce(msg='')
   $stderr.puts msg
 end
@@ -43,12 +59,11 @@ end
 make_program = (/mswin/ =~ RUBY_PLATFORM) ? 'nmake' : 'make'
 MAKECMD = ENV['MAKE_CMD'] || make_program
 MAKEOPTS = ENV['MAKE_OPTS'] || ''
-
 CURB_SO = "ext/curb_core.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
 
 file 'ext/Makefile' => 'ext/extconf.rb' do
   Dir.chdir('ext') do
-    ruby "extconf.rb #{ENV['EXTCONF_OPTS']}"
+    shell('ruby', 'extconf.rb', ENV['EXTCONF_OPTS'].to_s, live_stdout: STDOUT)
   end
 end
 

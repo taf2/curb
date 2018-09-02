@@ -1,0 +1,25 @@
+PATH
+  remote: .
+  specs:
+    curb (0.9.6)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    mixlib-shellout (2.2.7)
+    power_assert (1.1.3)
+    rake (11.3.0)
+    test-unit (3.2.8)
+      power_assert
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  curb!
+  mixlib-shellout (< 2.3)
+  rake (< 12)
+  test-unit
+
+BUNDLED WITH
+   1.15.1
