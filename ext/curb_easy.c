@@ -2346,6 +2346,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
+#if HAVE_CURLOPT_RESOLVE
   /* Setup resolve list if necessary */
   if (!rb_easy_nil("resolve")) {
     if (rb_easy_type_check("resolve", T_ARRAY)) {
@@ -2357,6 +2358,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
       curl_easy_setopt(curl, CURLOPT_RESOLVE, *rslv);
     }
   }
+#endif
 
   return Qnil;
 }
