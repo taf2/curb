@@ -352,6 +352,13 @@ void Init_curb_core() {
   rb_define_const(mCurl, "CURLPROXY_SOCKS5", LONG2NUM(-2));
 #endif
 
+  /* When passed to Curl::Easy#proxy_type , indicates that the proxy is a SOCKS5 proxy (and that the proxy should resolve the hostname). (libcurl >= 7.17.2) */
+#ifdef HAVE_CURLPROXY_SOCKS5_HOSTNAME
+  rb_define_const(mCurl, "CURLPROXY_SOCKS5_HOSTNAME", LONG2NUM(CURLPROXY_SOCKS5_HOSTNAME));
+#else
+  rb_define_const(mCurl, "CURLPROXY_SOCKS5_HOSTNAME", LONG2NUM(-2));
+#endif
+
   /* When passed to Curl::Easy#http_auth_types or Curl::Easy#proxy_auth_types, directs libcurl to use Basic authentication. */
 #ifdef HAVE_CURLAUTH_BASIC
   rb_define_const(mCurl, "CURLAUTH_BASIC", LONG2NUM(CURLAUTH_BASIC));
