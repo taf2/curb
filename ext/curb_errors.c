@@ -307,9 +307,15 @@ VALUE rb_curl_easy_error(CURLcode code) {
       exclz = eCurlErrObsolete;
       break;
 #endif
+#if CURLE_SSL_CACERT == CURLE_PEER_FAILED_VERIFICATION
+    case CURLE_OBSOLETE51:              /* 51 - NOT USED */
+      exclz = eCurlErrObsolete;
+      break;
+#else
     case CURLE_SSL_PEER_CERTIFICATE:    /* 51 - peer's certificate wasn't ok */
       exclz = eCurlErrSSLPeerCertificate;
       break;
+#endif
     case CURLE_GOT_NOTHING:             /* 52 - when this is a specific error */
       exclz = eCurlErrGotNothing;
       break;
