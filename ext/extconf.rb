@@ -102,6 +102,9 @@ have_constant "curle_send_fail_rewind"
 have_constant "curle_ssl_engine_initfailed"
 have_constant "curle_login_denied"
 
+# older than 7.10.0
+have_constant "curlopt_nosignal"
+
 # older than 7.16.0
 have_constant "curlmopt_pipelining"
 
