@@ -78,6 +78,7 @@ typedef struct {
   char callback_active;
 
   struct curl_slist *curl_headers;
+  struct curl_slist *curl_proxy_headers;
   struct curl_slist *curl_ftp_commands;
   struct curl_slist *curl_resolve;
 

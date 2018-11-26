@@ -223,6 +223,10 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     curl_slist_free_all(rbce->curl_headers);
   }
 
+  if (rbce->curl_proxy_headers) {
+    curl_slist_free_all(rbce->curl_proxy_headers);
+  }
+
   if (rbce->curl_ftp_commands) {
     curl_slist_free_all(rbce->curl_ftp_commands);
   }
@@ -258,6 +262,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->opts = rb_hash_new();
 
   rbce->curl_headers = NULL;
+  rbce->curl_proxy_headers = NULL;
   rbce->curl_ftp_commands = NULL;
   rbce->curl_resolve = NULL;
 
@@ -376,6 +381,7 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   memcpy(newrbce, rbce, sizeof(ruby_curl_easy));
   newrbce->curl = curl_easy_duphandle(rbce->curl);
   newrbce->curl_headers = NULL;
+  newrbce->curl_proxy_headers = NULL;
   newrbce->curl_ftp_commands = NULL;
   newrbce->curl_resolve = NULL;
 
@@ -460,6 +466,12 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
     rbce->curl_headers = NULL;
   }
 
+  /* Free everything up */
+  if (rbce->curl_proxy_headers) {
+    curl_slist_free_all(rbce->curl_proxy_headers);
+    rbce->curl_proxy_headers = NULL;
+  }
+
   return opts_dup;
 }
 
@@ -512,6 +524,10 @@ static VALUE ruby_curl_easy_headers_set(VALUE self, VALUE headers) {
   CURB_OBJECT_HSETTER(ruby_curl_easy, headers);
 }
 
+static VALUE ruby_curl_easy_proxy_headers_set(VALUE self, VALUE proxy_headers) {
+  CURB_OBJECT_HSETTER(ruby_curl_easy, proxy_headers);
+}
+
 /*
  * call-seq:
  *   easy.headers                                     => Hash, Array or Str
@@ -525,6 +541,41 @@ static VALUE ruby_curl_easy_headers_get(VALUE self) {
   headers = rb_easy_get("headers");//rb_hash_aref(rbce->opts, rb_intern("headers"));
   if (headers == Qnil) { headers = rb_easy_set("headers", rb_hash_new()); }
   return headers;
+}
+
+/*
+ * call-seq:
+ *   easy.proxy_headers = "Header: val"                              => "Header: val"
+ *   easy.proxy_headers = {"Header" => "val" ..., "Header" => "val"} => {"Header: val", ...}
+ *   easy.proxy_headers = ["Header: val" ..., "Header: val"]         => ["Header: val", ...]
+ *
+ *
+ * For example to set a standard or custom header:
+ *
+ *    easy.proxy_headers["MyHeader"] = "myval"
+ *
+ * To remove a standard header (this is useful when removing libcurls default
+ * 'Expect: 100-Continue' header when using HTTP form posts):
+ *
+ *    easy.proxy_headers["Expect"] = ''
+ *
+ * Anything passed to libcurl as a header will be converted to a string during
+ * the perform step.
+ */
+
+/*
+ * call-seq:
+ *   easy.proxy_headers                                     => Hash, Array or Str
+ *
+ * Obtain the custom HTTP proxy_headers for following requests.
+ */
+static VALUE ruby_curl_easy_proxy_headers_get(VALUE self) {
+  ruby_curl_easy *rbce;
+  VALUE proxy_headers;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  proxy_headers = rb_easy_get("proxy_headers");//rb_hash_aref(rbce->opts, rb_intern("proxy_headers"));
+  if (proxy_headers == Qnil) { proxy_headers = rb_easy_set("proxy_headers", rb_hash_new()); }
+  return proxy_headers;
 }
 
 /*
@@ -2086,6 +2137,38 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
 }
 
 /***********************************************
+ * This is an rb_iterate callback used to set up http proxy headers.
+ */
+static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap) {
+  struct curl_slist **list;
+  VALUE proxy_header_str = Qnil;
+
+  Data_Get_Struct(wrap, struct curl_slist *, list);
+
+  //rb_p(proxy_header);
+
+  if (rb_type(proxy_header) == T_ARRAY) {
+    // we're processing a hash, proxy header is [name, val]
+    VALUE name, value;
+
+    name = rb_obj_as_string(rb_ary_entry(proxy_header, 0));
+    value = rb_obj_as_string(rb_ary_entry(proxy_header, 1));
+
+    // This is a bit inefficient, but we don't want to be modifying
+    // the actual values in the original hash.
+    proxy_header_str = rb_str_plus(name, rb_str_new2(": "));
+    proxy_header_str = rb_str_plus(proxy_header_str, value);
+  } else {
+    proxy_header_str = rb_obj_as_string(proxy_header);
+  }
+
+  //rb_p(header_str);
+
+  *list = curl_slist_append(*list, StringValuePtr(proxy_header_str));
+  return proxy_header_str;
+}
+
+/***********************************************
  * This is an rb_iterate callback used to set up ftp commands.
  */
 static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
@@ -2124,6 +2207,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   CURL *curl;
   VALUE url, _url = rb_easy_get("url");
   struct curl_slist **hdrs = &(rbce->curl_headers);
+  struct curl_slist **phdrs = &(rbce->curl_proxy_headers);
   struct curl_slist **cmds = &(rbce->curl_ftp_commands);
   struct curl_slist **rslv = &(rbce->curl_resolve);
 
@@ -2404,6 +2488,25 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
+  /* Setup HTTP proxy headers if necessary */
+  curl_easy_setopt(curl, CURLOPT_PROXYHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
+
+  if (!rb_easy_nil("proxy_headers")) {
+    if (rb_easy_type_check("proxy_headers", T_ARRAY) || rb_easy_type_check("proxy_headers", T_HASH)) {
+      VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, phdrs);
+      rb_iterate(rb_each, rb_easy_get("proxy_headers"), cb_each_http_proxy_header, wrap);
+    } else {
+      VALUE proxy_headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
+      *phdrs = curl_slist_append(*hdrs, StringValuePtr(proxy_headers_str));
+    }
+
+    if (*phdrs) {
+      curl_easy_setopt(curl, CURLOPT_PROXYHEADER, *phdrs);
+    }
+  }
+
+
+
   /* Setup FTP commands if necessary */
   if (!rb_easy_nil("ftp_commands")) {
     if (rb_easy_type_check("ftp_commands", T_ARRAY)) {
@@ -2448,6 +2551,11 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
   if (rbce->curl_headers) {
     curl_slist_free_all(rbce->curl_headers);
     rbce->curl_headers = NULL;
+  }
+
+  if (rbce->curl_proxy_headers) {
+    curl_slist_free_all(rbce->curl_proxy_headers);
+    rbce->curl_proxy_headers = NULL;
   }
 
   ftp_commands = rbce->curl_ftp_commands;
@@ -3595,6 +3703,10 @@ void init_curb_easy() {
   /* Attributes for config next perform */
   rb_define_method(cCurlEasy, "url", ruby_curl_easy_url_get, 0);
   rb_define_method(cCurlEasy, "proxy_url", ruby_curl_easy_proxy_url_get, 0);
+
+  rb_define_method(cCurlEasy, "proxy_headers=", ruby_curl_easy_proxy_headers_set, 1);
+  rb_define_method(cCurlEasy, "proxy_headers", ruby_curl_easy_proxy_headers_get, 0);
+
   rb_define_method(cCurlEasy, "headers=", ruby_curl_easy_headers_set, 1);
   rb_define_method(cCurlEasy, "headers", ruby_curl_easy_headers_get, 0);
   rb_define_method(cCurlEasy, "interface", ruby_curl_easy_interface_get, 0);
