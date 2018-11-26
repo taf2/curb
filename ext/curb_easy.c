@@ -3410,6 +3410,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_MAX_RECV_SPEED_LARGE, (curl_off_t) NUM2LL(val));
     } break;
 #endif
+#if HAVE_CURLOPT_MAXFILESIZE
+  case CURLOPT_MAXFILESIZE:
+    curl_easy_setopt(rbce->curl, CURLOPT_MAXFILESIZE, NUM2LONG(val));
+    break;
+#endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
