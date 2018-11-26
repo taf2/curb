@@ -28,8 +28,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
           c = Curl.get($TEST_URL)
           assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
           assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body)
-          assert_equal "", c.header_str
-          assert_equal "", c.head
         end
       end
     end
@@ -41,7 +39,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body)
-    assert_equal "", c.header_str
   end    
 
   def test_class_perform_02
@@ -49,7 +46,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL) { |curl| curl.on_body { |d| data << d; d.length } }    
 
     assert_nil c.body_str
-    assert_equal "", c.header_str
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, data)
   end    
 
@@ -144,7 +140,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c = Curl::Easy.new($TEST_URL)    
     assert_equal true, c.http_get
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
-    assert_equal "", c.header_str
   end    
 
   def test_get_02
@@ -156,7 +151,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal true, c.http_get    
     
     assert_nil c.body_str
-    assert_equal "", c.header_str
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, data)
   end    
 
