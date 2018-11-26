@@ -277,6 +277,8 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->ftp_response_timeout = 0;
   rbce->low_speed_limit = 0;
   rbce->low_speed_time = 0;
+  rbce->max_send_speed_large = 0;
+  rbce->max_recv_speed_large = 0;
   rbce->ssl_version = -1;
   rbce->use_ssl = -1;
   rbce->ftp_filemethod = -1;
@@ -1371,6 +1373,46 @@ static VALUE ruby_curl_easy_low_speed_time_get(VALUE self, VALUE low_speed_time)
 
 /*
  * call-seq:
+ *   easy.max_send_speed_large = fixnum or nil        => fixnum or nil
+ *
+ * Set the maximal sending transfer speed (in bytes per second) 
+ */
+static VALUE ruby_curl_easy_max_send_speed_large_set(VALUE self, VALUE max_send_speed_large) {
+  CURB_IMMED_SETTER(ruby_curl_easy, max_send_speed_large, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.max_send_speed_large = fixnum or nil        => fixnum or nil
+ *
+ * Get the maximal sending transfer speed (in bytes per second) 
+ */
+static VALUE ruby_curl_easy_max_send_speed_large_get(VALUE self, VALUE max_send_speed_large) {
+  CURB_IMMED_GETTER(ruby_curl_easy, max_send_speed_large, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.max_recv_speed_large = fixnum or nil        => fixnum or nil
+ *
+ * Set the maximal receiving transfer speed (in bytes per second) 
+ */
+static VALUE ruby_curl_easy_max_recv_speed_large_set(VALUE self, VALUE max_recv_speed_large) {
+  CURB_IMMED_SETTER(ruby_curl_easy, max_recv_speed_large, 0);
+}
+
+/*
+ * call-seq:
+ *   easy.max_recv_speed_large = fixnum or nil        => fixnum or nil
+ *
+ * Get the maximal receiving transfer speed (in bytes per second) 
+ */
+static VALUE ruby_curl_easy_max_recv_speed_large_get(VALUE self, VALUE max_recv_speed_large) {
+  CURB_IMMED_GETTER(ruby_curl_easy, max_recv_speed_large, 0);
+}
+
+/*
+ * call-seq:
  *   easy.username = string                           => string
  *
  * Set the HTTP Authentication username.
@@ -2225,6 +2267,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, rbce->low_speed_limit);
   curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, rbce->low_speed_time);
+
+  curl_easy_setopt(curl, CURLOPT_MAX_RECV_SPEED_LARGE, rbce->max_recv_speed_large);
+  curl_easy_setopt(curl, CURLOPT_MAX_SEND_SPEED_LARGE, rbce->max_send_speed_large);
 
   // Set up localport / proxy port
   // FIXME these won't get returned to default if they're unset Ruby
@@ -3609,6 +3654,10 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "low_speed_limit", ruby_curl_easy_low_speed_limit_get, 0);
   rb_define_method(cCurlEasy, "low_speed_time=", ruby_curl_easy_low_speed_time_set, 1);
   rb_define_method(cCurlEasy, "low_speed_time", ruby_curl_easy_low_speed_time_get, 0);
+  rb_define_method(cCurlEasy, "max_send_speed_large=", ruby_curl_easy_max_send_speed_large_set, 1);
+  rb_define_method(cCurlEasy, "max_send_speed_large", ruby_curl_easy_max_send_speed_large_get, 0);
+  rb_define_method(cCurlEasy, "max_recv_speed_large=", ruby_curl_easy_max_recv_speed_large_set, 1);
+  rb_define_method(cCurlEasy, "max_recv_speed_large", ruby_curl_easy_max_recv_speed_large_get, 0);
   rb_define_method(cCurlEasy, "ssl_version=", ruby_curl_easy_ssl_version_set, 1);
   rb_define_method(cCurlEasy, "ssl_version", ruby_curl_easy_ssl_version_get, 0);
   rb_define_method(cCurlEasy, "use_ssl=", ruby_curl_easy_use_ssl_set, 1);
