@@ -1,7 +1,22 @@
 # Change Log
- ## Next
+ ### Fixes
+  * Fix build with curl 7.62.0
+ ### Enhancements
+ ### Breaking Changes
+  * Possibly breaking change with request handling, reduces C (lines of code) and might resolve segfault when mixing curb with ruby timeout
+ ## 0.9.8
+ ### Fixes
+ * Fix build with curl 7.62.0
+ * Support building against ruby 1.8 to help people migrate to the future and beyond
+ ### Enhancements
+ * Improve timeout= to allow Floating point values automatically switch to timeout_ms
+ * Add SOCKS5_HOSTNAME support.
+ ### Breaking Changes
+ * Timeout change is possibly breaking for anyone who expected 0.9 to == 0 or infinity
+ ## 0.9.7
  ### Breaking Changes
  ### Fixes
+ * Guard use of CURLOPT_RESOLVE in #if HAVE_CURLOPT_RESOLVE
  * Prevent `NoMethodError` when no HTTP Status
 * [`Curl.urlalize` will miss raw url's query params](https://github.com/taf2/curb/issues/330)
 * [Fix SSL versions constant names](https://github.com/taf2/curb/pull/333)
