@@ -16,7 +16,7 @@ Ruby license. See the LICENSE file for the gory details.
 
 ## You will need
 
-* A working Ruby installation (1.8+, tested with 1.8.6, 1.8.7, 1.9.1, and 1.9.2)
+* A working Ruby installation (2.1+)
 * A working (lib)curl installation, with development stuff (7.5+, tested with 7.19.x)
 * A sane build environment (e.g. gcc, make)
 
