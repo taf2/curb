@@ -1,0 +1,21 @@
+PATH
+  remote: .
+  specs:
+    curb (0.9.6)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    rake (10.5.0)
+    test-unit (2.5.5)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  curb!
+  rake (< 12)
+  test-unit (< 3)
+
+BUNDLED WITH
+   1.15.4
