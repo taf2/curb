@@ -2492,6 +2492,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
+#if HAVE_CURLOPT_PROXYHEADER
   /* Setup HTTP proxy headers if necessary */
   curl_easy_setopt(curl, CURLOPT_PROXYHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
 
@@ -2508,8 +2509,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
       curl_easy_setopt(curl, CURLOPT_PROXYHEADER, *phdrs);
     }
   }
-
-
+#endif
 
   /* Setup FTP commands if necessary */
   if (!rb_easy_nil("ftp_commands")) {
