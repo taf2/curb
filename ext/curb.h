@@ -41,6 +41,11 @@
   #define RHASH_SIZE(hash) RHASH(hash)->tbl->num_entries
 #endif
 
+// ruby 1.8 does not provide the macro
+#ifndef DBL2NUM
+  #define DBL2NUM(dbl) rb_float_new(dbl)
+#endif
+
 extern VALUE mCurl;
 
 extern void Init_curb_core();

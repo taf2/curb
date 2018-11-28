@@ -7,20 +7,29 @@ module Curb
     #
     # It's used for old rubies where MixLib is not available.
     class ShellWrapper
-      def initialize(*args)
-        @options = args.last.is_a?(Hash) ? args.pop : {}
-        @cmd = args
-        @live_stream = @options.delete(:live_stdout)
-        @stdout = ''
-        @stderr = ''
+      def initialize(args, opts = {})
+        @cmd, @live_stream, @cwd = args, opts[:live_stdout], opts[:cwd]
+        @stdout, @stderr = '', ''
       end
 
 
       def run_command
+        # Ruby 1.8 Open3.popen3 does not support changing directory, we
+        # need to do it before shelling out.
+        if @cwd
+          Dir.chdir(@cwd) { execute! }
+        else
+          execute!
+        end
+        self
+      end
+
+      def execute!
         wait_thr = nil
+
         Open3.popen3(*@cmd) do |stdin, stdout, stderr, thr|
           stdin.close
-          wait_thr = thr
+          wait_thr = thr # Ruby 1.8 will not yield thr, this will be nil
 
           while line = stdout.gets do
             @stdout << line
@@ -33,9 +42,11 @@ module Curb
           end
         end
 
-        @exit_code = wait_thr.value.exitstatus
-        @error = !wait_thr.value.success?
-        self
+        # prefer process handle directly from popen3, but if not available
+        # fallback to global.
+        p_status = wait_thr ? wait_thr.value : $?
+        @exit_code = p_status.exitstatus
+        @error = (@exit_code != 0)
       end
 
       def stderr

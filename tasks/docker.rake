@@ -42,7 +42,7 @@
 namespace :docker do
   desc "Run the test suite in docker environment (#{Docker.ruby_image})"
   task :test => :recompile do
-    run_in_docker(Docker.ruby_image, 'rake', 'tu', :live_stdout => STDOUT).error!
+    run_in_docker(Docker.ruby_image, 'rake', 'tu', { :live_stdout => STDOUT }).error!
   end
 
   desc "Run the test suite against all rubies"
@@ -79,6 +79,7 @@ namespace :docker do
   # All the collected data is stored in 'build/docker/*'.
   desc 'Docker docker environment for developing Curb.'
   task :environment => Docker::BUILD_DIRECTORIES do
+    Rake::Task['build/docker/entrypoint_ruby1.8.sh'].invoke
     Rake::Task['build/docker/docker.json'].invoke
     Rake::Task['build/docker/network.json'].invoke
     Rake::Task['build/docker/git_curb_info.txt'].invoke
@@ -115,6 +116,19 @@ namespace :docker do
     Rake::Task['docker:docker_network'].invoke
   end
 
+  file 'build/docker/entrypoint_ruby1.8.sh' do
+    entrypoint = 'build/docker/entrypoint_ruby1.8.sh'
+    File.write(entrypoint, <<-ENTRYPOINT)
+#!/bin/bash -e
+
+# Ruby 1.8 docker image does not include libcurl development libraries
+apt-get update -qq || true
+apt-get install -y -q --no-install-recommends libcurl4-openssl-dev
+
+exec "$@"
+    ENTRYPOINT
+    File.chmod(0775, entrypoint)
+  end
   # This section generates file tasks based on the configuration (see 'tasks/rake_helpers.rb').
   #
   # This code is being evaluated (loaded) early in the Rakefile, before any task is executed.
@@ -173,7 +187,7 @@ namespace :docker do
 
     if ruby_v_file != ruby_v_docker
       run_in_docker(Docker.ruby_image, 'rake', 'clobber').error!
-      run_in_docker(Docker.ruby_image, 'rake', 'compile', live_stdout: nil).error!
+      run_in_docker(Docker.ruby_image, 'rake', 'compile', { :live_stdout => nil }).error!
     end
 
     File.write(ruby_v_filepath, ruby_v_docker)

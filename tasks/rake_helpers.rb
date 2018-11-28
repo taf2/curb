@@ -45,12 +45,10 @@ module Curb
       #
       # It's easier than Rake's 'sh' and it's backed by Mixlib::Shellout if available with fallback
       # to pure ruby implementation compatible down to Ruby 1.8.
-      def shell(*args)
-        mix_options = args.last.is_a?(Hash) ? args.pop : {}
-
+      def shell(args, mix_options = {})
         puts "> #{args.join(' ')}"
 
-        _shell_wrapper(*args, mix_options).run_command
+        _shell_wrapper(args, mix_options).run_command
       end
 
       def run_in_docker(*args)
@@ -61,8 +59,12 @@ module Curb
 
       # Mixlib won't be available on every ruby we support. This handles selecting appropriate
       # backed for the command.
-      def _shell_wrapper(*args)
-        defined?(Mixlib::ShellOut) ? Mixlib::ShellOut.new(*args) : ShellWrapper.new(*args)
+      def _shell_wrapper(args, shell_options)
+        if defined?(Mixlib::ShellOut) # we're on "modern" ruby that supports mixlib
+          Mixlib::ShellOut.new(args, shell_options)
+        else # ruby 1.8
+          ShellWrapper.new(args, shell_options)
+        end
       end
     end
 
@@ -72,6 +74,7 @@ module Curb
       BUILD_DIRECTORIES = %w(build/docker)
 
       DOCKER_VOLUMES = {
+        'ruby:1.8' => [ { :name => 'curb_ruby_1_8', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_1_8.json' } ],
         'ruby:2.0' => [ { :name => 'curb_ruby_2_0', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_0.json' } ],
         'ruby:2.1' => [ { :name => 'curb_ruby_2_1', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_1.json' } ],
         'ruby:2.2' => [ { :name => 'curb_ruby_2_2', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_2.json' } ],
@@ -82,6 +85,13 @@ module Curb
       }
 
       DOCKER_IMAGES = {
+        'ruby:1.8'     => { :name => 'phusion/passenger-ruby18',  :tag => 'latest',
+                            :filepath => 'build/docker/image_ruby_1_8.json',
+                            :gemfile => 'Gemfile.ruby-1.8',
+                            :entrypoint => '/code/build/docker/entrypoint_ruby1.8.sh',
+                            :curl_filepath => 'build/docker/curl_ruby_1_8.txt',
+                            :bundle_env_filepath => 'build/docker/bundle_env_ruby_1_8.md',
+                            :volumes => DOCKER_VOLUMES['ruby:1.8'] },
         'ruby:2.0'     => { :name => 'ruby',  :tag => '2.0',
                             :filepath => 'build/docker/image_ruby_2_0.json',
                             :gemfile => 'Gemfile.ruby-2.1',
@@ -156,13 +166,14 @@ module Curb
       #
       # It's being translated to the following shell command:
       #
-      #   docker run --rm -t -w /code -v $PWD/curb-clean:/code
+      #   docker run --rm -t -w /code
+      #              --mount type=bind,source=$PWD,target=/code
       #              --mount type=volume,source=curb_ruby_2_5,target=/usr/local/bundle
       #              --network curb
       #              ruby:2.5 rake compile
       #
-      def self.run_in_docker(image_name, *cmd)
-        conf = DOCKER_IMAGES[image_name]
+      def self.run_in_docker(config_name, *cmd)
+        conf = DOCKER_IMAGES[config_name]
 
         # The docker-in-docker detection is as simple as checking existence of '/.dockerenv' file.
         # '.dockerenv' and '.dockerinit' have been historically used with the LXC execution driver,
@@ -196,7 +207,7 @@ module Curb
         #   shown it to be easier to use.
         #
         # Source: https://docs.docker.com/storage/bind-mounts/
-        volumes = DOCKER_VOLUMES[image_name].map do |conf|
+        volumes = conf[:volumes].map do |conf|
           ['--mount', "type=volume,source=#{conf[:name]},target=#{conf[:mount_path]}"]
         end
 
@@ -221,6 +232,13 @@ module Curb
         # loop for developer's convenience.
         volumes << ['--mount', "type=bind,source=#{Dir.pwd},target=/code"]
 
+        # The docker entrypoint will be executed instead of command and the command will be passed
+        # as arguments. This allows us to hook into the container and install/reconfigure
+        # dependencies as needed, etc.
+        entrypoint = [ '--entrypoint', conf[:entrypoint]] if conf[:entrypoint]
+
+        image_name = "#{conf[:name]}:#{conf[:tag]}"
+
         args = [ 'docker',
                  'run',
                  '--rm',
@@ -228,10 +246,13 @@ module Curb
                  '-w', '/code',
                  '--network', 'curb',
                  volumes,
+                 entrypoint,
                  image_name,
-                 cmd].flatten!
+                 cmd].
+                 flatten.  # volumes
+                 compact   # entrypoint
 
-         shell(*args, shell_options)
+         shell(args, shell_options)
       end
     end
   end

@@ -57,22 +57,20 @@ MAKEOPTS = ENV['MAKE_OPTS'] || ''
 CURB_SO = "ext/curb_core.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
 
 file 'ext/Makefile' => 'ext/extconf.rb' do
-  Dir.chdir('ext') do
-    shell('ruby', 'extconf.rb', ENV['EXTCONF_OPTS'].to_s, live_stdout: STDOUT)
-  end
+  shell(['ruby', 'extconf.rb', ENV['EXTCONF_OPTS'].to_s],
+        { :live_stdout => STDOUT , :cwd => "#{Dir.pwd}/ext" }
+       ).error!
 end
 
 def make(target = '')
-  Dir.chdir('ext') do 
-    pid = system("#{MAKECMD} #{MAKEOPTS} #{target}")
-    $?.exitstatus
-  end    
+  shell(["#{MAKECMD}", "#{MAKEOPTS}", "#{target}"].reject(&:empty?),
+        { :live_stdout => STDOUT, :cwd => "#{Dir.pwd}/ext" }
+       ).error!
 end
 
 # Let make handle dependencies between c/o/so - we'll just run it. 
 file CURB_SO => (['ext/Makefile'] + Dir['ext/*.c'] + Dir['ext/*.h']) do
-  m = make
-  fail "Make failed (status #{m})" unless m == 0
+  make
 end
 
 desc "Compile the shared object"
@@ -80,8 +78,7 @@ task :compile => [CURB_SO]
 
 desc "Install to your site_ruby directory"
 task :install do
-  m = make 'install' 
-  fail "Make install failed (status #{m})" unless m == 0
+  make 'install'
 end
 
 # Test Tasks ---------------------------------------------------------
