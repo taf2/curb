@@ -206,11 +206,11 @@ exec "$@"
 
     # This should never fail, even if the volume exists docker return success, but if it does for
     # whatever reason we can't do anything about it so we will just explode.
-    create_cmd = shell('docker', 'volume', 'create', args.volume_name)
+    create_cmd = shell(['docker', 'volume', 'create', args.volume_name])
     abort('failed to create docker volume') if create_cmd.error?
 
     # This could fail if the volume (for any reason) does not exist.
-    inspect_cmd = shell('docker', 'volume', 'inspect', args.volume_name)
+    inspect_cmd = shell(['docker', 'volume', 'inspect', args.volume_name])
     inspect_cmd.error!
 
     File.write(args.filepath, inspect_cmd.stdout)
@@ -239,10 +239,10 @@ exec "$@"
   task :docker_pull, [:name] do |_, args|
     conf = Docker::DOCKER_IMAGES[args.name]
 
-    pull_cmd = shell('docker', 'pull', "#{conf[:name]}:#{conf[:tag]}")
+    pull_cmd = shell(['docker', 'pull', "#{conf[:name]}:#{conf[:tag]}"])
     abort('docker pull failed.') if pull_cmd.error?
 
-    inspect_cmd = shell('docker', 'image', 'inspect', "#{conf[:name]}:#{conf[:tag]}")
+    inspect_cmd = shell(['docker', 'image', 'inspect', "#{conf[:name]}:#{conf[:tag]}"])
     inspect_cmd.error!
 
     File.write(conf[:filepath], inspect_cmd.stdout)
@@ -250,7 +250,7 @@ exec "$@"
 
   # Make sure the docker binary is available.
   task :docker_binary do
-    cmd = shell('docker', 'system', 'info', '--format', '{{json .}}')
+    cmd = shell(['docker', 'system', 'info', '--format', '{{json .}}'])
     if cmd.error?
       abort('docker binary not found on the system. Make sure docker is installed.')
     end
@@ -275,9 +275,9 @@ exec "$@"
   # With initial setup in place, and even if the feature is not used in the codebase it's handy for
   # local development.
   task :docker_network do
-    shell('docker', 'network', 'create', 'curb')
+    shell(['docker', 'network', 'create', 'curb'])
 
-    inspect_cmd = shell('docker', 'network', 'inspect', 'curb')
+    inspect_cmd = shell(['docker', 'network', 'inspect', 'curb'])
     inspect_cmd.error!
 
     File.write('build/docker/network.json', inspect_cmd.stdout)
