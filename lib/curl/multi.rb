@@ -271,5 +271,16 @@ module Curl
       _remove(easy)
       self
     end
+
+    def close
+      requests.values.each {|easy|
+        _remove(easy)
+      }
+      @requests = {}
+      _close
+      self
+    end
+
+
   end
 end
