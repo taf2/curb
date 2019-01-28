@@ -78,6 +78,7 @@ module Curb
         'ruby:2.3' => [ { :name => 'curb_ruby_2_3', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_3.json' } ],
         'ruby:2.4' => [ { :name => 'curb_ruby_2_4', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_4.json' } ],
         'ruby:2.5' => [ { :name => 'curb_ruby_2_5', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_5.json' } ],
+        'ruby:2.6' => [ { :name => 'curb_ruby_2_6', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_6.json' } ],
       }
 
       DOCKER_IMAGES = {
@@ -113,6 +114,11 @@ module Curb
                             :curl_filepath => 'build/docker/curl_ruby_2_5.txt',
                             :bundle_env_filepath => 'build/docker/bundle_env_ruby_2_5.md',
                             :volumes => DOCKER_VOLUMES['ruby:2.5'] },
+        'ruby:2.6'     => { :name => 'ruby',  :tag => '2.6',
+                            :filepath => 'build/docker/image_ruby_2_6.json',
+                            :curl_filepath => 'build/docker/curl_ruby_2_6.txt',
+                            :bundle_env_filepath => 'build/docker/bundle_env_ruby_2_6.md',
+                            :volumes => DOCKER_VOLUMES['ruby:2.6'] },
       }
 
       # Returns current docker image name with tag for other Rake tasks to use.
