@@ -1,7 +1,6 @@
 # Change Log
  ## 0.9.8
  ### Fixes
-  * Fix build with curl 7.62.0
  * Fix build with curl 7.62.0
  * Support building against ruby 1.8 to help people migrate to the future and beyond
  ### Enhancements
