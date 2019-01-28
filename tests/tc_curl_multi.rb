@@ -57,12 +57,16 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert did_complete
     after_open = open_fds.call
     assert_equal (after_open - before_open), 0, "auto close the connections"
+  ensure
+    Curl::Multi.autoclose = false # restore default
   end
 
   def test_connection_autoclose
     assert !Curl::Multi.autoclose
     Curl::Multi.autoclose = true
     assert Curl::Multi.autoclose
+  ensure
+    Curl::Multi.autoclose = false # restore default
   end
 
   def test_new_multi_01

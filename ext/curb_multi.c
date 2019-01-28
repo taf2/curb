@@ -52,6 +52,16 @@ void curl_multi_free(ruby_curl_multi *rbcm) {
   free(rbcm);
 }
 
+static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
+  rbcm->handle = curl_multi_init();
+  if (!rbcm->handle) {
+    rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+  }
+
+  rbcm->active = 0;
+  rbcm->running = 0;
+}
+
 /*
  * call-seq:
  *   Curl::Multi.new                                   => #&lt;Curl::Easy...&gt;
@@ -61,13 +71,7 @@ void curl_multi_free(ruby_curl_multi *rbcm) {
 VALUE ruby_curl_multi_new(VALUE klass) {
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
 
-  rbcm->handle = curl_multi_init();
-  if (!rbcm->handle) {
-    rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
-  }
-
-  rbcm->active = 0;
-  rbcm->running = 0;
+  ruby_curl_multi_init(rbcm);
 
   /*
    * The mark routine will be called by the garbage collector during its ``mark'' phase.
@@ -613,7 +617,7 @@ VALUE ruby_curl_multi_close(VALUE self) {
   ruby_curl_multi *rbcm;
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
   curl_multi_cleanup(rbcm->handle);
-  rbcm->handle = NULL;
+  ruby_curl_multi_init(rbcm);
   return self;
 }
 
