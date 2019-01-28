@@ -6,6 +6,69 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     ObjectSpace.garbage_collect
   end
 
+  # for https://github.com/taf2/curb/issues/277
+  # must connect to an external
+  def test_connection_keepalive
+    # 0123456 default & reserved RubyVM. It will probably include 7 from Dir.glob
+    open_fds = lambda do 
+      `/usr/sbin/lsof -p #{Process.pid} | egrep "TCP|UDP" | wc -l`.strip.to_i
+    end
+    before_open = open_fds.call
+    assert !Curl::Multi.autoclose
+    multi = Curl::Multi.new
+    multi.max_connects = 1 # limit to 1 connection within the multi handle
+
+    did_complete = false
+    5.times do |n|
+      # NOTE: we use google here because connecting to our TEST_URL as a local host address appears to not register correctly with lsof as a socket... if anyone knows a better way would be great to not have an external dependency here in the test
+      easy = Curl::Easy.new("http://google.com/") do |curl|
+        curl.timeout = 5 # ensure we don't hang for ever connecting to an external host
+        curl.on_complete {
+          did_complete = true
+        }
+      end
+      multi.add(easy)
+    end
+
+    multi.perform
+    assert did_complete
+    after_open = open_fds.call
+    assert_equal (after_open - before_open), 1, "with max connections set to 1 at this point the connection to google should still be open"
+    multi.close
+
+    after_open = open_fds.call
+    assert_equal (after_open - before_open), 0, "after closing the multi handle all connections should be closed"
+
+    Curl::Multi.autoclose = true
+    multi = Curl::Multi.new
+    did_complete = false
+    5.times do |n|
+      # NOTE: we use google here because connecting to our TEST_URL as a local host address appears to not register correctly with lsof as a socket... if anyone knows a better way would be great to not have an external dependency here in the test
+      easy = Curl::Easy.new("http://google.com/") do |curl|
+        curl.timeout = 5 # ensure we don't hang for ever connecting to an external host
+        curl.on_complete {
+          did_complete = true
+        }
+      end
+      multi.add(easy)
+    end
+
+    multi.perform
+    assert did_complete
+    after_open = open_fds.call
+    assert_equal (after_open - before_open), 0, "auto close the connections"
+  ensure
+    Curl::Multi.autoclose = false # restore default
+  end
+
+  def test_connection_autoclose
+    assert !Curl::Multi.autoclose
+    Curl::Multi.autoclose = true
+    assert Curl::Multi.autoclose
+  ensure
+    Curl::Multi.autoclose = false # restore default
+  end
+
   def test_new_multi_01
     d1 = ""
     c1 = Curl::Easy.new($TEST_URL) do |curl|

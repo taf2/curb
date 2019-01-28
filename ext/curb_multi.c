@@ -37,6 +37,7 @@ static VALUE idCall;
 VALUE cCurlMulti;
 
 static long cCurlMutiDefaulttimeout = 100; /* milliseconds */
+static char cCurlMutiAutoClose = 0;
 
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
@@ -51,6 +52,16 @@ void curl_multi_free(ruby_curl_multi *rbcm) {
   free(rbcm);
 }
 
+static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
+  rbcm->handle = curl_multi_init();
+  if (!rbcm->handle) {
+    rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
+  }
+
+  rbcm->active = 0;
+  rbcm->running = 0;
+}
+
 /*
  * call-seq:
  *   Curl::Multi.new                                   => #&lt;Curl::Easy...&gt;
@@ -60,13 +71,7 @@ void curl_multi_free(ruby_curl_multi *rbcm) {
 VALUE ruby_curl_multi_new(VALUE klass) {
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
 
-  rbcm->handle = curl_multi_init();
-  if (!rbcm->handle) {
-    rb_raise(mCurlErrFailedInit, "Failed to initialize multi handle");
-  }
-
-  rbcm->active = 0;
-  rbcm->running = 0;
+  ruby_curl_multi_init(rbcm);
 
   /*
    * The mark routine will be called by the garbage collector during its ``mark'' phase.
@@ -99,6 +104,30 @@ VALUE ruby_curl_multi_set_default_timeout(VALUE klass, VALUE timeout) {
  */
 VALUE ruby_curl_multi_get_default_timeout(VALUE klass) {
   return LONG2NUM(cCurlMutiDefaulttimeout);
+}
+
+/*
+ * call-seq:
+ *   Curl::Multi.autoclose = true => true
+ *
+ * Automatically close open connections after each request. Otherwise, the connection will remain open 
+ * for reuse until the next GC
+ *
+ */
+VALUE ruby_curl_multi_set_autoclose(VALUE klass, VALUE onoff) {
+  cCurlMutiAutoClose = ((onoff == Qtrue) ? 1 : 0);
+  return onoff;
+}
+
+/*
+ * call-seq:
+ *   Curl::Multi.autoclose => true|false
+ *
+ * Get the global default autoclose setting for all Curl::Multi Handles.
+ *
+ */
+VALUE ruby_curl_multi_get_autoclose(VALUE klass) {
+  return cCurlMutiAutoClose == 1 ? Qtrue : Qfalse;
 }
 
 /*
@@ -571,8 +600,27 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   rb_curl_multi_read_info( self, rbcm->handle );
   if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+  if (cCurlMutiAutoClose  == 1) {
+    rb_funcall(self, rb_intern("close"), 0);
+  }
   return Qtrue;
 }
+
+/*
+ * call-seq:
+ *
+ * multi.close
+ * after closing the multi handle all connections will be closed and the handle will no longer be usable
+ *
+ */
+VALUE ruby_curl_multi_close(VALUE self) {
+  ruby_curl_multi *rbcm;
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  curl_multi_cleanup(rbcm->handle);
+  ruby_curl_multi_init(rbcm);
+  return self;
+}
+
 
 /* =================== INIT LIB =====================*/
 void init_curb_multi() {
@@ -583,10 +631,13 @@ void init_curb_multi() {
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
   rb_define_singleton_method(cCurlMulti, "default_timeout=", ruby_curl_multi_set_default_timeout, 1);
   rb_define_singleton_method(cCurlMulti, "default_timeout", ruby_curl_multi_get_default_timeout, 0);
+  rb_define_singleton_method(cCurlMulti, "autoclose=", ruby_curl_multi_set_autoclose, 1);
+  rb_define_singleton_method(cCurlMulti, "autoclose", ruby_curl_multi_get_autoclose, 0);
   /* Instance methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
   rb_define_method(cCurlMulti, "_add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "_remove", ruby_curl_multi_remove, 1);
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, -1);
+  rb_define_method(cCurlMulti, "_close", ruby_curl_multi_close, 0);
 }
