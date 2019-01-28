@@ -1,11 +1,7 @@
 # Change Log
- ### Fixes
-  * Fix build with curl 7.62.0
- ### Enhancements
- ### Breaking Changes
-  * Possibly breaking change with request handling, reduces C (lines of code) and might resolve segfault when mixing curb with ruby timeout
  ## 0.9.8
  ### Fixes
+  * Fix build with curl 7.62.0
  * Fix build with curl 7.62.0
  * Support building against ruby 1.8 to help people migrate to the future and beyond
  ### Enhancements
@@ -13,6 +9,7 @@
  * Add SOCKS5_HOSTNAME support.
  * Addes Curl::Multi.autoclose and Curl::Multi#close to improve connection handling. In past releases connection clean up only ever happens when GC runs.  Now in this release you can explicitly control connections via multi.close or have it always close your connections with Curl::Multi.autoclose=true.
  ### Breaking Changes
+ * Possibly breaking change with request handling, reduces C (lines of code) and might resolve segfault when mixing curb with ruby timeout
  * Timeout change is possibly breaking for anyone who expected 0.9 to == 0 or infinity
  ## 0.9.7
  ### Breaking Changes
