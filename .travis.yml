@@ -1,6 +1,7 @@
 language: ruby
 rvm:
   - ruby-head
+  - 2.7
   - 2.6
   - 2.5
   - 2.4
@@ -12,6 +13,8 @@ matrix:
       dist: trusty
   allow_failures:
    - rvm: rbx-4
+   - rvm: rbx-3
+   - rvm: ruby-head
   fast_finish: true
 cache: bundler
 before_install:
