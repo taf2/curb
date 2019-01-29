@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    curb (0.9.7)
+    curb (0.9.8)
 
 GEM
   remote: https://rubygems.org/
@@ -239,4 +239,4 @@ DEPENDENCIES
   test-unit
 
 BUNDLED WITH
-   1.16.2
+   1.16.6

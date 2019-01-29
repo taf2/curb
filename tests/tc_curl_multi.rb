@@ -10,8 +10,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   # must connect to an external
   def test_connection_keepalive
     # 0123456 default & reserved RubyVM. It will probably include 7 from Dir.glob
+    lsof=`/usr/bin/which lsof`.strip
     open_fds = lambda do 
-      `/usr/sbin/lsof -p #{Process.pid} | egrep "TCP|UDP" | wc -l`.strip.to_i
+      `#{lsof} -p #{Process.pid} | egrep "TCP|UDP" | wc -l`.strip.to_i
     end
     before_open = open_fds.call
     assert !Curl::Multi.autoclose
