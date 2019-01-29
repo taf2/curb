@@ -42,7 +42,7 @@
 namespace :docker do
   desc "Run the test suite in docker environment (#{Docker.ruby_image})"
   task :test => :recompile do
-    run_in_docker(Docker.ruby_image, 'rake', 'tu', { :live_stdout => STDOUT }).error!
+    run_in_docker(Docker.ruby_image, 'bundle', 'exec', 'rake', 'tu', { :live_stdout => STDOUT }).error!
   end
 
   desc "Run the test suite against all rubies"
