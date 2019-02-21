@@ -8,8 +8,10 @@ ext/curb_multi.o
 ext/curb_postfield.o
 ext/curb_upload.o
 ext/curb_config.h
+
 pkg/
 ext/mkmf.log
 build/
 vendor/
 .bundle/
+.idea
