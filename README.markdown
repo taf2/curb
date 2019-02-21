@@ -7,7 +7,7 @@ Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
 libcurl(3), a fully-featured client-side URL transfer library.
 cURL and libcurl live at [http://curl.haxx.se/](http://curl.haxx.se/) .
 
-Curb is a work-in-progress, and currently only supports libcurl's 'easy' and 'multi' modes.
+Curb is a work-in-progress, and currently only supports libcurl's `easy` and `multi` modes.
 
 ## License
 
@@ -19,6 +19,20 @@ Ruby license. See the LICENSE file for the gory details.
 * A working Ruby installation (2.1+)
 * A working (lib)curl installation, with development stuff (7.5+, tested with 7.19.x)
 * A sane build environment (e.g. gcc, make)
+
+## Version Compatibility chart
+
+A **non-indicative** set of compatibility versions of the libcurl library with this gem is as follows
+(Note that these are only the ones that have been tested and reported to work across a variety of platforms)
+
+| Gem Version | Release Date | libcurl versions |
+| ----------- | -----------  | ---------------- |
+| 0.9.8       | Jan 2019     | 7.61 - 7.63      |
+| 0.9.7       | Nov 2018     | 7.56 - 7.60      |
+| 0.9.6       | May 2018     | 7.51 - 7.57      |
+| 0.9.5       | May 2018     | 7.51 - 7.57      |
+| 0.9.4       | Aug 2017     | 7.41 - 7.50      |
+| 0.9.3       | Apr 2016     | 7.26 - 7.43      |
 
 ## Installation...
 
