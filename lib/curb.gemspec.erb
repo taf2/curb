@@ -7,14 +7,18 @@ Gem::Specification.new do |s|
   s.email   = 'todd.fisher@gmail.com'
   s.extra_rdoc_files = ['LICENSE', 'README.markdown']
   <%
-    files = ['LICENSE', 'README.markdown', 'Rakefile',
-             'doc.rb', 'ext/extconf.rb'] + Dir["lib/**/**.rb"] + Dir["ext/**/**.c"] + Dir["ext/**/**.h"].reject{|h| h == 'ext/curb_config.h' }
+    files = %w(LICENSE README.markdown Rakefile doc.rb ext/extconf.rb) +
+      Dir["lib/**/**.rb"] +
+      Dir["ext/**/**.c"] +
+      Dir["ext/**/**.h"].
+      reject{|h| h == 'ext/curb_config.h' }
 
     if ENV['BINARY_PACKAGE']
       files += Dir['ext/**/*.{o,so,bundle}']
     end
   %>
   s.files = <%= files.inspect %>
+
   #### Load-time details
   s.require_paths = ['lib','ext']
   s.rubyforge_project = 'curb'
