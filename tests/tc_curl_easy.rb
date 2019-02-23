@@ -10,6 +10,66 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     Curl.reset
   end
 
+  def test_curlopt_stderr_with_file
+    # does not work with Tempfile directly
+    path = Tempfile.new('curb_test_curlopt_stderr').path
+    File.open(path, 'w') do |file|
+      easy = Curl::Easy.new(TestServlet.url)
+      easy.verbose = true
+      easy.setopt(Curl::CURLOPT_STDERR, file)
+      easy.perform
+    end
+    output = File.read(path)
+
+    assert_match('HTTP/1.1 200 OK ', output)
+    assert_match('Host: 127.0.0.1:9129', output)
+  end
+
+  def test_curlopt_stderr_with_io
+    path = Tempfile.new('curb_test_curlopt_stderr').path
+    fd = IO.sysopen(path, 'w')
+    io = IO.for_fd(fd)
+
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.verbose = true
+    easy.setopt(Curl::CURLOPT_STDERR, io)
+    easy.perform
+
+
+    output = File.read(path)
+
+    assert_match(output, 'HTTP/1.1 200 OK')
+    assert_match(output, 'Host: 127.0.0.1:9129')
+  end
+
+  def test_curlopt_stderr_fails_with_tempdir
+    Tempfile.open('curb_test_curlopt_stderr') do |tempfile|
+      easy = Curl::Easy.new(TestServlet.url)
+
+      assert_raise(TypeError) do
+        easy.setopt(Curl::CURLOPT_STDERR, tempfile)
+      end
+    end
+  end
+
+  def test_curlopt_stderr_fails_with_stringio
+    stringio = StringIO.new
+    easy = Curl::Easy.new(TestServlet.url)
+
+    assert_raise(TypeError) do
+      easy.setopt(Curl::CURLOPT_STDERR, stringio)
+    end
+  end
+
+  def test_curlopt_stderr_fails_with_string
+    string = String.new
+    easy = Curl::Easy.new(TestServlet.url)
+
+    assert_raise(TypeError) do
+      easy.setopt(Curl::CURLOPT_STDERR, string)
+    end
+  end
+
   def test_exception
     begin
       Curl.get('NOT_FOUND_URL')

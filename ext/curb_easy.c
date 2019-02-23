@@ -25,6 +25,12 @@ static VALUE rbstrAmp;
 
 VALUE cCurlEasy;
 
+// for Ruby 1.8
+#ifndef HAVE_RB_IO_STDIO_FILE
+static FILE * rb_io_stdio_file(rb_io_t *fptr) {
+  return fptr->f;
+}
+#endif
 
 /* ================== CURL HANDLER FUNCS ==============*/
 
@@ -3447,6 +3453,7 @@ static VALUE ruby_curl_easy_last_result(VALUE self) {
 static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   ruby_curl_easy *rbce;
   long option = NUM2LONG(opt);
+  rb_io_t *open_f_ptr;
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
@@ -3572,6 +3579,13 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_MAXFILESIZE, NUM2LONG(val));
     break;
 #endif
+  case CURLOPT_STDERR:
+    // libcurl requires raw FILE pointer and this should be IO object in Ruby.
+    // Tempfile or StringIO won't work.
+    Check_Type(val, T_FILE);
+    GetOpenFile(val, open_f_ptr);
+    curl_easy_setopt(rbce->curl, CURLOPT_STDERR, rb_io_stdio_file(open_f_ptr));
+    break;
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
