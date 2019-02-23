@@ -9,6 +9,13 @@
 #define __CURB_H
 
 #include <ruby.h>
+
+#ifdef HAVE_RUBY_IO_H
+#include "ruby/io.h"
+#else
+#include "rubyio.h" // ruby 1.8
+#endif
+
 #include <curl/curl.h>
 
 #include "curb_config.h"

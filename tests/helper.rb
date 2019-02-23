@@ -2,6 +2,7 @@
 # Copyright (c)2006 Ross Bamford. See LICENSE.
 $CURB_TESTING = true
 require 'uri'
+require 'stringio'
 
 $TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
 $EXTDIR = File.join($TOPDIR, 'ext')

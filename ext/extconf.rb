@@ -427,6 +427,8 @@ test_for("curl_easy_escape", "CURL_EASY_ESCAPE", %{
 
 have_func('rb_thread_blocking_region')
 have_header('ruby/thread.h') && have_func('rb_thread_call_without_gvl', 'ruby/thread.h')
+have_header('ruby/io.h')
+have_func('rb_io_stdio_file')
 
 create_header('curb_config.h')
 create_makefile('curb_core')
