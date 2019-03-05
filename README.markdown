@@ -16,23 +16,25 @@ Ruby license. See the LICENSE file for the gory details.
 
 ## You will need
 
-* A working Ruby installation (2.1+)
-* A working (lib)curl installation, with development stuff (7.5+, tested with 7.19.x)
+* A working Ruby installation (`1.8.7+` will work but `2.1+` preferred)
+* A working libcurl development installation
+(Ideally one of the versions listed in the compatibility chart below that maps to your `curb` version)
 * A sane build environment (e.g. gcc, make)
 
 ## Version Compatibility chart
 
-A **non-indicative** set of compatibility versions of the libcurl library with this gem is as follows
-(Note that these are only the ones that have been tested and reported to work across a variety of platforms)
+A **non-exhaustive** set of compatibility versions of the libcurl library
+with this gem are as follows. (Note that these are only the ones that have been
+tested and reported to work across a variety of platforms / rubies)
 
 | Gem Version | Release Date | libcurl versions |
 | ----------- | -----------  | ---------------- |
-| 0.9.8       | Jan 2019     | 7.61 - 7.63      |
+| 0.9.8       | Jan 2019     | 7.58 - 7.63      |
 | 0.9.7       | Nov 2018     | 7.56 - 7.60      |
-| 0.9.6       | May 2018     | 7.51 - 7.57      |
-| 0.9.5       | May 2018     | 7.51 - 7.57      |
-| 0.9.4       | Aug 2017     | 7.41 - 7.50      |
-| 0.9.3       | Apr 2016     | 7.26 - 7.43      |
+| 0.9.6       | May 2018     | 7.51 - 7.59      |
+| 0.9.5       | May 2018     | 7.51 - 7.59      |
+| 0.9.4       | Aug 2017     | 7.41 - 7.58      |
+| 0.9.3       | Apr 2016     | 7.26 - 7.58      |
 
 ## Installation...
 
@@ -45,6 +47,10 @@ the [development version of libcurl](http://curl.haxx.se/gknw.net/7.39.0/dist-w3
 line (alter paths to your curl location, but remember to use forward slashes):
 
     gem install curb --platform=ruby -- --with-curl-lib=C:/curl-7.39.0-devel-mingw32/lib --with-curl-include=C:/curl-7.39.0-devel-mingw32/include
+    
+Note that with Windows moving from one method of compiling to another as of Ruby `2.4` (DevKit -> MYSYS2),
+the usage of Ruby `2.4+` with this gem on windows is unlikely to work. It is advised to use the
+latest version of Ruby 2.3 available [HERE](https://dl.bintray.com/oneclick/rubyinstaller/rubyinstaller-2.3.3.exe)
 
 Or, if you downloaded the archive:
 
