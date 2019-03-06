@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 require 'curb_core'
 require 'curl/easy'
 require 'curl/multi'
