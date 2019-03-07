@@ -20,11 +20,11 @@
 #include "curb_macros.h"
 
 // These should be managed from the Rake 'release' task.
-#define CURB_VERSION   "0.9.8"
-#define CURB_VER_NUM   908
+#define CURB_VERSION   "0.9.9"
+#define CURB_VER_NUM   909
 #define CURB_VER_MAJ   0
 #define CURB_VER_MIN   9
-#define CURB_VER_MIC   8
+#define CURB_VER_MIC   9
 #define CURB_VER_PATCH 0
 
 

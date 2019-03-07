@@ -186,7 +186,7 @@ else
     spec_source = File.read File.join(File.dirname(__FILE__),'curb.gemspec')
     spec = nil
     # see: http://gist.github.com/16215
-    Thread.new { spec = eval("$SAFE = 3\n#{spec_source}") }.join
+    Thread.new { spec = eval("#{spec_source}") }.join
     spec.validate
     Gem::Package.build(spec)
   end
