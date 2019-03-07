@@ -2543,7 +2543,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
  *
  * Clean up a connection
  *
- * Always returns Qtrue.
+ * Always returns Qnil.
  */
 VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
 
@@ -2581,6 +2581,10 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
     curl_easy_setopt(curl, CURLOPT_READDATA, NULL);
     curl_easy_setopt(curl, CURLOPT_INFILESIZE, 0);
+  }
+
+  if (!rb_easy_nil("multi")) {
+    rb_easy_del("multi"); // set the multi object to Qnil to let the GC clean up
   }
 
   return Qnil;
