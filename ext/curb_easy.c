@@ -247,6 +247,7 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     curl_easy_setopt(rbce->curl, CURLOPT_PROGRESSFUNCTION, NULL);
     curl_easy_setopt(rbce->curl, CURLOPT_NOPROGRESS, 1);
     curl_easy_cleanup(rbce->curl);
+    rbce->curl = NULL;
   }
 }
 
