@@ -59,6 +59,9 @@ def have_constant(name)
   end
 end
 
+have_constant "curlopt_tcp_keepalive"
+have_constant "curlopt_tcp_keepidle"
+have_constant "curlopt_tcp_keepintvl"
 have_constant "curlinfo_appconnect_time"
 have_constant "curlinfo_redirect_time"
 have_constant "curlinfo_response_code"
@@ -152,6 +155,8 @@ have_constant "curlm_unknown_option"
 have_func("curl_multi_timeout")
 have_func("curl_multi_fdset")
 have_func("curl_multi_perform")
+
+have_constant "curlopt_haproxyprotocol"
 
 # constants
 have_constant "curlopt_interleavefunction"

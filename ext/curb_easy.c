@@ -2583,9 +2583,8 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
     curl_easy_setopt(curl, CURLOPT_INFILESIZE, 0);
   }
 
-  if (!rb_easy_nil("multi")) {
-    rb_easy_del("multi"); // set the multi object to Qnil to let the GC clean up
-  }
+  // set values on cleanup to nil
+  rb_easy_del("multi");
 
   return Qnil;
 }
@@ -3574,6 +3573,22 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #if HAVE_CURLOPT_MAXFILESIZE
   case CURLOPT_MAXFILESIZE:
     curl_easy_setopt(rbce->curl, CURLOPT_MAXFILESIZE, NUM2LONG(val));
+    break;
+#endif
+#if HAVE_CURLOPT_TCP_KEEPALIVE
+  case CURLOPT_TCP_KEEPALIVE:
+    curl_easy_setopt(rbce->curl, CURLOPT_TCP_KEEPALIVE, NUM2LONG(val));
+    break;
+  case CURLOPT_TCP_KEEPIDLE:
+    curl_easy_setopt(rbce->curl, CURLOPT_TCP_KEEPIDLE, NUM2LONG(val));
+    break;
+  case CURLOPT_TCP_KEEPINTVL:
+    curl_easy_setopt(rbce->curl, CURLOPT_TCP_KEEPINTVL, NUM2LONG(val));
+    break;
+#endif
+#if HAVE_CURLOPT_HAPROXYPROTOCOL
+  case CURLOPT_HAPROXYPROTOCOL:
+    curl_easy_setopt(rbce->curl, HAVE_CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
     break;
 #endif
   default:
