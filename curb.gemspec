@@ -18,7 +18,6 @@ Gem::Specification.new do |s|
   
 
   #### Documentation and testing.
-  s.has_rdoc = true
   s.homepage = 'http://curb.rubyforge.org/'
   s.rdoc_options = ['--main', 'README.markdown']
 
