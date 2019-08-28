@@ -18,6 +18,7 @@
 
 #include <curl/curl.h>
 
+#include "banned.h"
 #include "curb_config.h"
 #include "curb_easy.h"
 #include "curb_errors.h"
