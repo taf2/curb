@@ -38,7 +38,6 @@ c = Curl::Easy.http_post(url, *fields) do |curl|
   # Google will make sure we retain cookies
   curl.enable_cookies = true
 end
-
 puts "FINISHED: HTTP #{c.response_code}"
 puts c.body_str
 
