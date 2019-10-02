@@ -10,8 +10,6 @@ class BugIssue102 < Test::Unit::TestCase
       curl.url = test
       curl.interface = ip
     end  
-
     c.perform
   end
-
 end
