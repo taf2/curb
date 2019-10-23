@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    curb (0.9.8)
+    curb (0.9.10)
 
 GEM
   remote: https://rubygems.org/
