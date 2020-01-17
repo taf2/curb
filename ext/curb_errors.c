@@ -307,17 +307,17 @@ VALUE rb_curl_easy_error(CURLcode code) {
       exclz = eCurlErrObsolete;
       break;
 #endif
-#if LIBCURL_VERSION_NUM < 0x073e00
-    case CURLE_SSL_PEER_CERTIFICATE:    /* 51 - peer's certificate wasn't ok */
-      exclz = eCurlErrSSLPeerCertificate;
-      break;
-#endif
     case CURLE_GOT_NOTHING:             /* 52 - when this is a specific error */
       exclz = eCurlErrGotNothing;
       break;
     case CURLE_SSL_ENGINE_NOTFOUND:     /* 53 - SSL crypto engine not found */
       exclz = eCurlErrSSLEngineNotFound;
       break;
+#if LIBCURL_VERSION_NUM < 0x073e00 /*7.62.0*/
+    case CURLE_SSL_PEER_CERTIFICATE:    /* 51 - peer's certificate wasn't ok */
+      exclz = eCurlErrSSLPeerCertificate;
+      break;
+#endif
     case CURLE_SSL_ENGINE_SETFAILED:    /* 54 - can not set SSL crypto engine as default */
       exclz = eCurlErrSSLEngineSetFailed;
       break;
@@ -336,7 +336,7 @@ VALUE rb_curl_easy_error(CURLcode code) {
     case CURLE_SSL_CIPHER:              /* 59 - couldn't use specified cipher */
       exclz = eCurlErrSSLCipher;
       break;
-#if LIBCURL_VERSION_NUM >= 0x073e00
+#if LIBCURL_VERSION_NUM >= 0x073e0 /*7.62.0 -- fix for curl with higher version */
     case CURLE_PEER_FAILED_VERIFICATION:              /* 60 - problem with the CA cert (path?) */
       exclz = eCurlErrSSLPeerCertificate;
 #else
