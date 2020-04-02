@@ -16,7 +16,7 @@ end
 platforms :rbx do
   install_if -> { RUBY_VERSION !~ /10.0/ } do
     gem 'rubysl', '~> 2.0'
+    gem 'rubysl-test-unit' # see https://github.com/rubysl/rubysl-test-unit/issues/1
   end
   gem 'minitest'
-  gem 'rubysl-test-unit' # see https://github.com/rubysl/rubysl-test-unit/issues/1
 end
