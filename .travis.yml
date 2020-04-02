@@ -9,6 +9,7 @@ rvm:
   - rbx-3
 matrix:
   allow_failures:
+   - rvm: ruby-head
    - rvm: rbx-3
   fast_finish: true
 cache: bundler
