@@ -7,7 +7,7 @@ gem 'pry'
 
 group 'development', 'test' do
   gem 'rdoc'
-  gem 'rake'
+  gem 'rake', '>= 13.0.1'
   gem 'test-unit'
 end
 
