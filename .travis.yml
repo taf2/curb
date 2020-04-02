@@ -13,4 +13,4 @@ matrix:
   fast_finish: true
 cache: bundler
 before_install:
-  - gem install bundler
+  - gem install bundler -v'1.17.3'
