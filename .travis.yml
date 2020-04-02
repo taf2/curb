@@ -8,10 +8,13 @@ rvm:
   - 2.2
 matrix:
   include:
+    - rvm: rbx-4
+      dist: trusty
     - rvm: rbx-3
       dist: trusty
   allow_failures:
    - rvm: ruby-head
+   - rvm: rbx-4
    - rvm: rbx-3
   fast_finish: true
 cache: bundler
