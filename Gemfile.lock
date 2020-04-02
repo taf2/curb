@@ -232,7 +232,7 @@ DEPENDENCIES
   minitest
   mixlib-shellout
   pry
-  rake
+  rake (>= 13.0.1)
   rdoc
   rubysl (~> 2.0)
   rubysl-test-unit
