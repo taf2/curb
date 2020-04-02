@@ -21,7 +21,6 @@ Gem::Specification.new do |s|
 
   #### Load-time details
   s.require_paths = ['lib','ext']
-  s.rubyforge_project = 'curb'
   s.summary = %q{Ruby libcurl bindings}
   s.test_files = <%= Dir['tests/**/**.rb'].inspect %>
   <% unless ENV['BINARY_PACKAGE'] %>
@@ -29,7 +28,6 @@ Gem::Specification.new do |s|
   <% end %>
 
   #### Documentation and testing.
-  s.has_rdoc = true
   s.homepage = 'https://github.com/taf2/curb'
   s.rdoc_options = ['--main', 'README.markdown']
 
