@@ -21,7 +21,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     end
     output = File.read(path)
 
-    assert_match('HTTP/1.1 200 OK ', output)
+    assert_match(/HTTP\/1\.1\ 200\ OK(?:\ )?/, output)
     assert_match('Host: 127.0.0.1:9129', output)
   end
 
