@@ -6,4 +6,4 @@ gem 'net-http-persistent'
 gem 'em-http-request'
 gem 'patron'
 gem 'typhoeus'
-gem 'rake'
+gem "rake", ">= 12.3.3"

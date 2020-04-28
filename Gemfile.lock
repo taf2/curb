@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    curb (0.9.8)
+    curb (0.9.10)
 
 GEM
   remote: https://rubygems.org/
@@ -15,7 +15,7 @@ GEM
     pry (0.11.3)
       coderay (~> 1.1.0)
       method_source (~> 0.9.0)
-    rake (12.3.1)
+    rake (13.0.1)
     rdoc (6.0.4)
     rubysl (2.2.0)
       rubysl-abbrev (~> 2.0)
@@ -232,11 +232,11 @@ DEPENDENCIES
   minitest
   mixlib-shellout
   pry
-  rake
+  rake (>= 12.3.3)
   rdoc
   rubysl (~> 2.0)
   rubysl-test-unit
   test-unit
 
 BUNDLED WITH
-   1.16.6
+   1.17.3
