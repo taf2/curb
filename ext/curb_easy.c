@@ -3596,7 +3596,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #endif
 #if HAVE_CURLOPT_HAPROXYPROTOCOL
   case CURLOPT_HAPROXYPROTOCOL:
-    curl_easy_setopt(rbce->curl, HAVE_CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
+    curl_easy_setopt(rbce->curl, CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
     break;
 #endif
   case CURLOPT_STDERR:
