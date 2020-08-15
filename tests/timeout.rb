@@ -17,9 +17,13 @@ class TestCurbTimeouts < Test::Unit::TestCase
   def test_overall_timeout_on_dead_transfer
     curl = Curl::Easy.new(wait_url(2))
     curl.timeout = 1
-    assert_raise(Curl::Err::TimeoutError) do
+    exception = assert_raise(Curl::Err::TimeoutError) do
       curl.http_get
     end
+    assert_match(
+      /^Timeout was reached: Operation timed out after/,
+      exception.message
+    )
   end
 
   def test_overall_timeout_ms_on_dead_transfer
@@ -44,16 +48,20 @@ class TestCurbTimeouts < Test::Unit::TestCase
     curl = Curl::Easy.new(serve_url(100, 2, 3))
     curl.timeout = 1
     # transfer is aborted despite data being exchanged
-    assert_raise(Curl::Err::TimeoutError) do
+    exception = assert_raise(Curl::Err::TimeoutError) do
       curl.http_get
     end
+    assert_match(
+      /^Timeout was reached: Operation timed out after/,
+      exception.message
+    )
   end
   
   def test_low_speed_time_on_slow_transfer
     curl = Curl::Easy.new(serve_url(100, 1, 3))
     curl.low_speed_time = 2
     # use default low_speed_limit of 1
-    assert true, curl.http_get
+    assert_equal true, curl.http_get
   end
   
   def test_low_speed_time_on_very_slow_transfer
@@ -63,18 +71,26 @@ class TestCurbTimeouts < Test::Unit::TestCase
     # XXX for some reason this test fails if low speed limit is not specified
     curl.low_speed_limit = 1
     # use default low_speed_limit of 1
-    assert_raise(Curl::Err::TimeoutError) do
+    exception = assert_raise(Curl::Err::TimeoutError) do
       curl.http_get
     end
+    assert_match(
+      /^Timeout was reached: Operation too slow/,
+      exception.message
+    )
   end
   
   def test_low_speed_limit_on_slow_transfer
     curl = Curl::Easy.new(serve_url(10, 1, 3))
     curl.low_speed_time = 2
     curl.low_speed_limit = 1000
-    assert_raise(Curl::Err::TimeoutError) do
+    exception = assert_raise(Curl::Err::TimeoutError) do
       curl.http_get
     end
+    assert_match(
+      /^Timeout was reached: Operation too slow/,
+      exception.message
+    )
   end
   
   def test_clearing_low_speed_time

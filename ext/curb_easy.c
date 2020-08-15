@@ -268,6 +268,8 @@ void curl_easy_free(ruby_curl_easy *rbce) {
 static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->opts = rb_hash_new();
 
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+
   rbce->curl_headers = NULL;
   rbce->curl_proxy_headers = NULL;
   rbce->curl_ftp_commands = NULL;
@@ -355,8 +357,9 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
 
   ruby_curl_easy_zero(rbce);
 
-  rb_easy_set("url", url);
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
+  rb_easy_set("url", url);
 
   /* set the pointer to the curl handle */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
@@ -391,6 +394,8 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   newrbce->curl_proxy_headers = NULL;
   newrbce->curl_ftp_commands = NULL;
   newrbce->curl_resolve = NULL;
+
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
   return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
 }
@@ -461,7 +466,9 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
   curl_easy_reset(rbce->curl);
   ruby_curl_easy_zero(rbce);
 
-  /* rest clobbers the private setting, so reset it to self */
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
+
+  /* reset clobbers the private setting, so reset it to self */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
@@ -2607,6 +2614,8 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
 
   retval = rb_funcall(self, rb_intern("perform"), 0);
@@ -2671,6 +2680,8 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
+
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
@@ -2742,6 +2753,8 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
+
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   ruby_curl_easy_put_data_set(self, data);
@@ -3450,6 +3463,21 @@ static VALUE ruby_curl_easy_last_result(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.last_error                                     => "Error details" or nil
+ */
+static VALUE ruby_curl_easy_last_error(VALUE self) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (rbce->err_buf[0]) {    // curl returns NULL or empty string if none
+    return rb_str_new2(rbce->err_buf);
+  } else {
+    return Qnil;
+  }
+}
+
+/*
+ * call-seq:
  *   easy.setopt Fixnum, value  => value
  *
  * Initial access to libcurl curl_easy_setopt
@@ -3913,6 +3941,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "multi", ruby_curl_easy_multi_get, 0);
   rb_define_method(cCurlEasy, "multi=", ruby_curl_easy_multi_set, 1);
   rb_define_method(cCurlEasy, "last_result", ruby_curl_easy_last_result, 0);
+  rb_define_method(cCurlEasy, "last_error", ruby_curl_easy_last_error, 0);
 
   rb_define_method(cCurlEasy, "setopt", ruby_curl_easy_set_opt, 2);
   rb_define_method(cCurlEasy, "getinfo", ruby_curl_easy_get_opt, 1);
