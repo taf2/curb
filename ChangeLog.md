@@ -1,4 +1,9 @@
 # Change Log
+## 0.9.11
+* Fixes for haproxy protocol via CURLOPT_HAPROXYPROTOCOL
+* Ensure dev environments don't use older versions of rake when working on curb (not a production dependency)
+* Many readmen updates - more windows support documentation
+* Support added for CURLOPT_STDERR
 ## 0.9.8
 ### Fixes
 * Fix build with curl `7.62.0`
