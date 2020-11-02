@@ -144,7 +144,7 @@ module Curl
 
         max_connects.times do
           conf = urls_with_config.pop
-          add_free_handle.call conf, nil
+          add_free_handle.call(conf, nil) if conf
           break if urls_with_config.empty?
         end
 
@@ -153,7 +153,7 @@ module Curl
           if urls_with_config.size > 0 && free_handles.size > 0
             easy = free_handles.pop
             conf = urls_with_config.pop
-            add_free_handle.call conf, easy
+            add_free_handle.call(conf, easy) if conf
           end
         end
 
