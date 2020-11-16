@@ -341,6 +341,9 @@ have_constant :CURL_SSLVERSION_TLSv1_0
 have_constant :CURL_SSLVERSION_TLSv1_1
 have_constant :CURL_SSLVERSION_TLSv1_2
 
+# Added in 7.52.0
+have_constant :CURL_SSLVERSION_TLSv1_3
+
 have_constant "curlopt_ssl_verifypeer"
 have_constant "curlopt_cainfo"
 have_constant "curlopt_issuercert"
