@@ -1539,6 +1539,7 @@ static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
  *   Curl::CURL_SSLVERSION_TLSv1_0
  *   Curl::CURL_SSLVERSION_TLSv1_1
  *   Curl::CURL_SSLVERSION_TLSv1_2
+ *   Curl::CURL_SSLVERSION_TLSv1_3
  */
 static VALUE ruby_curl_easy_ssl_version_set(VALUE self, VALUE ssl_version) {
   CURB_IMMED_SETTER(ruby_curl_easy, ssl_version, -1);
