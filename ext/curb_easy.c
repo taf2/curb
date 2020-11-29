@@ -2955,7 +2955,7 @@ static VALUE ruby_curl_easy_connect_time_get(VALUE self) {
  * Retrieve the time, in seconds, it took from the start until the SSL/SSH
  * connect/handshake to the remote host was completed. This time is most often
  * very near to the pre transfer time, except for cases such as HTTP
- * pippelining where the pretransfer time can be delayed due to waits in line
+ * pipelining where the pretransfer time can be delayed due to waits in line
  * for the pipeline and more.
  */
 #if defined(HAVE_CURLINFO_APPCONNECT_TIME)
