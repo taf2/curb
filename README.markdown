@@ -67,6 +67,12 @@ expand on the above instructions, please report the issue at http://github.com/t
 
 On Ubuntu, the dependencies can be satisfied by installing the following packages:
 
+18.04 and onwards
+    
+    $ sudo apt-get install libcurl4 libcurl3-gnutls libcurl4-openssl-dev
+
+< 18.04
+
     $ sudo apt-get install libcurl3 libcurl3-gnutls libcurl4-openssl-dev
 
 On RedHat:
