@@ -14,10 +14,18 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     # https://github.com/curl/curl/commit/e87e76e2dc108efb1cae87df496416f49c55fca0
     omit("Skip, libcurl too old (< 7.22.0)") if Curl::CURL_VERSION.split('.')[1].to_i <= 22
 
-    # 0123456 default & reserved RubyVM. It will probably include 7 from Dir.glob
-    lsof=`/usr/bin/which lsof`.strip
-    open_fds = lambda do 
-      `#{lsof} -p #{Process.pid} | egrep "TCP|UDP" | wc -l`.strip.to_i
+    GC.start # cleanup FDs left over from other tests
+
+    if `which ss`.strip.size == 0
+      # osx and other os'es need lsof still :(
+      open_fds = lambda do
+        `/usr/sbin/lsof -p #{Process.pid} | egrep "TCP|UDP" | wc -l`.strip.to_i
+      end
+    else
+      ss = `which ss`.strip
+      open_fds = lambda do
+        `#{ss} -n4 state established dport = :#{TestServlet.port} |wc -l`.strip.to_i
+      end
     end
     before_open = open_fds.call
     assert !Curl::Multi.autoclose
