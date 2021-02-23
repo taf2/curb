@@ -143,7 +143,6 @@ module TestServerMethods
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
     if (@server ||= nil).nil? and !File.exist?(locked_file)
-
       File.open(locked_file,'w') {|f| f << 'locked' }
       if TEST_SINGLE_THREADED
         rd, wr = IO.pipe
