@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby:
+          - '2.2'
+          - '2.3'
+          - '2.4'
+          - '2.5'
+          - '2.6'
+          - '2.7'
+          - '3.0'
+          - head
+    name: Ruby ${{ matrix.ruby }}
+    continue-on-error: ${{ matrix.ruby == 'head' }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: apt-get install
+        run: |
+          sudo apt-get install libcurl4 libcurl3-gnutls libcurl4-openssl-dev -y
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - run: |
+          bundle exec rake
