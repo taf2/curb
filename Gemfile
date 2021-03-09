@@ -4,6 +4,7 @@ gemspec
 
 gem 'mixlib-shellout'
 gem 'pry'
+gem 'webrick'
 
 group 'development', 'test' do
   gem 'rdoc'
