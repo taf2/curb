@@ -1,8 +1,6 @@
 $:.unshift(File.join(File.dirname(__FILE__), '..', 'ext'))
 $:.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 require 'curb'
-
-
 Curl::Multi.get(
        ["http://boingboing.net",
         "http://www.yahoo.com",
