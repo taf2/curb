@@ -305,7 +305,7 @@ end
 
 # "Create a new SVN tag with the latest release number (REL=x.y.z)"
 task :tag => [:prerelease] do
-  reltag = "range-curb-#{PKG_VERSION}"
+  reltag = "curb-#{PKG_VERSION}"
   reltag << ENV['REUSE'] if ENV['REUSE']
   announce "Tagging SVN with [#{reltag}]"
   if ENV['RELTEST']
