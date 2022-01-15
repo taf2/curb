@@ -18,6 +18,7 @@ GEM
     rdoc (6.0.4)
     test-unit (3.3.5)
       power_assert
+    webrick (1.7.0)
 
 PLATFORMS
   ruby
@@ -30,6 +31,7 @@ DEPENDENCIES
   rake (>= 13.0.1)
   rdoc
   test-unit
+  webrick
 
 BUNDLED WITH
    2.2.11
