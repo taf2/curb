@@ -3547,6 +3547,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_TCP_NODELAY: {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, NUM2LONG(val));
     } break;
+  case CURLOPT_RANGE: {
+    curl_easy_setopt(rbce->curl, CURLOPT_RANGE, StringValueCStr(val));
+    } break;
   case CURLOPT_RESUME_FROM: {
     curl_easy_setopt(rbce->curl, CURLOPT_RESUME_FROM, NUM2LONG(val));
     } break;
