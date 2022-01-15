@@ -405,6 +405,37 @@ have_constant "curlopt_path_as_is"
 # added in 7.43.0
 have_constant "curlopt_pipewait"
 
+# protocol constants
+have_constant "curlproto_all"
+have_constant "curlproto_dict"
+have_constant "curlproto_file"
+have_constant "curlproto_ftp"
+have_constant "curlproto_ftps"
+have_constant "curlproto_gopher"
+have_constant "curlproto_http"
+have_constant "curlproto_https"
+have_constant "curlproto_imap"
+have_constant "curlproto_imaps"
+have_constant "curlproto_ldap"
+have_constant "curlproto_ldaps"
+have_constant "curlproto_pop3"
+have_constant "curlproto_pop3s"
+have_constant "curlproto_rtmp"
+have_constant "curlproto_rtmpe"
+have_constant "curlproto_rtmps"
+have_constant "curlproto_rtmpt"
+have_constant "curlproto_rtmpte"
+have_constant "curlproto_rtmpts"
+have_constant "curlproto_rtsp"
+have_constant "curlproto_scp"
+have_constant "curlproto_sftp"
+have_constant "curlproto_smb"
+have_constant "curlproto_smbs"
+have_constant "curlproto_smtp"
+have_constant "curlproto_smtps"
+have_constant "curlproto_telnet"
+have_constant "curlproto_tftp"
+
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
 end

@@ -3638,6 +3638,10 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     GetOpenFile(val, open_f_ptr);
     curl_easy_setopt(rbce->curl, CURLOPT_STDERR, rb_io_stdio_file(open_f_ptr));
     break;
+  case CURLOPT_PROTOCOLS:
+  case CURLOPT_REDIR_PROTOCOLS:
+    curl_easy_setopt(rbce->curl, option, NUM2LONG(val));
+    break;
 #if HAVE_CURLOPT_SSL_SESSIONID_CACHE
   case CURLOPT_SSL_SESSIONID_CACHE:
     curl_easy_setopt(rbce->curl, CURLOPT_SSL_SESSIONID_CACHE, NUM2LONG(val));
