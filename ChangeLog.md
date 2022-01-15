@@ -1,4 +1,10 @@
 # Change Log
+## 1.0.0
+* Add Ruby 3.1 to tests
+* Support curlopt_protocols and curlopt_redir_protocols.
+* Improved error handling via last_error tracking
+* Added support for CURLOPT_RANGE
+
 ## 0.9.11
 * Fixes for haproxy protocol via CURLOPT_HAPROXYPROTOCOL
 * Ensure dev environments don't use older versions of rake when working on curb (not a production dependency)
