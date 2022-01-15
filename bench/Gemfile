@@ -1,9 +1,9 @@
 source :rubygems
 
-gem 'curb', '0.1.4'
+gem 'curb', '1.0.0'
 gem 'rmem'
 gem 'net-http-persistent'
-gem 'em-http-request'
+gem 'em-http-request', ">= 1.1.6"
 gem 'patron'
 gem 'typhoeus'
-gem "rake", ">= 12.3.3"
+gem "rake", '>= 13.0.1'

@@ -1,31 +1,44 @@
 GEM
   remote: http://rubygems.org/
   specs:
-    addressable (2.2.4)
-    curb (0.1.4)
-    em-http-request (0.3.0)
-      addressable (>= 2.0.0)
-      escape_utils
-      eventmachine (>= 0.12.9)
-    escape_utils (0.2.3)
-    eventmachine (0.12.10)
-    mime-types (1.16)
-    net-http-persistent (1.6.1)
-    patron (0.4.11)
-    rake (0.9.2)
+    addressable (2.8.0)
+      public_suffix (>= 2.0.2, < 5.0)
+    connection_pool (2.2.5)
+    cookiejar (0.3.3)
+    curb (1.0.0)
+    em-http-request (1.1.7)
+      addressable (>= 2.3.4)
+      cookiejar (!= 0.3.1)
+      em-socksify (>= 0.3)
+      eventmachine (>= 1.0.3)
+      http_parser.rb (>= 0.6.0)
+    em-socksify (0.3.2)
+      eventmachine (>= 1.0.0.beta.4)
+    ethon (0.15.0)
+      ffi (>= 1.15.0)
+    eventmachine (1.2.7)
+    ffi (1.15.5)
+    http_parser.rb (0.8.0)
+    net-http-persistent (4.0.1)
+      connection_pool (~> 2.2)
+    patron (0.13.3)
+    public_suffix (4.0.6)
+    rake (13.0.6)
     rmem (1.0.0)
-    typhoeus (0.2.4)
-      mime-types
-      mime-types
+    typhoeus (1.4.0)
+      ethon (>= 0.9.0)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  curb (= 0.1.4)
-  em-http-request
+  curb (= 1.0.0)
+  em-http-request (>= 1.1.6)
   net-http-persistent
   patron
-  rake
+  rake (>= 13.0.1)
   rmem
   typhoeus
+
+BUNDLED WITH
+   2.3.3
