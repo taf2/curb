@@ -14,9 +14,31 @@ Curb is a work-in-progress, and currently only supports libcurl's `easy` and `mu
 Curb is copyright (c)2006 Ross Bamford, and released under the terms of the
 Ruby license. See the LICENSE file for the gory details.
 
+## Easy mode
+
+Get stuff
+```
+  res = Curl.get("https://www.google.com/")
+  puts res.response_code
+  puts res.header_str
+  puts res.body
+```
+
+Post stuff
+```
+  res = Curl.post("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
+    http.headers["Content-Type"] = "application/json"
+  }
+  puts res.response_code
+  puts res.header_str
+  puts res.body
+```
+
+
+
 ## You will need
 
-* A working Ruby installation (`1.8.7+` will work but `2.1+` preferred)
+* A working Ruby installation (`2.0.0+` will work but `2.1+` preferred) (it's possible it still works with 1.8.7 but you'd have to tell me if not...)
 * A working libcurl development installation
 (Ideally one of the versions listed in the compatibility chart below that maps to your `curb` version)
 * A sane build environment (e.g. gcc, make)
@@ -29,7 +51,8 @@ tested and reported to work across a variety of platforms / rubies)
 
 | Gem Version | Release Date | libcurl versions |
 | ----------- | -----------  | ---------------- |
-| 0.9.8       | Jan 2019     | 7.58 - 7.63      |
+| 1.0.0       | Jan 2022     | 7.58 - 7.81      |
+| 0.9.8       | Jan 2019     | 7.58 - 7.81      |
 | 0.9.7       | Nov 2018     | 7.56 - 7.60      |
 | 0.9.6       | May 2018     | 7.51 - 7.59      |
 | 0.9.5       | May 2018     | 7.51 - 7.59      |
