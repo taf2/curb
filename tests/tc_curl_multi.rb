@@ -1,4 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
+require 'set'
 
 class TestCurbCurlMulti < Test::Unit::TestCase
   def teardown
@@ -9,20 +10,58 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   # for https://github.com/taf2/curb/issues/277
   # must connect to an external
   def test_connection_keepalive
-    # 0123456 default & reserved RubyVM. It will probably include 7 from Dir.glob
-    lsof=`/usr/bin/which lsof`.strip
-    open_fds = lambda do 
-      `#{lsof} -p #{Process.pid} | egrep "TCP|UDP" | wc -l`.strip.to_i
+    # this test fails with libcurl 7.22.0. I didn't investigate, but it may be related
+    # to CURLOPT_MAXCONNECTS bug fixed in 7.30.0:
+    # https://github.com/curl/curl/commit/e87e76e2dc108efb1cae87df496416f49c55fca0
+    omit("Skip, libcurl too old (< 7.22.0)") if Curl::CURL_VERSION.split('.')[1].to_i <= 22
+
+    @server.shutdown if @server
+    @test_thread.kill if @test_thread
+    @server = nil
+    File.unlink(locked_file)
+    Curl::Multi.autoclose = true
+    assert Curl::Multi.autoclose
+# XXX: thought maybe we can clean house here to have the full suite pass in osx... but for now running this test in isolate does pass
+#      additionally, if ss allows this to pass on linux without requesting google i think this is a good trade off... leaving some of the thoughts below
+#      in hopes that coming back to this later will find it and remember how to fix it
+#    types = Set.new
+#    close_types = Set.new([TCPServer,TCPSocket,Socket,Curl::Multi, Curl::Easy,WEBrick::Log])
+#    ObjectSpace.each_object {|o|
+#      if o.respond_to?(:close)
+#        types << o.class
+#      end
+#      if close_types.include?(o.class)
+#        o.close
+#      end
+#    }
+    #puts "unique types: #{types.to_a.join("\n")}"
+    GC.start # cleanup FDs left over from other tests
+    server_setup
+    GC.start # cleanup FDs left over from other tests
+
+    if `which ss`.strip.size == 0
+      # osx need lsof still :(
+      open_fds = lambda do
+        out = `/usr/sbin/lsof -p #{Process.pid} | egrep "TCP|UDP"`# | egrep ':#{TestServlet.port} ' | egrep ESTABLISHED`# | wc -l`.strip.to_i
+        #puts out.lines.join("\n")
+        out.lines.size
+      end
+    else
+      ss = `which ss`.strip
+      open_fds = lambda do
+        `#{ss} -n4 state established dport = :#{TestServlet.port} | wc -l`.strip.to_i
+      end
     end
+    Curl::Multi.autoclose = false
     before_open = open_fds.call
+    #puts "before_open: #{before_open.inspect}"
     assert !Curl::Multi.autoclose
     multi = Curl::Multi.new
     multi.max_connects = 1 # limit to 1 connection within the multi handle
 
     did_complete = false
     5.times do |n|
-      # NOTE: we use google here because connecting to our TEST_URL as a local host address appears to not register correctly with lsof as a socket... if anyone knows a better way would be great to not have an external dependency here in the test
-      easy = Curl::Easy.new("http://google.com/") do |curl|
+      easy = Curl::Easy.new(TestServlet.url) do |curl|
         curl.timeout = 5 # ensure we don't hang for ever connecting to an external host
         curl.on_complete {
           did_complete = true
@@ -34,18 +73,19 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     multi.perform
     assert did_complete
     after_open = open_fds.call
-    assert_equal (after_open - before_open), 1, "with max connections set to 1 at this point the connection to google should still be open"
+    #puts "after_open: #{after_open} before_open: #{before_open.inspect}"
+    assert_equal 1, (after_open - before_open), "with max connections set to 1 at this point the connection to google should still be open"
     multi.close
 
     after_open = open_fds.call
-    assert_equal (after_open - before_open), 0, "after closing the multi handle all connections should be closed"
+    #puts "after_open: #{after_open} before_open: #{before_open.inspect}"
+    assert_equal 0, (after_open - before_open), "after closing the multi handle all connections should be closed"
 
     Curl::Multi.autoclose = true
     multi = Curl::Multi.new
     did_complete = false
     5.times do |n|
-      # NOTE: we use google here because connecting to our TEST_URL as a local host address appears to not register correctly with lsof as a socket... if anyone knows a better way would be great to not have an external dependency here in the test
-      easy = Curl::Easy.new("http://google.com/") do |curl|
+      easy = Curl::Easy.new(TestServlet.url) do |curl|
         curl.timeout = 5 # ensure we don't hang for ever connecting to an external host
         curl.on_complete {
           did_complete = true
@@ -57,7 +97,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     multi.perform
     assert did_complete
     after_open = open_fds.call
-    assert_equal (after_open - before_open), 0, "auto close the connections"
+    #puts "after_open: #{after_open} before_open: #{before_open.inspect}"
+    assert_equal 0, (after_open - before_open), "auto close the connections"
   ensure
     Curl::Multi.autoclose = false # restore default
   end

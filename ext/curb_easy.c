@@ -268,6 +268,8 @@ void curl_easy_free(ruby_curl_easy *rbce) {
 static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->opts = rb_hash_new();
 
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+
   rbce->curl_headers = NULL;
   rbce->curl_proxy_headers = NULL;
   rbce->curl_ftp_commands = NULL;
@@ -355,8 +357,9 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
 
   ruby_curl_easy_zero(rbce);
 
-  rb_easy_set("url", url);
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
+  rb_easy_set("url", url);
 
   /* set the pointer to the curl handle */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
@@ -391,6 +394,8 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   newrbce->curl_proxy_headers = NULL;
   newrbce->curl_ftp_commands = NULL;
   newrbce->curl_resolve = NULL;
+
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
   return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
 }
@@ -461,7 +466,9 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
   curl_easy_reset(rbce->curl);
   ruby_curl_easy_zero(rbce);
 
-  /* rest clobbers the private setting, so reset it to self */
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
+
+  /* reset clobbers the private setting, so reset it to self */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
@@ -1539,6 +1546,7 @@ static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
  *   Curl::CURL_SSLVERSION_TLSv1_0
  *   Curl::CURL_SSLVERSION_TLSv1_1
  *   Curl::CURL_SSLVERSION_TLSv1_2
+ *   Curl::CURL_SSLVERSION_TLSv1_3
  */
 static VALUE ruby_curl_easy_ssl_version_set(VALUE self, VALUE ssl_version) {
   CURB_IMMED_SETTER(ruby_curl_easy, ssl_version, -1);
@@ -2607,6 +2615,8 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
 
   retval = rb_funcall(self, rb_intern("perform"), 0);
@@ -2671,6 +2681,8 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
+
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
@@ -2742,6 +2754,8 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
 
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
+
+  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   ruby_curl_easy_put_data_set(self, data);
@@ -2955,7 +2969,7 @@ static VALUE ruby_curl_easy_connect_time_get(VALUE self) {
  * Retrieve the time, in seconds, it took from the start until the SSL/SSH
  * connect/handshake to the remote host was completed. This time is most often
  * very near to the pre transfer time, except for cases such as HTTP
- * pippelining where the pretransfer time can be delayed due to waits in line
+ * pipelining where the pretransfer time can be delayed due to waits in line
  * for the pipeline and more.
  */
 #if defined(HAVE_CURLINFO_APPCONNECT_TIME)
@@ -3450,6 +3464,21 @@ static VALUE ruby_curl_easy_last_result(VALUE self) {
 
 /*
  * call-seq:
+ *   easy.last_error                                     => "Error details" or nil
+ */
+static VALUE ruby_curl_easy_last_error(VALUE self) {
+  ruby_curl_easy *rbce;
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (rbce->err_buf[0]) {    // curl returns NULL or empty string if none
+    return rb_str_new2(rbce->err_buf);
+  } else {
+    return Qnil;
+  }
+}
+
+/*
+ * call-seq:
  *   easy.setopt Fixnum, value  => value
  *
  * Initial access to libcurl curl_easy_setopt
@@ -3546,6 +3575,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_TCP_NODELAY: {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, NUM2LONG(val));
     } break;
+  case CURLOPT_RANGE: {
+    curl_easy_setopt(rbce->curl, CURLOPT_RANGE, StringValueCStr(val));
+    } break;
   case CURLOPT_RESUME_FROM: {
     curl_easy_setopt(rbce->curl, CURLOPT_RESUME_FROM, NUM2LONG(val));
     } break;
@@ -3596,7 +3628,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #endif
 #if HAVE_CURLOPT_HAPROXYPROTOCOL
   case CURLOPT_HAPROXYPROTOCOL:
-    curl_easy_setopt(rbce->curl, HAVE_CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
+    curl_easy_setopt(rbce->curl, CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
     break;
 #endif
   case CURLOPT_STDERR:
@@ -3610,6 +3642,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_REDIR_PROTOCOLS:
     curl_easy_setopt(rbce->curl, option, NUM2LONG(val));
     break;
+#if HAVE_CURLOPT_SSL_SESSIONID_CACHE
+  case CURLOPT_SSL_SESSIONID_CACHE:
+    curl_easy_setopt(rbce->curl, CURLOPT_SSL_SESSIONID_CACHE, NUM2LONG(val));
+    break;
+#endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
@@ -3917,6 +3954,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "multi", ruby_curl_easy_multi_get, 0);
   rb_define_method(cCurlEasy, "multi=", ruby_curl_easy_multi_set, 1);
   rb_define_method(cCurlEasy, "last_result", ruby_curl_easy_last_result, 0);
+  rb_define_method(cCurlEasy, "last_error", ruby_curl_easy_last_error, 0);
 
   rb_define_method(cCurlEasy, "setopt", ruby_curl_easy_set_opt, 2);
   rb_define_method(cCurlEasy, "getinfo", ruby_curl_easy_get_opt, 1);

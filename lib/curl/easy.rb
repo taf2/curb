@@ -75,8 +75,9 @@ module Curl
       end
 
       if self.last_result != 0 && self.on_failure.nil?
-        error = Curl::Easy.error(self.last_result)
-        raise error.first.new(self.head)
+        (err_class, err_summary) = Curl::Easy.error(self.last_result)
+        err_detail = self.last_error
+        raise err_class.new([err_summary, err_detail].compact.join(": "))
       end
 
       ret

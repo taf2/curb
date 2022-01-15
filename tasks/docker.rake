@@ -42,7 +42,7 @@
 namespace :docker do
   desc "Run the test suite in docker environment (#{Docker.ruby_image})"
   task :test => :recompile do
-    run_in_docker(Docker.ruby_image, 'rake', 'tu', :live_stdout => STDOUT).error!
+    run_in_docker(Docker.ruby_image, 'bundle', 'exec', 'rake', 'tu', { :live_stdout => STDOUT }).error!
   end
 
   desc "Run the test suite against all rubies"
@@ -79,6 +79,7 @@ namespace :docker do
   # All the collected data is stored in 'build/docker/*'.
   desc 'Docker docker environment for developing Curb.'
   task :environment => Docker::BUILD_DIRECTORIES do
+    Rake::Task['build/docker/entrypoint_ruby1.8.sh'].invoke
     Rake::Task['build/docker/docker.json'].invoke
     Rake::Task['build/docker/network.json'].invoke
     Rake::Task['build/docker/git_curb_info.txt'].invoke
@@ -115,6 +116,19 @@ namespace :docker do
     Rake::Task['docker:docker_network'].invoke
   end
 
+  file 'build/docker/entrypoint_ruby1.8.sh' do
+    entrypoint = 'build/docker/entrypoint_ruby1.8.sh'
+    File.write(entrypoint, <<-ENTRYPOINT)
+#!/bin/bash -e
+
+# Ruby 1.8 docker image does not include libcurl development libraries
+apt-get update -qq || true
+apt-get install -y -q --no-install-recommends libcurl4-openssl-dev
+
+exec "$@"
+    ENTRYPOINT
+    File.chmod(0775, entrypoint)
+  end
   # This section generates file tasks based on the configuration (see 'tasks/rake_helpers.rb').
   #
   # This code is being evaluated (loaded) early in the Rakefile, before any task is executed.
@@ -173,7 +187,7 @@ namespace :docker do
 
     if ruby_v_file != ruby_v_docker
       run_in_docker(Docker.ruby_image, 'rake', 'clobber').error!
-      run_in_docker(Docker.ruby_image, 'rake', 'compile', live_stdout: nil).error!
+      run_in_docker(Docker.ruby_image, 'rake', 'compile', { :live_stdout => nil }).error!
     end
 
     File.write(ruby_v_filepath, ruby_v_docker)
@@ -192,11 +206,11 @@ namespace :docker do
 
     # This should never fail, even if the volume exists docker return success, but if it does for
     # whatever reason we can't do anything about it so we will just explode.
-    create_cmd = shell('docker', 'volume', 'create', args.volume_name)
+    create_cmd = shell(['docker', 'volume', 'create', args.volume_name])
     abort('failed to create docker volume') if create_cmd.error?
 
     # This could fail if the volume (for any reason) does not exist.
-    inspect_cmd = shell('docker', 'volume', 'inspect', args.volume_name)
+    inspect_cmd = shell(['docker', 'volume', 'inspect', args.volume_name])
     inspect_cmd.error!
 
     File.write(args.filepath, inspect_cmd.stdout)
@@ -225,10 +239,10 @@ namespace :docker do
   task :docker_pull, [:name] do |_, args|
     conf = Docker::DOCKER_IMAGES[args.name]
 
-    pull_cmd = shell('docker', 'pull', "#{conf[:name]}:#{conf[:tag]}")
+    pull_cmd = shell(['docker', 'pull', "#{conf[:name]}:#{conf[:tag]}"])
     abort('docker pull failed.') if pull_cmd.error?
 
-    inspect_cmd = shell('docker', 'image', 'inspect', "#{conf[:name]}:#{conf[:tag]}")
+    inspect_cmd = shell(['docker', 'image', 'inspect', "#{conf[:name]}:#{conf[:tag]}"])
     inspect_cmd.error!
 
     File.write(conf[:filepath], inspect_cmd.stdout)
@@ -236,7 +250,7 @@ namespace :docker do
 
   # Make sure the docker binary is available.
   task :docker_binary do
-    cmd = shell('docker', 'system', 'info', '--format', '{{json .}}')
+    cmd = shell(['docker', 'system', 'info', '--format', '{{json .}}'])
     if cmd.error?
       abort('docker binary not found on the system. Make sure docker is installed.')
     end
@@ -261,9 +275,9 @@ namespace :docker do
   # With initial setup in place, and even if the feature is not used in the codebase it's handy for
   # local development.
   task :docker_network do
-    shell('docker', 'network', 'create', 'curb')
+    shell(['docker', 'network', 'create', 'curb'])
 
-    inspect_cmd = shell('docker', 'network', 'inspect', 'curb')
+    inspect_cmd = shell(['docker', 'network', 'inspect', 'curb'])
     inspect_cmd.error!
 
     File.write('build/docker/network.json', inspect_cmd.stdout)

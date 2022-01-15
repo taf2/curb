@@ -18,6 +18,7 @@
 
 #include <curl/curl.h>
 
+#include "banned.h"
 #include "curb_config.h"
 #include "curb_easy.h"
 #include "curb_errors.h"
@@ -27,11 +28,11 @@
 #include "curb_macros.h"
 
 // These should be managed from the Rake 'release' task.
-#define CURB_VERSION   "0.9.10"
-#define CURB_VER_NUM   9010
+#define CURB_VERSION   "0.9.11"
+#define CURB_VER_NUM   9011
 #define CURB_VER_MAJ   0
 #define CURB_VER_MIN   9
-#define CURB_VER_MIC   10
+#define CURB_VER_MIC   11
 #define CURB_VER_PATCH 0
 
 
@@ -46,6 +47,11 @@
 
 #ifndef RHASH_SIZE
   #define RHASH_SIZE(hash) RHASH(hash)->tbl->num_entries
+#endif
+
+// ruby 1.8 does not provide the macro
+#ifndef DBL2NUM
+  #define DBL2NUM(dbl) rb_float_new(dbl)
 #endif
 
 extern VALUE mCurl;
