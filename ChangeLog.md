@@ -1,4 +1,6 @@
 # Change Log
+## upcoming
+* Restore compatibility with older libcurl installs
 ## 1.0.0
 * Add Ruby 3.1 to tests
 * Support curlopt_protocols and curlopt_redir_protocols.
