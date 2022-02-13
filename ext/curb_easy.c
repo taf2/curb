@@ -2136,11 +2136,14 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
 
     name = rb_obj_as_string(rb_ary_entry(header, 0));
     value = rb_obj_as_string(rb_ary_entry(header, 1));
-
-    // This is a bit inefficient, but we don't want to be modifying
-    // the actual values in the original hash.
-    header_str = rb_str_plus(name, rb_str_new2(": "));
-    header_str = rb_str_plus(header_str, value);
+    if (rb_str_strlen(value) == 0) { // removing the header e.g. Accept: with nothing trailing should remove it see: https://curl.se/libcurl/c/CURLOPT_HTTPHEADER.html
+      header_str = rb_str_plus(name, rb_str_new2(":"));
+    } else {
+      // This is a bit inefficient, but we don't want to be modifying
+      // the actual values in the original hash.
+      header_str = rb_str_plus(name, rb_str_new2(": "));
+      header_str = rb_str_plus(header_str, value);
+    }
   } else {
     header_str = rb_obj_as_string(header);
   }
