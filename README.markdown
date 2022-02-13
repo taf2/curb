@@ -5,7 +5,7 @@
 
 Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the
 libcurl(3), a fully-featured client-side URL transfer library.
-cURL and libcurl live at [http://curl.haxx.se/](http://curl.haxx.se/) .
+cURL and libcurl live at [https://curl.se/libcurl/](https://curl.se/libcurl/) .
 
 Curb is a work-in-progress, and currently only supports libcurl's `easy` and `multi` modes.
 
@@ -66,7 +66,7 @@ tested and reported to work across a variety of platforms / rubies)
     $ gem install curb
 
 On Windows, make sure you're using the [DevKit](http://rubyinstaller.org/downloads/) and
-the [development version of libcurl](http://curl.haxx.se/gknw.net/7.39.0/dist-w32/curl-7.39.0-devel-mingw32.zip). Unzip, then run this in your command
+the [development version of libcurl](http://curl.se/gknw.net/7.39.0/dist-w32/curl-7.39.0-devel-mingw32.zip). Unzip, then run this in your command
 line (alter paths to your curl location, but remember to use forward slashes):
 
     gem install curb --platform=ruby -- --with-curl-lib=C:/curl-7.39.0-devel-mingw32/lib --with-curl-include=C:/curl-7.39.0-devel-mingw32/include
