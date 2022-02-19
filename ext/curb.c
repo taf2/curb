@@ -235,12 +235,16 @@ static VALUE ruby_curl_http2_q(VALUE mod) {
 #endif
 }
 
+static void finalize_curb_core(VALUE data) {
+  curl_global_cleanup();
+}
+
 void Init_curb_core() {
-  // TODO we need to call curl_global_cleanup at exit!
   curl_version_info_data *ver;
   VALUE curlver, curllongver, curlvernum;
 
   curl_global_init(CURL_GLOBAL_ALL);
+  rb_set_end_proc(finalize_curb_core, Qnil);
   ver = curl_version_info(CURLVERSION_NOW);
 
   mCurl = rb_define_module("Curl");
