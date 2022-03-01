@@ -957,7 +957,7 @@ static VALUE ruby_curl_easy_ftp_commands_set(VALUE self, VALUE ftp_commands) {
 }
 
 /*
- * call-seq
+ * call-seq:
  *   easy.ftp_commands                                => array or nil
  */
 static VALUE ruby_curl_easy_ftp_commands_get(VALUE self) {
@@ -976,7 +976,7 @@ static VALUE ruby_curl_easy_resolve_set(VALUE self, VALUE resolve) {
 }
 
 /*
- * call-seq
+ * call-seq:
  *   easy.resolve                                => array or nil
  */
 static VALUE ruby_curl_easy_resolve_get(VALUE self) {
@@ -1595,7 +1595,7 @@ static VALUE ruby_curl_easy_ftp_filemethod_set(VALUE self, VALUE ftp_filemethod)
 }
 
 /*
- * call-seq
+ * call-seq:
  *   easy.ftp_filemethod                              => fixnum
  *
  * Get the configuration for how libcurl will reach files on the server.
