@@ -195,9 +195,9 @@ void curl_postfield_free(ruby_curl_postfield *rbcpf) {
 
 /*
  * call-seq:
- *   Curl::PostField.content(name, content) => #&lt;Curl::PostField...&gt;
- *   Curl::PostField.content(name, content, content_type = nil) => #&lt;Curl::PostField...&gt;
- *   Curl::PostField.content(name, content_type = nil) { |field| ... } => #&lt;Curl::PostField...&gt;
+ *   Curl::PostField.content(name, content) => #<Curl::PostField...>
+ *   Curl::PostField.content(name, content, content_type = nil) => #<Curl::PostField...>
+ *   Curl::PostField.content(name, content_type = nil) { |field| ... } => #<Curl::PostField...>
  * 
  * Create a new Curl::PostField, supplying the field name, content,
  * and, optionally, Content-type (curl will attempt to determine this if
@@ -241,9 +241,9 @@ static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass)
 
 /*
  * call-seq:
- *   Curl::PostField.file(name, local_file_name) => #&lt;Curl::PostField...&gt;
- *   Curl::PostField.file(name, local_file_name, remote_file_name = local_file_name) => #&lt;Curl::PostField...&gt;
- *   Curl::PostField.file(name, remote_file_name) { |field| ... } => #&lt;Curl::PostField...&gt;
+ *   Curl::PostField.file(name, local_file_name) => #<Curl::PostField...>
+ *   Curl::PostField.file(name, local_file_name, remote_file_name = local_file_name) => #<Curl::PostField...>
+ *   Curl::PostField.file(name, remote_file_name) { |field| ... } => #<Curl::PostField...>
  * 
  * Create a new Curl::PostField for a file upload field, supplying the local filename
  * to read from, and optionally the remote filename (defaults to the local name).
@@ -399,7 +399,7 @@ static VALUE ruby_curl_postfield_remote_file_get(VALUE self) {
 
 /*
  * call-seq:
- *   field.set_content_proc { |field| ... }           => &lt;old proc&gt;
+ *   field.set_content_proc { |field| ... }           => <old proc>
  * 
  * Set a content proc for this field. This proc will be called during the
  * perform to supply the content for this field, overriding any setting

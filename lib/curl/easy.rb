@@ -321,7 +321,7 @@ module Curl
 
       #
       # call-seq:
-      #   Curl::Easy.perform(url) { |easy| ... }           => #&lt;Curl::Easy...&gt;
+      #   Curl::Easy.perform(url) { |easy| ... }           => #<Curl::Easy...>
       #
       # Convenience method that creates a new Curl::Easy instance with
       # the specified URL and calls the general +perform+ method, before returning
@@ -339,7 +339,7 @@ module Curl
 
       #
       # call-seq:
-      #   Curl::Easy.http_get(url) { |easy| ... }          => #&lt;Curl::Easy...&gt;
+      #   Curl::Easy.http_get(url) { |easy| ... }          => #<Curl::Easy...>
       #
       # Convenience method that creates a new Curl::Easy instance with
       # the specified URL and calls +http_get+, before returning the new instance.
@@ -356,7 +356,7 @@ module Curl
 
       #
       # call-seq:
-      #   Curl::Easy.http_head(url) { |easy| ... }         => #&lt;Curl::Easy...&gt;
+      #   Curl::Easy.http_head(url) { |easy| ... }         => #<Curl::Easy...>
       #
       # Convenience method that creates a new Curl::Easy instance with
       # the specified URL and calls +http_head+, before returning the new instance.
@@ -410,7 +410,7 @@ module Curl
 
       #
       # call-seq:
-      #   Curl::Easy.http_delete(url) { |easy| ... }       => #&lt;Curl::Easy...&gt;
+      #   Curl::Easy.http_delete(url) { |easy| ... }       => #<Curl::Easy...>
       #
       # Convenience method that creates a new Curl::Easy instance with
       # the specified URL and calls +http_delete+, before returning the new instance.
