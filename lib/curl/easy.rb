@@ -21,7 +21,7 @@ module Curl
     #
     def status
       # Matches the last HTTP Status - following the HTTP protocol specification 'Status-Line = HTTP-Version SP Status-Code SP (Opt:)Reason-Phrase CRLF'
-      statuses = self.header_str.scan(/HTTP\/\d(\.\d)?\s(\d+\s.*)\r\n/).map{ |match| match[1] }
+      statuses = self.header_str.to_s.scan(/HTTP\/\d(\.\d)?\s(\d+\s.*)\r\n/).map {|match| match[1] }
       statuses.last.strip if statuses.length > 0
     end
 
