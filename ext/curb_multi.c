@@ -64,7 +64,7 @@ static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
 
 /*
  * call-seq:
- *   Curl::Multi.new                                   => #&lt;Curl::Easy...&gt;
+ *   Curl::Multi.new                                   => #<Curl::Easy...>
  *
  * Create a new Curl::Multi instance
  */
@@ -132,7 +132,7 @@ VALUE ruby_curl_multi_get_autoclose(VALUE klass) {
 
 /*
  * call-seq:
- *   multi.requests                                   => [#&lt;Curl::Easy...&gt;, ...]
+ *   multi.requests                                   => [#<Curl::Easy...>, ...]
  * 
  * Returns an array containing all the active requests on this Curl::Multi object.
  */

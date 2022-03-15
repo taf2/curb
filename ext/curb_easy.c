@@ -329,9 +329,9 @@ static VALUE ruby_curl_easy_allocate(VALUE klass) {
 
 /*
  * call-seq:
- *   Curl::Easy.new                                   => #&lt;Curl::Easy...&gt;
- *   Curl::Easy.new(url = nil)                        => #&lt;Curl::Easy...&gt;
- *   Curl::Easy.new(url = nil) { |self| ... }         => #&lt;Curl::Easy...&gt;
+ *   Curl::Easy.new                                   => #<Curl::Easy...>
+ *   Curl::Easy.new(url = nil)                        => #<Curl::Easy...>
+ *   Curl::Easy.new(url = nil) { |self| ... }         => #<Curl::Easy...>
  *
  * Initialize a new Curl::Easy instance, optionally supplying the URL.
  * The block form allows further configuration to be supplied before
@@ -376,8 +376,8 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.clone                                       => #&lt;easy clone&gt;
- *   easy.dup                                         => #&lt;easy clone&gt;
+ *   easy.clone                                       => <easy clone>
+ *   easy.dup                                         => <easy clone>
  *
  * Clone this Curl::Easy instance, creating a new instance.
  * This method duplicates the underlying CURL* handle.
@@ -957,7 +957,7 @@ static VALUE ruby_curl_easy_ftp_commands_set(VALUE self, VALUE ftp_commands) {
 }
 
 /*
- * call-seq
+ * call-seq:
  *   easy.ftp_commands                                => array or nil
  */
 static VALUE ruby_curl_easy_ftp_commands_get(VALUE self) {
@@ -976,7 +976,7 @@ static VALUE ruby_curl_easy_resolve_set(VALUE self, VALUE resolve) {
 }
 
 /*
- * call-seq
+ * call-seq:
  *   easy.resolve                                => array or nil
  */
 static VALUE ruby_curl_easy_resolve_get(VALUE self) {
@@ -1595,7 +1595,7 @@ static VALUE ruby_curl_easy_ftp_filemethod_set(VALUE self, VALUE ftp_filemethod)
 }
 
 /*
- * call-seq
+ * call-seq:
  *   easy.ftp_filemethod                              => fixnum
  *
  * Get the configuration for how libcurl will reach files on the server.
@@ -1967,7 +1967,7 @@ static VALUE ruby_curl_easy_resolve_mode_set(VALUE self, VALUE resolve_mode) {
 
 /*
  * call-seq:
- *   easy.on_body { |body_data| ... }                 => &lt;old handler&gt;
+ *   easy.on_body { |body_data| ... }                 => <old handler>
  *
  * Assign or remove the +on_body+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -1986,7 +1986,7 @@ static VALUE ruby_curl_easy_on_body_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_success { |easy| ... }                   => &lt;old handler&gt;
+ *   easy.on_success { |easy| ... }                   => <old handler>
  *
  * Assign or remove the +on_success+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -2001,7 +2001,7 @@ static VALUE ruby_curl_easy_on_success_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_failure {|easy,code| ... }               => &lt;old handler&gt;
+ *   easy.on_failure {|easy,code| ... }               => <old handler>
  *
  * Assign or remove the +on_failure+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -2016,7 +2016,7 @@ static VALUE ruby_curl_easy_on_failure_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *  easy.on_missing {|easy,code| ... }                => &lt;old handler;&gt;
+ *  easy.on_missing {|easy,code| ... }                => <old handler;>
  *
  *  Assign or remove the on_missing handler for this Curl::Easy instance.
  *  To remove a previously-supplied handler, call this method with no attached
@@ -2031,7 +2031,7 @@ static VALUE ruby_curl_easy_on_missing_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *  easy.on_redirect {|easy,code| ... }                => &lt;old handler;&gt;
+ *  easy.on_redirect {|easy,code| ... }                => <old handler;>
  *
  *  Assign or remove the on_redirect handler for this Curl::Easy instance.
  *  To remove a previously-supplied handler, call this method with no attached
@@ -2046,7 +2046,7 @@ static VALUE ruby_curl_easy_on_redirect_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_complete {|easy| ... }                   => &lt;old handler&gt;
+ *   easy.on_complete {|easy| ... }                   => <old handler>
  *
  * Assign or remove the +on_complete+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -2060,7 +2060,7 @@ static VALUE ruby_curl_easy_on_complete_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_header { |header_data| ... }             => &lt;old handler&gt;
+ *   easy.on_header { |header_data| ... }             => <old handler>
  *
  * Assign or remove the +on_header+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -2076,7 +2076,7 @@ static VALUE ruby_curl_easy_on_header_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_progress { |dl_total, dl_now, ul_total, ul_now| ... } => &lt;old handler&gt;
+ *   easy.on_progress { |dl_total, dl_now, ul_total, ul_now| ... } => <old handler>
  *
  * Assign or remove the +on_progress+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
@@ -2097,7 +2097,7 @@ static VALUE ruby_curl_easy_on_progress_set(int argc, VALUE *argv, VALUE self) {
 
 /*
  * call-seq:
- *   easy.on_debug { |type, data| ... }               => &lt;old handler&gt;
+ *   easy.on_debug { |type, data| ... }               => <old handler>
  *
  * Assign or remove the +on_debug+ handler for this Curl::Easy instance.
  * To remove a previously-supplied handler, call this method with no
