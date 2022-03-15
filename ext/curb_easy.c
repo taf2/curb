@@ -2778,6 +2778,10 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
  * your own body handler, this string will be empty.
  */
 static VALUE ruby_curl_easy_body_str_get(VALUE self) {
+  /*
+     TODO: can we force_encoding on the return here if we see charset=utf-8 in the content-type header?
+     Content-Type: application/json; charset=utf-8
+  */
   CURB_OBJECT_HGETTER(ruby_curl_easy, body_data);
 }
 
