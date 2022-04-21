@@ -405,6 +405,8 @@ have_constant "curlopt_path_as_is"
 # added in 7.43.0
 have_constant "curlopt_pipewait"
 
+have_constant "curlopt_proxy_ssl_verifyhost"
+
 # protocol constants
 have_constant "curlproto_all"
 have_constant "curlproto_dict"

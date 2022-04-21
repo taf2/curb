@@ -3650,6 +3650,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_SSL_SESSIONID_CACHE, NUM2LONG(val));
     break;
 #endif
+#if HAVE_CURLOPT_PROXY_SSL_VERIFYHOST
+  case CURLOPT_PROXY_SSL_VERIFYHOST:
+    curl_easy_setopt(rbce->curl, CURLOPT_PROXY_SSL_VERIFYHOST, NUM2LONG(val));
+    break;
+#endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
