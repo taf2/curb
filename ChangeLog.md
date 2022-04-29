@@ -1,5 +1,13 @@
 # Change Log
-## upcoming
+## 1.0.1
+* Fix nested Curl.get/post inside of a block
+  ```ruby
+    r1 = Curl.get("http://example.com/1") {|http|
+      r2 = Curl.get("http://example.com/2") {|h|
+      }
+    }
+    r1.body # previously was r2's body... this is now fixed
+  ```
 * Restore compatibility with older libcurl installs
 * Correctly set empty headers e.g. http.headers['Accept'] = '' # to remove the header from the request
 ## 1.0.0
