@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         ruby:
           - '2.2'
@@ -19,6 +20,7 @@ jobs:
           - '2.6'
           - '2.7'
           - '3.0'
+          - '3.1'
           - head
     name: Ruby ${{ matrix.ruby }}
     continue-on-error: ${{ matrix.ruby == 'head' }}
@@ -26,7 +28,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: apt-get install
         run: |
-          sudo apt-get install libcurl4 libcurl3-gnutls libcurl4-openssl-dev -y
+          sudo apt-get update && sudo apt-get install libcurl4 libcurl3-gnutls libcurl4-openssl-dev -y
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
