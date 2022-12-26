@@ -2,11 +2,9 @@ source 'https://rubygems.org'
 
 gemspec
 
-gem 'mixlib-shellout'
-gem 'pry'
-gem 'webrick'
-
 group 'development', 'test' do
+  gem 'mixlib-shellout'
+  gem 'pry'
   gem 'webrick' # for ruby 3.1
   gem 'rdoc', ">= 6.3.1"
   gem 'rake', '>= 13.0.1'
