@@ -498,6 +498,8 @@ void init_curb_postfield() {
   
   cCurlPostField = rb_define_class_under(mCurl, "PostField", rb_cObject);
 
+  rb_undef_alloc_func(cCurlPostField);
+
   /* Class methods */
   rb_define_singleton_method(cCurlPostField, "content", ruby_curl_postfield_new_content, -1);
   rb_define_singleton_method(cCurlPostField, "file", ruby_curl_postfield_new_file, -1);

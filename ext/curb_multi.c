@@ -627,6 +627,8 @@ void init_curb_multi() {
   idCall = rb_intern("call");
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 
+  rb_undef_alloc_func(cCurlMulti);
+
   /* Class methods */
   rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
   rb_define_singleton_method(cCurlMulti, "default_timeout=", ruby_curl_multi_set_default_timeout, 1);

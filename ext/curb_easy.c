@@ -3775,6 +3775,7 @@ static VALUE ruby_curl_easy_error_message(VALUE klass, VALUE code) {
 }
 
 /* =================== INIT LIB =====================*/
+// TODO: https://bugs.ruby-lang.org/issues/18007
 void init_curb_easy() {
   idCall = rb_intern("call");
   idJoin = rb_intern("join");

@@ -72,6 +72,7 @@ VALUE ruby_curl_upload_offset_get(VALUE self) {
 /* =================== INIT LIB =====================*/
 void init_curb_upload() {
   cCurlUpload = rb_define_class_under(mCurl, "Upload", rb_cObject);
+  rb_undef_alloc_func(cCurlUpload);
   rb_define_singleton_method(cCurlUpload, "new", ruby_curl_upload_new, 0);
   rb_define_method(cCurlUpload, "stream=", ruby_curl_upload_stream_set, 1);
   rb_define_method(cCurlUpload, "stream", ruby_curl_upload_stream_get, 0);
