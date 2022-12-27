@@ -1,4 +1,7 @@
 # Change Log
+## 1.0.2
+* Address alloc function T_DATA see: https://bugs.ruby-lang.org/issues/18007
+* Add CURLOPT_PROXY_SSL_VERIFYHOST support
 ## 1.0.1
 * Fix nested Curl.get/post inside of a block
   ```ruby
