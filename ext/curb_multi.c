@@ -308,6 +308,8 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   // old libcurl
   curl_easy_getinfo(rbce->curl, CURLINFO_HTTP_CODE, &response_code);
 #endif
+  long redirect_count;
+  curl_easy_getinfo(rbce->curl, CURLINFO_REDIRECT_COUNT, &redirect_count);
 
   if (result != 0) {
     if (!rb_easy_nil("failure_proc")) {
@@ -325,8 +327,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     val = rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
     rbce->callback_active = 0;
     //rb_funcall( rb_easy_get("success_proc"), idCall, 1, easy );
-  } else if (!rb_easy_nil("redirect_proc") &&
-          (response_code >= 300 && response_code < 400)) {
+  } else if (!rb_easy_nil("redirect_proc") && ((response_code >= 300 && response_code < 400) || redirect_count > 0) ) {
     rbce->callback_active = 1;
     callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
     rbce->callback_active = 0;
