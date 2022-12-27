@@ -10,13 +10,6 @@ CLOBBER.include '**/*.log'
 CLOBBER.include '**/Makefile'
 CLOBBER.include '**/extconf.h'
 
-# Not available for really old rubies, but that's ok.
-begin
-  require 'pry'
-rescue LoadError
-  puts "Failed to load pry."
-end
-
 # Load support ruby and rake files (in this order)
 Dir.glob('tasks/*.rb').each { |r| load r}
 Dir.glob('tasks/*.rake').each { |r| load r}

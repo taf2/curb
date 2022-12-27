@@ -1,9 +1,3 @@
-begin
-  require 'mixlib/shellout'
-rescue LoadError
-  puts "Failed to load mixlib/shellout."
-end
-
 module Curb
   module RakeHelpers
 
