@@ -76,6 +76,10 @@ module Curb
         'ruby:2.4' => [ { :name => 'curb_ruby_2_4', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_4.json' } ],
         'ruby:2.5' => [ { :name => 'curb_ruby_2_5', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_5.json' } ],
         'ruby:2.6' => [ { :name => 'curb_ruby_2_6', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_6.json' } ],
+        'ruby:2.7' => [ { :name => 'curb_ruby_2_7', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_2_7.json' } ],
+        'ruby:3.0' => [ { :name => 'curb_ruby_3_0', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_3_0.json' } ],
+        'ruby:3.1' => [ { :name => 'curb_ruby_3_1', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_3_1.json' } ],
+        'ruby:3.2' => [ { :name => 'curb_ruby_3_2', :mount_path => '/usr/local/bundle', :filepath => 'build/docker/volume_ruby_3_2.json' } ],
       }
 
       DOCKER_IMAGES = {
@@ -123,6 +127,26 @@ module Curb
                             :curl_filepath => 'build/docker/curl_ruby_2_6.txt',
                             :bundle_env_filepath => 'build/docker/bundle_env_ruby_2_6.md',
                             :volumes => DOCKER_VOLUMES['ruby:2.6'] },
+        'ruby:2.7'     => { :name => 'ruby',  :tag => '2.7',
+                            :filepath => 'build/docker/image_ruby_2_7.json',
+                            :curl_filepath => 'build/docker/curl_ruby_2_7.txt',
+                            :bundle_env_filepath => 'build/docker/bundle_env_ruby_2_7.md',
+                            :volumes => DOCKER_VOLUMES['ruby:2.7'] },
+        'ruby:3.0'     => { :name => 'ruby',  :tag => '3.0',
+                            :filepath => 'build/docker/image_ruby_3_0.json',
+                            :curl_filepath => 'build/docker/curl_ruby_3_0.txt',
+                            :bundle_env_filepath => 'build/docker/bundle_env_ruby_3_0.md',
+                            :volumes => DOCKER_VOLUMES['ruby:3.0'] },
+        'ruby:3.1'     => { :name => 'ruby',  :tag => '3.1',
+                            :filepath => 'build/docker/image_ruby_3_1.json',
+                            :curl_filepath => 'build/docker/curl_ruby_3_1.txt',
+                            :bundle_env_filepath => 'build/docker/bundle_env_ruby_3_1.md',
+                            :volumes => DOCKER_VOLUMES['ruby:3.1'] },
+        'ruby:3.2'     => { :name => 'ruby',  :tag => '3.2',
+                            :filepath => 'build/docker/image_ruby_3_2.json',
+                            :curl_filepath => 'build/docker/curl_ruby_3_2.txt',
+                            :bundle_env_filepath => 'build/docker/bundle_env_ruby_3_2.md',
+                            :volumes => DOCKER_VOLUMES['ruby:3.2'] },
       }
 
       # Returns current docker image name with tag for other Rake tasks to use.
