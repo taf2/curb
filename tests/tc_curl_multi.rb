@@ -161,6 +161,15 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
   end
 
+  def test_multi_easy_get
+    n = 1
+    urls = []
+    n.times { urls << $TEST_URL }
+    Curl::Multi.get(urls, {timeout: 5}) {|easy|
+      puts easy.last_effective_url
+    }
+  end
+
   # NOTE: if this test runs slowly on Mac OSX, it is probably due to the use of a port install curl+ssl+ares install
   # on my MacBook, this causes curl_easy_init to take nearly 0.01 seconds / * 100 below is 1 second too many!
   def test_n_requests
