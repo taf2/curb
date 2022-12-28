@@ -722,7 +722,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.on_success {|c|
       on_success_called = true
       assert_not_nil c.body
-      assert_equal "Content-Length: 7714\r\nAccept-ranges: bytes\r\nLast-Modified: Tue, 23 Feb 2021 15:09:37 GMT\r\n\r\n", c.head
+      assert_match /Content-Length: 7714/, c.head
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body)
     }
     curl.perform
