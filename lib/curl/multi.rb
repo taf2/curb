@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 module Curl
   class Multi
+    class DownloadError < RuntimeError
+      attr_accessor :errors
+    end
     class << self
       # call-seq:
       #   Curl::Multi.get(['url1','url2','url3','url4','url5'], :follow_location => true) do|easy|
@@ -241,7 +244,11 @@ module Curl
             errors << e
           end
         }
-        raise errors unless errors.empty?
+        if errors.any?
+          de = Curl::Multi::DownloadError.new
+          de.errors = errors
+          raise de
+        end
       end
     end
 
