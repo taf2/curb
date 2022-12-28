@@ -28,7 +28,8 @@ class BugCrashOnDebug < Test::Unit::TestCase
     assert_equal 'Curl::Err::AbortedByCallbackError', e.class.to_s
     c.close
   ensure
-    server.shutdown
+    server&.shutdown
+    thread&.exit
   end
 
   def test_on_progress_abort
@@ -67,7 +68,8 @@ class BugCrashOnDebug < Test::Unit::TestCase
     assert_equal 'Curl::Err::AbortedByCallbackError', e.class.to_s
     c.close
   ensure
-    server.shutdown
+    server&.shutdown
+    thread&.exit
   end
 
 end

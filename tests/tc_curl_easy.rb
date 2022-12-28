@@ -1148,7 +1148,6 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c.on_success {|x| raise "error" }
     c.perform
   rescue Curl::Err::AbortedByCallbackError => e
-    puts e.class
     assert_equal 'Curl::Err::AbortedByCallbackError', e.class.to_s
     c.close
   end

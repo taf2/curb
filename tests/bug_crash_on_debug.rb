@@ -21,13 +21,20 @@ class BugCrashOnDebug < Test::Unit::TestCase
     puts 'b'
     c = Curl::Easy.new('http://127.0.0.1:9999/test')
     did_raise = false
-    c.on_debug do|x|
-      puts x.inspect
+    did_call = false
+    begin
+      c.on_success do|x|
+        puts x.inspect
+        did_call = true
+        raise "error" # this will get swallowed
+      end
+      c.perform
+    rescue => e
       did_raise = true
-      raise "error" # this will get swallowed
     end
-    c.perform
+    puts c.response_code
     assert did_raise
+    assert did_call
     puts 'c'
   ensure
     puts 'd'

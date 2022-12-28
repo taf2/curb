@@ -156,4 +156,10 @@
 #define CURB_DEFINE(name) \
   rb_define_const(mCurl, #name, LONG2NUM(name))
 
+#define CURB_RB_CALLBACK_RAISE(context) \
+  VALUE exception = rb_errinfo(); \
+  const char *msg = rb_respond_to(exception,rb_intern("message")) ? RSTRING_PTR(rb_funcall(exception, rb_intern("message"), 0)) : ""; \
+  rb_set_errinfo(Qnil); \
+  rb_raise(eCurlErrAbortedByCallback, "Operation was aborted by an application callback[%s]:\"%s\"", context, msg);
+
 #endif
