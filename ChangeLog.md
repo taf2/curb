@@ -2,6 +2,9 @@
 ## 1.0.2
 * Address alloc function T_DATA see: https://bugs.ruby-lang.org/issues/18007
 * Add CURLOPT_PROXY_SSL_VERIFYHOST support
+* Fix for exception handling in non standard callback functions on_redirect, on_complete
+* Fix missing response code when using Curl::Multi.http with a block
+* Fix to ensure redirect handler is called even when follow location is true
 ## 1.0.1
 * Fix nested Curl.get/post inside of a block
   ```ruby

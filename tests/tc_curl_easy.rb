@@ -721,9 +721,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     on_success_called = false
     curl.on_success {|c|
       on_success_called = true
-      assert_not_nil c.body_str
-      assert_equal "", c.header_str
-      assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body_str)
+      assert_not_nil c.body
+      assert_equal "Content-Length: 7714\r\nAccept-ranges: bytes\r\nLast-Modified: Tue, 23 Feb 2021 15:09:37 GMT\r\n\r\n", c.head
+      assert_match(/^# DO NOT REMOVE THIS COMMENT/, c.body)
     }
     curl.perform
     assert on_success_called, "Success handler not called" 
@@ -1147,7 +1147,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c = Curl::Easy.new($TEST_URL)
     c.on_success {|x| raise "error" }
     c.perform
-  rescue => e
+  rescue Curl::Err::AbortedByCallbackError => e
+    puts e.class
     assert_equal 'Curl::Err::AbortedByCallbackError', e.class.to_s
     c.close
   end

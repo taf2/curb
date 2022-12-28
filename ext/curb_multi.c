@@ -295,11 +295,16 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     raise_curl_easy_error_exception(ecode);
   }
 
+  int status;
+
   if (!rb_easy_nil("complete_proc")) {
     callargs = rb_ary_new3(2, rb_easy_get("complete_proc"), easy);
     rbce->callback_active = 1;
-    val = rb_rescue(call_status_handler1, callargs, callback_exception, Qnil);
+    val = rb_protect(call_status_handler1, callargs, &status);
     rbce->callback_active = 0;
+    if (status) {
+      rb_jump_tag(status);
+    }
   }
 
 #ifdef HAVE_CURLINFO_RESPONSE_CODE
@@ -331,7 +336,10 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     rbce->callback_active = 1;
     callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
     rbce->callback_active = 0;
-    val = rb_rescue(call_status_handler2, callargs, callback_exception, Qnil);
+    val = rb_protect(call_status_handler2, callargs, &status);
+    if (status) {
+      rb_jump_tag(status);
+    }
   } else if (!rb_easy_nil("missing_proc") &&
           (response_code >= 400 && response_code < 500)) {
     rbce->callback_active = 1;
