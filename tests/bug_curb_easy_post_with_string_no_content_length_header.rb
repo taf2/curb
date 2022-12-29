@@ -50,8 +50,9 @@ class BugCurbEasyPostWithStringNoContentLengthHeader < Test::Unit::TestCase
       curl.enable_cookies = true
     end
 
-    server.shutdown
-    thread.join
+  ensure
+    server&.shutdown
+    thread&.join
   end
   def test_bug
     server = WEBrick::HTTPServer.new( :Port => 9999 )
@@ -77,7 +78,8 @@ class BugCurbEasyPostWithStringNoContentLengthHeader < Test::Unit::TestCase
       curl.enable_cookies = true
     end
 
-    server.shutdown
-    thread.join
+  ensure
+    server&.shutdown
+    thread&.join
   end
 end

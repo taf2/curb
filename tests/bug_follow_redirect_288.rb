@@ -67,6 +67,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
     assert_equal 0, c.redirect_count
     assert_equal 200, c.response_code
 
+    puts "checking for raise support"
     did_raise = false
     begin
       c = Curl::Easy.new('http://127.0.0.1:9999/redirect_to_test')
@@ -79,13 +80,12 @@ class BugFollowRedirect288 < Test::Unit::TestCase
     rescue => e
       did_raise = true
     end
-    assert did_raise
     assert_equal 307, c.response_code
+    assert did_raise
 
   ensure
     server.stop
     thread.join
-
   end
 
 end

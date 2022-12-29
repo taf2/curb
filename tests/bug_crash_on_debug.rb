@@ -38,9 +38,9 @@ class BugCrashOnDebug < Test::Unit::TestCase
     puts 'c'
   ensure
     puts 'd'
-    server.shutdown
+    server&.shutdown
     puts 'e'
-    puts thread.exit
+    puts thread&.exit
     puts 'f'
   end
 

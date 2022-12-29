@@ -8,6 +8,7 @@ group 'development', 'test' do
   gem 'rake'
   gem 'mixlib-shellout' # for docker test builds?
   gem 'test-unit'
+  gem 'ruby_memcheck'
 end
 
 platforms :rbx do

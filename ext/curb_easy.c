@@ -2602,7 +2602,7 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
   }
 
   // set values on cleanup to nil
-  rb_easy_del("multi");
+  //rb_easy_del("multi");
 
   return Qnil;
 }

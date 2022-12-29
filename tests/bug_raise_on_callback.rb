@@ -31,8 +31,8 @@ class BugRaiseOnCallback < Test::Unit::TestCase
     assert did_raise, "we want to raise an exception if the ruby callbacks raise"
 
   ensure
-    server.shutdown
-    thread.exit
+    server&.shutdown
+    thread&.exit
   end
 
 end

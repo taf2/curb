@@ -2,6 +2,7 @@
 # 
 require 'rake/clean'
 require 'rake/testtask'
+require "ruby_memcheck"
 
 CLEAN.include '**/*.o'
 CLEAN.include "**/*.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
@@ -88,6 +89,14 @@ if ENV['RELTEST']
   task :alltests => [:unittests]
 else
   task :alltests => [:unittests, :bugtests]
+end
+
+RubyMemcheck.config(binary_name: 'curb_core')
+namespace :test do
+  RubyMemcheck::TestTask.new(valgrind: :compile) do|t|
+    t.test_files = FileList['tests/tc_*.rb']
+    t.verbose = false
+  end
 end
 
 Rake::TestTask.new(:unittests) do |t|
