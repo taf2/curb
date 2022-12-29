@@ -22,26 +22,15 @@ end
 Any insight you care to share would be helpful. Thanks.
 =end
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
-require 'webrick'
-class ::WEBrick::HTTPServer ; def access_log(config, req, res) ; end ; end
-class ::WEBrick::BasicLog ; def log(level, data) ; end ; end
 
 class BugCurbEasyPostWithStringNoContentLengthHeader < Test::Unit::TestCase
-  def test_bug_workaround
-    server = WEBrick::HTTPServer.new( :Port => 9999 )
-    server.mount_proc("/test") do|req,res|
-      assert_equal '15', req['Content-Length']
-      res.body = "hi"
-      res['Content-Type'] = "text/html"
-    end
+  include BugTestServerSetupTeardown
 
-    thread = Thread.new(server) do|srv|
-      srv.start
-    end
+  def test_bug_workaround
     params = {:cat => "hat", :foo => "bar"}
 
     post_body = params.map{|f,k| "#{Curl::Easy.new.escape(f)}=#{Curl::Easy.new.escape(k)}"}.join('&')
-    c = Curl::Easy.http_post("http://127.0.0.1:9999/test",post_body) do |curl|
+    c = Curl::Easy.http_post("http://127.0.0.1:#{@port}/test",post_body) do |curl|
       curl.headers["User-Agent"] = "Curl/Ruby"
       curl.headers["X-Tender-Auth"] = "A Token"
       curl.headers["Accept"] = "application/vnd.tender-v1+json"
@@ -50,24 +39,12 @@ class BugCurbEasyPostWithStringNoContentLengthHeader < Test::Unit::TestCase
       curl.enable_cookies = true
     end
 
-  ensure
-    server&.shutdown
-    thread&.join
   end
-  def test_bug
-    server = WEBrick::HTTPServer.new( :Port => 9999 )
-    server.mount_proc("/test") do|req,res|
-      assert_equal '15', req['Content-Length']
-      res.body = "hi"
-      res['Content-Type'] = "text/html"
-    end
 
-    thread = Thread.new(server) do|srv|
-      srv.start
-    end
+  def test_bug
     params = {:cat => "hat", :foo => "bar"}
 
-    c = Curl::Easy.http_post("http://127.0.0.1:9999/test") do |curl|
+    c = Curl::Easy.http_post("http://127.0.0.1:#{@port}/test") do |curl|
       curl.headers["User-Agent"] = "Curl/Ruby"
       curl.headers["X-Tender-Auth"] = "A Token"
       curl.headers["Accept"] = "application/vnd.tender-v1+json"
@@ -77,9 +54,6 @@ class BugCurbEasyPostWithStringNoContentLengthHeader < Test::Unit::TestCase
       curl.follow_location = true
       curl.enable_cookies = true
     end
-
-  ensure
-    server&.shutdown
-    thread&.join
   end
+
 end

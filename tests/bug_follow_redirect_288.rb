@@ -1,22 +1,17 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
-require 'webrick'
-class ::WEBrick::HTTPServer ; def access_log(config, req, res) ; end ; end
-class ::WEBrick::BasicLog ; def log(level, data) ; end ; end
 
 class BugFollowRedirect288 < Test::Unit::TestCase
-  def test_follow_redirect_with_no_redirect
-    server = WEBrick::HTTPServer.new( :Port => 9999 )
-    server.mount_proc("/test") do|req,res|
-      res.body = "hi"
-      res['Content-Type'] = "text/html"
-    end
-    server.mount_proc("/redirect_to_test") do|req,res|
+  include BugTestServerSetupTeardown
+
+  def setup
+    @port = 9999
+    super
+    @server.mount_proc("/redirect_to_test") do|req,res|
       res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/test")
     end
+  end
 
-    thread = Thread.new(server) do|srv|
-      srv.start
-    end
+  def test_follow_redirect_with_no_redirect
 
     c = Curl::Easy.new('http://127.0.0.1:9999/test')
     did_call_redirect = false
@@ -83,9 +78,6 @@ class BugFollowRedirect288 < Test::Unit::TestCase
     assert_equal 307, c.response_code
     assert did_raise
 
-  ensure
-    server.stop
-    thread.join
   end
 
 end

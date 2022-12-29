@@ -3,6 +3,7 @@
 # irb: multi = Curl::Multi.new
 # irb: exit
 # <main>:47140: [BUG] Bus Error
+require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','ext'))
 $:.unshift File.expand_path(File.join(File.dirname(__FILE__),'..','lib'))
 require 'curb'

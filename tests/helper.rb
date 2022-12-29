@@ -135,6 +135,32 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
 
 end
 
+module BugTestServerSetupTeardown
+  def setup
+    @port ||= 9992
+    @server = WEBrick::HTTPServer.new( :Port => @port )
+    @server.mount_proc("/test") do|req,res|
+      if @response_proc
+        @response_proc.call(res)
+      else
+        res.body = "hi"
+        res['Content-Type'] = "text/html"
+      end
+    end
+
+    @thread = Thread.new(@server) do|srv|
+      srv.start
+    end
+  end
+
+  def teardown
+    while @server.status != :Shutdown
+      @server.shutdown
+    end
+    @thread.join
+  end
+end
+
 module TestServerMethods
   def locked_file
     File.join(File.dirname(__FILE__),"server_lock-#{@__port}")

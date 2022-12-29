@@ -35,15 +35,13 @@ class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
   end
 
   def do_test
-    c = Curl::Easy.http_post('https://www.google.com/accounts/ServiceLoginAuth',
-                Curl::PostField.content('ltmpl','m_blanco'))
+    c = Curl::Easy.http_post('https://www.google.com/accounts/ServiceLoginAuth', Curl::PostField.content('ltmpl','m_blanco'))
     body_c, header_c = c.body_str, c.header_str
    
     sleep 2
 
-    c.http_post('https://www.google.com/accounts/ServiceLoginAuth',
-                Curl::PostField.content('ltmpl','m_blanco'))
-    body_i, header_i = c.body_str, c.header_str
+    c.http_post('https://www.google.com/accounts/ServiceLoginAuth', Curl::PostField.content('ltmpl','m_blanco'))
+    body_i, header_i = c.body, c.head
 
     # timestamps will differ, just check first bit. We wont get here if
     # the bug bites anyway...
