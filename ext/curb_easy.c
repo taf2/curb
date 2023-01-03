@@ -34,7 +34,7 @@ static FILE * rb_io_stdio_file(rb_io_t *fptr) {
 
 /* ================== CURL HANDLER FUNCS ==============*/
 
-static VALUE callback_exception(VALUE unused) {
+static VALUE callback_exception(VALUE unused, VALUE exception) {
   return Qfalse;
 }
 
@@ -1311,7 +1311,7 @@ static VALUE ruby_curl_easy_connect_timeout_set(VALUE self, VALUE connect_timeou
  * Obtain the maximum time in seconds that you allow the connection to the
  * server to take.
  */
-static VALUE ruby_curl_easy_connect_timeout_get(VALUE self, VALUE connect_timeout) {
+static VALUE ruby_curl_easy_connect_timeout_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, connect_timeout, 0);
 }
 
@@ -1337,7 +1337,7 @@ static VALUE ruby_curl_easy_connect_timeout_ms_set(VALUE self, VALUE connect_tim
  * Obtain the maximum time in milliseconds that you allow the connection to the
  * server to take.
  */
-static VALUE ruby_curl_easy_connect_timeout_ms_get(VALUE self, VALUE connect_timeout_ms) {
+static VALUE ruby_curl_easy_connect_timeout_ms_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, connect_timeout_ms, 0);
 }
 
@@ -1360,7 +1360,7 @@ static VALUE ruby_curl_easy_dns_cache_timeout_set(VALUE self, VALUE dns_cache_ti
  *
  * Obtain the dns cache timeout in seconds.
  */
-static VALUE ruby_curl_easy_dns_cache_timeout_get(VALUE self, VALUE dns_cache_timeout) {
+static VALUE ruby_curl_easy_dns_cache_timeout_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, dns_cache_timeout, -1);
 }
 
@@ -1387,7 +1387,7 @@ static VALUE ruby_curl_easy_ftp_response_timeout_set(VALUE self, VALUE ftp_respo
  *
  * Obtain the maximum time that libcurl will wait for FTP command responses.
  */
-static VALUE ruby_curl_easy_ftp_response_timeout_get(VALUE self, VALUE ftp_response_timeout) {
+static VALUE ruby_curl_easy_ftp_response_timeout_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, ftp_response_timeout, 0);
 }
 
@@ -1410,7 +1410,7 @@ static VALUE ruby_curl_easy_low_speed_limit_set(VALUE self, VALUE low_speed_limi
  * Obtain the minimum transfer speed over +low_speed+time+ below which the
  * transfer will be aborted.
  */
-static VALUE ruby_curl_easy_low_speed_limit_get(VALUE self, VALUE low_speed_limit) {
+static VALUE ruby_curl_easy_low_speed_limit_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, low_speed_limit, 0);
 }
 
@@ -1432,7 +1432,7 @@ static VALUE ruby_curl_easy_low_speed_time_set(VALUE self, VALUE low_speed_time)
  * Obtain the time that the transfer should be below +low_speed_limit+ for
  * the library to abort it.
  */
-static VALUE ruby_curl_easy_low_speed_time_get(VALUE self, VALUE low_speed_time) {
+static VALUE ruby_curl_easy_low_speed_time_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, low_speed_time, 0);
 }
 
@@ -1452,7 +1452,7 @@ static VALUE ruby_curl_easy_max_send_speed_large_set(VALUE self, VALUE max_send_
  *
  * Get the maximal sending transfer speed (in bytes per second) 
  */
-static VALUE ruby_curl_easy_max_send_speed_large_get(VALUE self, VALUE max_send_speed_large) {
+static VALUE ruby_curl_easy_max_send_speed_large_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, max_send_speed_large, 0);
 }
 
@@ -1472,7 +1472,7 @@ static VALUE ruby_curl_easy_max_recv_speed_large_set(VALUE self, VALUE max_recv_
  *
  * Get the maximal receiving transfer speed (in bytes per second) 
  */
-static VALUE ruby_curl_easy_max_recv_speed_large_get(VALUE self, VALUE max_recv_speed_large) {
+static VALUE ruby_curl_easy_max_recv_speed_large_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, max_recv_speed_large, 0);
 }
 
@@ -1496,7 +1496,7 @@ static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
  *
  * Get the current username
  */
-static VALUE ruby_curl_easy_username_get(VALUE self, VALUE username) {
+static VALUE ruby_curl_easy_username_get(VALUE self) {
 #if HAVE_CURLOPT_USERNAME
   CURB_OBJECT_HGETTER(ruby_curl_easy, username);
 #else
@@ -1524,7 +1524,7 @@ static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
  *
  * Get the current password
  */
-static VALUE ruby_curl_easy_password_get(VALUE self, VALUE password) {
+static VALUE ruby_curl_easy_password_get(VALUE self) {
 #if HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_HGETTER(ruby_curl_easy, password);
 #else
@@ -1558,7 +1558,7 @@ static VALUE ruby_curl_easy_ssl_version_set(VALUE self, VALUE ssl_version) {
  *
  * Get the version of SSL/TLS that libcurl will attempt to use.
  */
-static VALUE ruby_curl_easy_ssl_version_get(VALUE self, VALUE ssl_version) {
+static VALUE ruby_curl_easy_ssl_version_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, ssl_version, -1);
 }
 
@@ -1579,7 +1579,7 @@ static VALUE ruby_curl_easy_use_ssl_set(VALUE self, VALUE use_ssl) {
  *
  * Get the desired level for using SSL on FTP connections.
  */
-static VALUE ruby_curl_easy_use_ssl_get(VALUE self, VALUE use_ssl) {
+static VALUE ruby_curl_easy_use_ssl_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, use_ssl, -1);
 }
 
@@ -1600,7 +1600,7 @@ static VALUE ruby_curl_easy_ftp_filemethod_set(VALUE self, VALUE ftp_filemethod)
  *
  * Get the configuration for how libcurl will reach files on the server.
  */
-static VALUE ruby_curl_easy_ftp_filemethod_get(VALUE self, VALUE ftp_filemethod) {
+static VALUE ruby_curl_easy_ftp_filemethod_get(VALUE self) {
   CURB_IMMED_GETTER(ruby_curl_easy, ftp_filemethod, -1);
 }
 
@@ -2122,7 +2122,7 @@ static VALUE ruby_curl_easy_on_debug_set(int argc, VALUE *argv, VALUE self) {
 /***********************************************
  * This is an rb_iterate callback used to set up http headers.
  */
-static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
+static VALUE cb_each_http_header(VALUE header, VALUE wrap, int _c, const VALUE *_ptr, VALUE unused) {
   struct curl_slist **list;
   VALUE header_str = Qnil;
 
@@ -2157,7 +2157,7 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap) {
 /***********************************************
  * This is an rb_iterate callback used to set up http proxy headers.
  */
-static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap) {
+static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap, int _c, const VALUE *_ptr, VALUE unused) {
   struct curl_slist **list;
   VALUE proxy_header_str = Qnil;
 
@@ -2189,7 +2189,7 @@ static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap) {
 /***********************************************
  * This is an rb_iterate callback used to set up ftp commands.
  */
-static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
+static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap, int _c, const VALUE *_ptr, VALUE unused) {
   struct curl_slist **list;
   VALUE ftp_command_string;
   Data_Get_Struct(wrap, struct curl_slist *, list);
@@ -2203,7 +2203,7 @@ static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap) {
 /***********************************************
  * This is an rb_iterate callback used to set up the resolve list.
  */
-static VALUE cb_each_resolve(VALUE resolve, VALUE wrap) {
+static VALUE cb_each_resolve(VALUE resolve, VALUE wrap, int _c, const VALUE *_ptr, VALUE unused) {
   struct curl_slist **list;
   VALUE resolve_string;
   Data_Get_Struct(wrap, struct curl_slist *, list);
