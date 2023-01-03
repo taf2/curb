@@ -44,7 +44,23 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running);
 
 static VALUE callback_exception(VALUE did_raise, VALUE exception) {
-  rb_hash_aset(did_raise, rb_easy_hkey("error"), Qtrue);
+  // TODO: we could have an option to enable exception reporting
+/*  VALUE ret = rb_funcall(exception, rb_intern("message"), 0);
+  VALUE trace = rb_funcall(exception, rb_intern("backtrace"), 0);
+  if (RB_TYPE_P(trace, T_ARRAY) && RARRAY_LEN(trace) > 0) {
+    printf("we got an exception: %s:%d\n", StringValueCStr(ret), RARRAY_LEN(trace));
+    VALUE sep = rb_str_new_cstr("\n");
+    VALUE trace_lines = rb_ary_join(trace, sep);
+    if (RB_TYPE_P(trace_lines, T_STRING)) {
+      printf("%s\n", StringValueCStr(trace_lines));
+    } else {
+      printf("trace is not a string??\n");
+    }
+  } else {
+    printf("we got an exception: %s\nno stack available\n", StringValueCStr(ret));
+  }
+  */
+  rb_hash_aset(did_raise, rb_easy_hkey("error"), exception);
   return exception;
 }
 
@@ -303,9 +319,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     rbce->callback_active = 1;
     rb_rescue(call_status_handler1, callargs, callback_exception, did_raise);
     rbce->callback_active = 0;
-    if (FIX2INT(rb_hash_size(did_raise)) > 0) {
-      CURB_RB_CALLBACK_RAISE("complete")
-    }
+    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
   }
 
 #ifdef HAVE_CURLINFO_RESPONSE_CODE
@@ -323,9 +337,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
       rbce->callback_active = 1;
       rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
       rbce->callback_active = 0;
-      if (FIX2INT(rb_hash_size(did_raise)) > 0) {
-        CURB_RB_CALLBACK_RAISE("failure")
-      }
+      CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
     }
   } else if (!rb_easy_nil("success_proc") &&
           ((response_code >= 200 && response_code < 300) || response_code == 0)) {
@@ -334,35 +346,28 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     rbce->callback_active = 1;
     rb_rescue(call_status_handler1, callargs, callback_exception, did_raise);
     rbce->callback_active = 0;
-    if (FIX2INT(rb_hash_size(did_raise)) > 0) {
-      CURB_RB_CALLBACK_RAISE("success")
-    }
+    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
+
   } else if (!rb_easy_nil("redirect_proc") && ((response_code >= 300 && response_code < 400) || redirect_count > 0) ) {
     rbce->callback_active = 1;
     callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
     rbce->callback_active = 0;
     rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-    if (FIX2INT(rb_hash_size(did_raise)) > 0) {
-      CURB_RB_CALLBACK_RAISE("redirect")
-    }
+    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
   } else if (!rb_easy_nil("missing_proc") &&
           (response_code >= 400 && response_code < 500)) {
     rbce->callback_active = 1;
     callargs = rb_ary_new3(3, rb_easy_get("missing_proc"), easy, rb_curl_easy_error(result));
     rbce->callback_active = 0;
     rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-    if (FIX2INT(rb_hash_size(did_raise)) > 0) {
-      CURB_RB_CALLBACK_RAISE("missing")
-    }
+    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
   } else if (!rb_easy_nil("failure_proc") &&
           (response_code >= 500 && response_code <= 999)) {
     callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
     rbce->callback_active = 1;
     rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
     rbce->callback_active = 0;
-    if (FIX2INT(rb_hash_size(did_raise)) > 0) {
-      CURB_RB_CALLBACK_RAISE("failure")
-    }
+    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
   }
 
 }

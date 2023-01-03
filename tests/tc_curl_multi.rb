@@ -166,8 +166,37 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     urls = []
     n.times { urls << $TEST_URL }
     Curl::Multi.get(urls, {timeout: 5}) {|easy|
-      puts easy.last_effective_url
+      assert_match(/file:/, easy.last_effective_url)
     }
+  end
+
+  def test_multi_easy_get_with_error
+    begin
+      did_raise = false
+      n = 3
+      urls = []
+      n.times { urls << $TEST_URL }
+      error_line_number_should_be = nil
+      Curl::Multi.get(urls, {timeout: 5}) {|easy|
+        # if we got this right the error will be reported to be on the line below our error_line_number_should_be
+        error_line_number_should_be = __LINE__
+        raise 
+      }
+
+    rescue Curl::Err::AbortedByCallbackError => e
+      did_raise = true
+      in_file = e.backtrace.detect {|err| err.match?(File.basename(__FILE__)) }
+      in_file_stack = e.backtrace.select {|err| err.match?(File.basename(__FILE__)) }
+      assert_match(__FILE__, in_file)
+      in_file.gsub!(__FILE__)
+      parts = in_file.split(':')
+      parts.shift
+      line_no = parts.shift.to_i
+      assert_equal error_line_number_should_be+1, line_no.to_i
+    end
+
+    assert did_raise, "we should have raised an exception"
+
   end
 
   # NOTE: if this test runs slowly on Mac OSX, it is probably due to the use of a port install curl+ssl+ares install

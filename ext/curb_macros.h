@@ -156,10 +156,16 @@
 #define CURB_DEFINE(name) \
   rb_define_const(mCurl, #name, LONG2NUM(name))
 
-#define CURB_RB_CALLBACK_RAISE(context) \
-  VALUE exception = rb_errinfo(); \
-  const char *msg = rb_respond_to(exception,rb_intern("message")) ? RSTRING_PTR(rb_funcall(exception, rb_intern("message"), 0)) : ""; \
-  rb_set_errinfo(Qnil); \
-  rb_raise(eCurlErrAbortedByCallback, "Operation was aborted by an application callback[%s]:\"%s\"", context, msg);
+/* copy and raise exception */
+#define CURB_CHECK_RB_CALLBACK_RAISE(did_raise) \
+  VALUE exception = rb_hash_aref(did_raise, rb_easy_hkey("error")); \
+  if (FIX2INT(rb_hash_size(did_raise)) > 0 && exception != Qnil) { \
+    rb_hash_clear(did_raise); \
+    VALUE message   = rb_funcall(exception, rb_intern("message"), 0); \
+    VALUE aborted_exception = rb_exc_new_str(eCurlErrAbortedByCallback, message); \
+    VALUE backtrace = rb_funcall(exception, rb_intern("backtrace"), 0); \
+    rb_funcall(aborted_exception,  rb_intern("set_backtrace"), 1, backtrace); \
+    rb_exc_raise(aborted_exception); \
+  }
 
 #endif
