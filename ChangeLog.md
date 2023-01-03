@@ -1,4 +1,7 @@
 # Change Log
+## 1.0.4
+* Improve exception handling from callback functions to ensure correct error line number is reported
+* Resolve many compiler warnings
 ## 1.0.3
 * Adjust how we handle exceptions to handle more cases
 ## 1.0.2
