@@ -37,18 +37,6 @@ POST request
   puts res.body
 ```
 
-PATCH request
-```
-  res = Curl.patch("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
-    http.headers["Content-Type"] = "application/json"
-  }
-  puts res.code
-  puts res.head
-  puts res.body
-```
-
-
-
 ## You will need
 
 * A working Ruby installation (`2.0.0+` will work but `2.1+` preferred) (it's possible it still works with 1.8.7 but you'd have to tell me if not...)
@@ -64,13 +52,20 @@ tested and reported to work across a variety of platforms / rubies)
 
 | Gem Version | Release Date | libcurl versions |
 | ----------- | -----------  | ---------------- |
-| 1.0.0       | Jan 2022     | 7.58 - 7.81      |
+| 1.0.5       | Jan 2023     | 7.58 - 7.87      |
+| 1.0.4       | Jan 2023     | 7.58 - 7.87      |
+| 1.0.3*      | Dec 2022     | 7.58 - 7.87      |
+| 1.0.2*      | Dec 2022     | 7.58 - 7.87      |
+| 1.0.1       | Apr 2022     | 7.58 - 7.87      |
+| 1.0.0       | Jan 2022     | 7.58 - 7.87      |
 | 0.9.8       | Jan 2019     | 7.58 - 7.81      |
 | 0.9.7       | Nov 2018     | 7.56 - 7.60      |
 | 0.9.6       | May 2018     | 7.51 - 7.59      |
 | 0.9.5       | May 2018     | 7.51 - 7.59      |
 | 0.9.4       | Aug 2017     | 7.41 - 7.58      |
 | 0.9.3       | Apr 2016     | 7.26 - 7.58      |
+
+  ```*avoid using these version are known to have issues with segmentation faults```
 
 ## Installation...
 
@@ -137,22 +132,22 @@ require 'curb'
 
 ```ruby
 http = Curl.get("http://www.google.com/")
-puts http.body_str
+puts http.body
 
 http = Curl.post("http://www.google.com/", {:foo => "bar"})
-puts http.body_str
+puts http.body
 
 http = Curl.get("http://www.google.com/") do |http|
   http.headers['Cookie'] = 'foo=1;bar=2'
 end
-puts http.body_str
+puts http.body
 ```
 
 ### Simple fetch via HTTP:
 
 ```ruby
 c = Curl::Easy.perform("http://www.google.co.uk")
-puts c.body_str
+puts c.body
 ```
 
 Same thing, more manual:
@@ -160,13 +155,13 @@ Same thing, more manual:
 ```ruby
 c = Curl::Easy.new("http://www.google.co.uk")
 c.perform
-puts c.body_str
+puts c.body
 ```
 
 ### Additional config:
 
 ```ruby
-Curl::Easy.perform("http://www.google.co.uk") do |curl|
+http = Curl::Easy.perform("http://www.google.co.uk") do |curl|
   curl.headers["User-Agent"] = "myapp-0.0"
   curl.verbose = true
 end
