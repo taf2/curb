@@ -13,9 +13,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   def test_nested_easy_methods
     easy = Curl.get(TestServlet.url) {|http|
       res = Curl.get(TestServlet.url + '/not_here')
-      assert_equal 404, res.response_code
+      assert_equal 404, res.code
     }
-    assert_equal 200, easy.response_code
+    assert_equal 200, easy.code
   end
 
   def test_curlopt_stderr_with_file

@@ -3921,6 +3921,7 @@ void init_curb_easy() {
 
   rb_define_method(cCurlEasy, "last_effective_url", ruby_curl_easy_last_effective_url_get, 0);
   rb_define_method(cCurlEasy, "response_code", ruby_curl_easy_response_code_get, 0);
+  rb_define_method(cCurlEasy, "code", ruby_curl_easy_response_code_get, 0);
 #if defined(HAVE_CURLINFO_PRIMARY_IP)
   rb_define_method(cCurlEasy, "primary_ip", ruby_curl_easy_primary_ip_get, 0);
 #endif

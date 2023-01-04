@@ -12,26 +12,38 @@ Curb is a work-in-progress, and currently only supports libcurl's `easy` and `mu
 
 ## License
 
-Curb is copyright (c)2006 Ross Bamford, and released under the terms of the
+Curb is copyright (c) 2006 Ross Bamford, and released under the terms of the
 Ruby license. See the LICENSE file for the gory details.
 
 ## Easy mode
 
-Get stuff
+GET request
 ```
-  res = Curl.get("https://www.google.com/")
+  res = Curl.get("https://www.google.com/") {|http|
+    http.timeout = 10 # raise exception if request/response not handled within 10 seconds
+  }
   puts res.response_code
-  puts res.header_str
+  puts res.head
   puts res.body
 ```
 
-Post stuff
+POST request
 ```
   res = Curl.post("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
     http.headers["Content-Type"] = "application/json"
   }
   puts res.response_code
-  puts res.header_str
+  puts res.head
+  puts res.body
+```
+
+PATCH request
+```
+  res = Curl.patch("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
+    http.headers["Content-Type"] = "application/json"
+  }
+  puts res.response_code
+  puts res.head
   puts res.body
 ```
 

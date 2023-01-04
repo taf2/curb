@@ -1,4 +1,9 @@
 # Change Log
+## 1.0.5
+* Add shorter response_code alias -> code
+  ```
+    Curl.get("https://github.com/taf2/curb").code # -> 200
+  ```
 ## 1.0.4
 * Improve exception handling from callback functions to ensure correct error line number is reported
 * Resolve many compiler warnings
