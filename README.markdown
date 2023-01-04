@@ -22,7 +22,7 @@ GET request
   res = Curl.get("https://www.google.com/") {|http|
     http.timeout = 10 # raise exception if request/response not handled within 10 seconds
   }
-  puts res.response_code
+  puts res.code
   puts res.head
   puts res.body
 ```
@@ -32,7 +32,7 @@ POST request
   res = Curl.post("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
     http.headers["Content-Type"] = "application/json"
   }
-  puts res.response_code
+  puts res.code
   puts res.head
   puts res.body
 ```
@@ -42,7 +42,7 @@ PATCH request
   res = Curl.patch("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
     http.headers["Content-Type"] = "application/json"
   }
-  puts res.response_code
+  puts res.code
   puts res.head
   puts res.body
 ```
