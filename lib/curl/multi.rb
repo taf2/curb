@@ -95,7 +95,7 @@ module Curl
 
         # configure the multi handle
         multi_options.each { |k,v| m.send("#{k}=", v) }
-        callbacks = [:on_progress,:on_debug,:on_failure,:on_success,:on_redirect,:on_body,:on_header]
+        callbacks = [:on_progress,:on_debug,:on_failure,:on_success,:on_redirect,:on_missing,:on_body,:on_header]
 
         add_free_handle = proc do|conf, easy|
           c       = conf.dup # avoid being destructive to input
