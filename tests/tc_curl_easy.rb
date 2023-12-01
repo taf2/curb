@@ -1068,13 +1068,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end
 
   def test_easy_http_verbs_must_respond_to_str
-    # issue http://github.com/taf2/curb/issues#issue/45
+    # issue http://github.com/taf2/curb/issues/45
     assert_nothing_raised do
-      c = Curl::Easy.new ; c.url = 'http://example.com' ; c.http(:get)
+      c = Curl::Easy.new ; c.url = TestServlet.url ; c.http(:get)
     end
 
     assert_raise RuntimeError do
-      c = Curl::Easy.new ; c.url = 'http://example.com' ; c.http(FooNoToS.new)
+      c = Curl::Easy.new ; c.url = TestServlet.url ; c.http(FooNoToS.new)
     end
 
   end
