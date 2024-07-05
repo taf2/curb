@@ -79,7 +79,7 @@ static size_t read_data_handler(void *ptr,
     remaining = len - rbcu->offset;
     str_ptr = RSTRING_PTR(str);
 
-    if( remaining < read_bytes ) {
+    if( remaining <= read_bytes ) {
       if( remaining > 0 ) {
         memcpy(ptr, str_ptr+rbcu->offset, remaining);
         read_bytes = remaining;
@@ -87,12 +87,8 @@ static size_t read_data_handler(void *ptr,
       }
       return remaining;
     }
-    else if( remaining > read_bytes ) { // read_bytes <= remaining - send what we can fit in the buffer(ptr)
+    else { // read_bytes < remaining - send what we can fit in the buffer(ptr)
       memcpy(ptr, str_ptr+rbcu->offset, read_bytes);
-      rbcu->offset += read_bytes;
-    }
-    else { // they're equal
-      memcpy(ptr, str_ptr+rbcu->offset, --read_bytes);
       rbcu->offset += read_bytes;
     }
     return read_bytes;
