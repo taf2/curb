@@ -1,4 +1,10 @@
 # Change Log
+## 1.0.6
+* Fix for PUT request length calculation
+  - see: #451
+* Fix a double quote issue when evaluating cert's path
+  - see: #454
+
 ## 1.0.5
 * Add shorter response_code alias -> code
   ```
