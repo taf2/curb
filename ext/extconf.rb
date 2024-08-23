@@ -9,7 +9,7 @@ if find_executable('curl-config')
   else
     $LIBS << " #{`curl-config --libs`.strip}"
   end
-  ca_bundle_path=`curl-config --ca`.strip
+  ca_bundle_path=`curl-config --ca`.strip.gsub(/^"([^"]+)"$/,'\1')
   if !ca_bundle_path.nil? and ca_bundle_path != ''
     $defs.push( %{-D HAVE_CURL_CONFIG_CA} )
     $defs.push( %{-D CURL_CONFIG_CA='#{ca_bundle_path.inspect}'} )
