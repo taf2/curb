@@ -3629,6 +3629,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_KEEPINTVL, NUM2LONG(val));
     break;
 #endif
+#if HAVE_CURLOPT_COOKIELIST
+  case CURLOPT_COOKIELIST: {
+	curl_easy_setopt(rbce->curl, CURLOPT_COOKIELIST, StringValueCStr(val));
+    } break;
+#endif
 #if HAVE_CURLOPT_HAPROXYPROTOCOL
   case CURLOPT_HAPROXYPROTOCOL:
     curl_easy_setopt(rbce->curl, CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
