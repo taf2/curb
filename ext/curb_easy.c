@@ -3364,14 +3364,16 @@ static VALUE ruby_curl_easy_num_connects_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.cookielist                                => array
+ *   easy.cookielist                                => cookielist
  *
  * Retrieves the cookies curl knows in an array of strings.
  * Returned strings are in Netscape cookiejar format or in Set-Cookie format.
+ * Since 7.43.0 cookies in the Set-Cookie format without a domain name are not exported.
  *
- * See also option CURLINFO_COOKIELIST of curl_easy_getopt(3) to see how libcurl behaves.
- *
- * (requires libcurl 7.14.1 or higher, otherwise -1 is always returned).
+ * @see https://curl.se/libcurl/c/CURLINFO_COOKIELIST.html option <code>CURLINFO_COOKIELIST</code> of 
+ *   <code>curl_easy_getopt(3)</code> to see how libcurl behaves.
+ * @note requires libcurl 7.14.1 or higher, otherwise +-1+ is always returned
+ * @return [Array<String>, nil, -1] array of strings, or +nil+ if there are no cookies, or +-1+ if the libcurl version is too old
 */
 static VALUE ruby_curl_easy_cookielist_get(VALUE self) {
 #ifdef HAVE_CURLINFO_COOKIELIST
