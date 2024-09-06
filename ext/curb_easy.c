@@ -3486,12 +3486,12 @@ static VALUE ruby_curl_easy_last_error(VALUE self) {
  *
  * Initial access to libcurl curl_easy_setopt
  *
- * @param [Integer] opt The option to set, see +Curl::CURLOPT_*+ constants
+ * @param [Fixnum] opt The option to set, see +Curl::CURLOPT_*+ constants
  * @param [Object] val
  * @return [Object] val
  * @raise [TypeError] if the option is not supported
  * @note Some options - like url or cookie - aren't set directly throught +curl_easy_setopt+, but stored in the Ruby object state.
- * @note When +curl_easy_setopt+ is called, return value is not cheched here.
+ * @note When +curl_easy_setopt+ is called, return value is not checked here.
  */
 static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   ruby_curl_easy *rbce;
