@@ -160,10 +160,10 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
       assert !File.exist?(cookiefile)
       begin
         cookielist = [
-          # Won't be updated, added intead
+          # Won't be updated, added instead
           ".localhost\tTRUE\t/\tFALSE\t#{expires_file.to_time.to_i}\tpermanent\t84",
           ".localhost\tTRUE\t/\tFALSE\t#{expires_file.to_time.to_i}\tpermanent_file\t84",
-          # Won't be updated, added intead
+          # Won't be updated, added instead
           ".localhost\tTRUE\t/\tFALSE\t0\tsession\t840",
           ".localhost\tTRUE\t/\tFALSE\t0\tsession_file\t840",
           '',
@@ -184,7 +184,7 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
         ]
         assert_equal expected_cookielist, easy.cookielist
         easy.perform
-        # Duplicates are not removed
+        # Be careful, duplicates are not removed
         assert_equal 'permanent_file=84; session_file=840; permanent=84; session=840; permanent=42; session=420', easy.body_str
       ensure
         File.unlink(cookiefile) if File.exist?(cookiefile)
