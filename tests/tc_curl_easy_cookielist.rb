@@ -131,6 +131,7 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
         # trick to actually set CURLOPT_COOKIEJAR
         easy.enable_cookies = true
         easy.perform
+        assert !File.exist?(cookiejar)
         easy.setopt(Curl::CURLOPT_COOKIELIST, 'FLUSH')
         expected_cookiejar = <<~COOKIEJAR
           # Netscape HTTP Cookie File
