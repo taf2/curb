@@ -80,6 +80,10 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
       res.status = 404
     elsif req.path.match(/error$/)
       res.status = 500
+    elsif req.path.match(/get_cookies$/)
+      res['Content-Type'] = "text/plain"
+      res.body = req['Cookie']
+      return
     end
     respond_with("GET#{req.query_string}",req,res)
   end
