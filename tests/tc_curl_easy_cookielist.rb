@@ -1,4 +1,5 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
+require 'json'
 
 class TestCurbCurlEasyCookielist < Test::Unit::TestCase
   def test_setopt_cookielist
@@ -28,9 +29,23 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
     easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/get_cookies"
     easy.perform
     assert_equal 'c2=v2; c1=v1', easy.body_str
+  end
 
-    # libcurl documentation says: "This option also enables the cookie engine", but it's not tracked on the curb level
+  # libcurl documentation says: "This option also enables the cookie engine", but it's not tracked on the curb level
+  def test_setopt_cookielist_enables_cookie_engine
+    easy = Curl::Easy.new
+    expires = (Date.today + 2).to_datetime
+    easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/set_cookies"
+    easy.setopt(Curl::CURLOPT_COOKIELIST, "Set-Cookie: c1=v1; domain=localhost; expires=#{expires.httpdate};")
+    easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', domain: 'localhost', expires: expires.httpdate, path: '/' }])
+    easy.perform
+    easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/get_cookies"
+    easy.post_body = nil
+    easy.perform
+
     assert !easy.enable_cookies?
+    assert_equal [".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc1\tv1", ".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc2\tv2"], easy.cookielist
+    assert_equal 'c2=v2; c1=v1', easy.body_str
   end
 
   def test_setopt_cookielist_invalid_format
@@ -189,6 +204,47 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
       ensure
         File.unlink(cookiefile) if File.exist?(cookiefile)
       end
+    end
+  end
+
+  def test_commands_do_not_enable_cookie_engine
+    %w[ALL SESS FLUSH RELOAD].each do |command|
+      easy = Curl::Easy.new
+      expires = (Date.today + 2).to_datetime
+      easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/set_cookies"
+      easy.setopt(Curl::CURLOPT_COOKIELIST, command)
+      easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', domain: 'localhost', expires: expires.httpdate, path: '/' }])
+      easy.perform
+      easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/get_cookies"
+      easy.post_body = nil
+      easy.perform
+
+      assert !easy.enable_cookies?
+      assert_nil easy.cookielist
+      assert_equal '', easy.body_str
+    end
+  end
+
+
+  def test_strings_without_cookie_enable_cookie_engine
+    [
+      '',
+      '# Netscape HTTP Cookie File',
+      'no_a_cookie',
+    ].each do |command|
+      easy = Curl::Easy.new
+      expires = (Date.today + 2).to_datetime
+      easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/set_cookies"
+      easy.setopt(Curl::CURLOPT_COOKIELIST, command)
+      easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', domain: 'localhost', expires: expires.httpdate, path: '/' }])
+      easy.perform
+      easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/get_cookies"
+      easy.post_body = nil
+      easy.perform
+
+      assert !easy.enable_cookies?
+      assert_equal [".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc2\tv2"], easy.cookielist
+      assert_equal 'c2=v2', easy.body_str
     end
   end
 
