@@ -3364,14 +3364,16 @@ static VALUE ruby_curl_easy_num_connects_get(VALUE self) {
 
 /*
  * call-seq:
- *   easy.cookielist                                => array
+ *   easy.cookielist                                => cookielist
  *
  * Retrieves the cookies curl knows in an array of strings.
  * Returned strings are in Netscape cookiejar format or in Set-Cookie format.
+ * Since 7.43.0 cookies in the Set-Cookie format without a domain name are not exported.
  *
- * See also option CURLINFO_COOKIELIST of curl_easy_getopt(3) to see how libcurl behaves.
- *
- * (requires libcurl 7.14.1 or higher, otherwise -1 is always returned).
+ * @see https://curl.se/libcurl/c/CURLINFO_COOKIELIST.html option <code>CURLINFO_COOKIELIST</code> of 
+ *   <code>curl_easy_getopt(3)</code> to see how libcurl behaves.
+ * @note requires libcurl 7.14.1 or higher, otherwise +-1+ is always returned
+ * @return [Array<String>, nil, -1] array of strings, or +nil+ if there are no cookies, or +-1+ if the libcurl version is too old
 */
 static VALUE ruby_curl_easy_cookielist_get(VALUE self) {
 #ifdef HAVE_CURLINFO_COOKIELIST
@@ -3482,9 +3484,16 @@ static VALUE ruby_curl_easy_last_error(VALUE self) {
 
 /*
  * call-seq:
- *   easy.setopt Fixnum, value  => value
+ *   easy.setopt(opt, val)  => val
  *
  * Initial access to libcurl curl_easy_setopt
+ *
+ * @param [Fixnum] opt The option to set, see +Curl::CURLOPT_*+ constants
+ * @param [Object] val
+ * @return [Object] val
+ * @raise [TypeError] if the option is not supported
+ * @note Some options - like url or cookie - aren't set directly throught +curl_easy_setopt+, but stored in the Ruby object state.
+ * @note When +curl_easy_setopt+ is called, return value is not checked here.
  */
 static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   ruby_curl_easy *rbce;
@@ -3650,6 +3659,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_SSL_SESSIONID_CACHE, NUM2LONG(val));
     break;
 #endif
+#if HAVE_CURLOPT_COOKIELIST
+  case CURLOPT_COOKIELIST: {
+	curl_easy_setopt(rbce->curl, CURLOPT_COOKIELIST, StringValueCStr(val));
+    } break;
+#endif
 #if HAVE_CURLOPT_PROXY_SSL_VERIFYHOST
   case CURLOPT_PROXY_SSL_VERIFYHOST:
     curl_easy_setopt(rbce->curl, CURLOPT_PROXY_SSL_VERIFYHOST, NUM2LONG(val));
@@ -3664,9 +3678,13 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 
 /*
  * call-seq:
- *   easy.getinfo Fixnum => value
+ *   easy.getinfo(opt) => nil
  *
  * Iniital access to libcurl curl_easy_getinfo, remember getinfo doesn't return the same values as setopt
+ *
+ * @note This method is not implemented yet.
+ * @param [Fixnum] code Constant +CURLINFO_*+ from libcurl
+ * @return [nil]
  */
 static VALUE ruby_curl_easy_get_opt(VALUE self, VALUE opt) {
   return Qnil;

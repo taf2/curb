@@ -80,6 +80,10 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
       res.status = 404
     elsif req.path.match(/error$/)
       res.status = 500
+    elsif req.path.match(/get_cookies$/)
+      res['Content-Type'] = "text/plain"
+      res.body = req['Cookie']
+      return
     end
     respond_with("GET#{req.query_string}",req,res)
   end
@@ -90,7 +94,18 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
   end
 
   def do_POST(req,res)
-    if req.query['filename'].nil?
+    if req.path.match(/set_cookies$/)
+      JSON.parse(req.body || '[]', symbolize_names: true).each do |hash|
+        cookie = WEBrick::Cookie.new(hash.fetch(:name), hash.fetch(:value))
+        cookie.domain = hash[:domain] if hash.key?(:domain)
+        cookie.expires = hash[:expires] if hash.key?(:expires)
+        cookie.path = hash[:path] if hash.key?(:path)
+        cookie.secure = hash[:secure] if hash.key?(:secure)
+        cookie.max_age = hash[:max_age] if hash.key?(:max_age)
+        res.cookies.push(cookie)
+      end
+      respond_with('OK', req, res)
+    elsif req.query['filename'].nil?
       if req.body
         params = {}
         req.body.split('&').map{|s| k,v=s.split('='); params[k] = v }
