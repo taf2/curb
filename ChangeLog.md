@@ -1,4 +1,9 @@
 # Change Log
+## 1.0.7
+* updating test suite and internal tools for ruby 3.4
+* CURLOPT_COOKIELIST support
+* Add :on_missing to callbacks supported by Curl::Multi.http
+
 ## 1.0.6
 * Fix for PUT request length calculation
   - see: #451
