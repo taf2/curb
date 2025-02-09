@@ -467,6 +467,8 @@ have_func('rb_thread_blocking_region')
 have_header('ruby/thread.h') && have_func('rb_thread_call_without_gvl', 'ruby/thread.h')
 have_header('ruby/io.h')
 have_func('rb_io_stdio_file')
+have_func('curl_multi_wait')
+have_func('curl_easy_duphandle')
 
 create_header('curb_config.h')
 create_makefile('curb_core')
