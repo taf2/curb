@@ -13,7 +13,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     # this test fails with libcurl 7.22.0. I didn't investigate, but it may be related
     # to CURLOPT_MAXCONNECTS bug fixed in 7.30.0:
     # https://github.com/curl/curl/commit/e87e76e2dc108efb1cae87df496416f49c55fca0
-    omit("Skip, libcurl too old (< 7.22.0)") if Curl::CURL_VERSION.split('.')[1].to_i <= 22
+    omit("Skip, libcurl too old (< 7.22.0)") if Curl::CURL_VERSION.to_f < 8 && Curl::CURL_VERSION.split('.')[1].to_i <= 22
 
     @server.shutdown if @server
     @test_thread.kill if @test_thread
