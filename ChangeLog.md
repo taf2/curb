@@ -1,7 +1,14 @@
 # Change Log
 ## 1.0.7
-* updating test suite and internal tools for ruby 3.4
-* CURLOPT_COOKIELIST support
+* When available use curl_multi_wait for greater system compatibility, users of libcurl 7.28.0 and later should benefit from this change
+* Improve easy handle cloning to deep copy related lists, headers, cookies , proxy_headers, ftp_commands and resolve list.
+* Updating test suite and internal tools for ruby 3.4 
+* CURLOPT_COOKIELIST support see examples:
+```ruby
+easy.setopt(Curl::CURLOPT_COOKIELIST, "Set-Cookie: c1=v1; domain=localhost; expires=#{expires.httpdate};")
+easy.setopt(Curl::CURLOPT_COOKIELIST, [ ['.localhost', 'TRUE', '/', 'FALSE', 0, 'session', '42'].join("\t"),
+                                        ['.localhost', 'TRUE', '/', 'FALSE', 0, 'session2', '84'].join("\t"), '', ].join("\n") )
+```
 * Add :on_missing to callbacks supported by Curl::Multi.http
 
 ## 1.0.6
