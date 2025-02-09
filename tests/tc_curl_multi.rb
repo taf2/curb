@@ -186,7 +186,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     rescue Curl::Err::AbortedByCallbackError => e
       did_raise = true
       in_file = e.backtrace.detect {|err| err.match?(File.basename(__FILE__)) }
-      in_file_stack = e.backtrace.select {|err| err.match?(File.basename(__FILE__)) }
+      #in_file_stack = e.backtrace.select {|err| err.match?(File.basename(__FILE__)) }
       assert_match(__FILE__, in_file)
       in_file.gsub!(__FILE__)
       parts = in_file.split(':')
