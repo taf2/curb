@@ -421,71 +421,108 @@ static VALUE ruby_curl_postfield_content_proc_set(int argc, VALUE *argv, VALUE s
  * Only content fields may be converted to strings.
  */
 static VALUE ruby_curl_postfield_to_str(VALUE self) {
-  // FIXME This is using the deprecated curl_escape func
   ruby_curl_postfield *rbcpf;
   VALUE result = Qnil;
   VALUE name = Qnil;
   char *tmpchrs;
-  
+#ifdef HAVE_CURL_EASY_ESCAPE
+  CURL *curl_handle = NULL;
+#endif
+
   Data_Get_Struct(self, ruby_curl_postfield, rbcpf);
 
-    if (rbcpf->name != Qnil) {
-      name = rbcpf->name;
-      if (rb_type(name) == T_STRING) {
-        name = rbcpf->name;
-      } else if (rb_respond_to(name,rb_intern("to_s"))) {
+  if (rbcpf->name != Qnil) {
+    name = rbcpf->name;
+    if (TYPE(name) != T_STRING) {
+      if (rb_respond_to(name, rb_intern("to_s")))
         name = rb_funcall(name, rb_intern("to_s"), 0);
-      }
-      else {
-        name = Qnil; // we can't handle this object
-      }
+      else
+        name = Qnil;
     }
-    if (name == Qnil) {
-      rb_raise(eCurlErrInvalidPostField, "Cannot convert unnamed field to string %s:%d, make sure your field name responds_to :to_s", __FILE__, __LINE__);
-    }
+  }
+  if (name == Qnil) {
+    rb_raise(eCurlErrInvalidPostField,
+             "Cannot convert unnamed field to string %s:%d, make sure your field name responds_to :to_s",
+             __FILE__, __LINE__);
+  }
+  /* Force field name to UTF-8 before escaping */
+  VALUE name_utf8 = rb_str_export_to_enc(name, rb_utf8_encoding());
 
-    tmpchrs = curl_escape(StringValuePtr(name), (int)RSTRING_LEN(name));
-    
-    if (!tmpchrs) {
-      rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name `%s'", tmpchrs);
-    } else {
-      VALUE tmpcontent = Qnil;
-      VALUE escd_name = rb_str_new2(tmpchrs);
-      curl_free(tmpchrs);
-      
-      if (rbcpf->content_proc != Qnil) {
-        tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
-      } else if (rbcpf->content != Qnil) {
-        tmpcontent = rbcpf->content;
-      } else if (rbcpf->local_file != Qnil) {
-        tmpcontent = rbcpf->local_file;
-      } else if (rbcpf->remote_file != Qnil) {
-        tmpcontent = rbcpf->remote_file;
-      } else {
-        tmpcontent = rb_str_new2("");
-      }
-      if (TYPE(tmpcontent) != T_STRING) {
-        if (rb_respond_to(tmpcontent, rb_intern("to_s"))) {
-          tmpcontent = rb_funcall(tmpcontent, rb_intern("to_s"), 0);
-        }
-        else {
-          rb_raise(rb_eRuntimeError, "postfield(%s) is not a string and does not respond_to to_s", RSTRING_PTR(escd_name) );
-        }
-      }
-      //fprintf(stderr, "encoding content: %ld - %s\n", RSTRING_LEN(tmpcontent), RSTRING_PTR(tmpcontent) );
-      tmpchrs = curl_escape(RSTRING_PTR(tmpcontent), (int)RSTRING_LEN(tmpcontent));
-      if (!tmpchrs) {
-        rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content `%s'", tmpchrs);
-      } else {
-        VALUE escd_content = rb_str_new2(tmpchrs);
-        curl_free(tmpchrs);
-        
-        result = escd_name;
-        rb_str_cat(result, "=", 1);
-        rb_str_concat(result, escd_content); 
-      }
+#ifdef HAVE_CURL_EASY_ESCAPE
+  curl_handle = curl_easy_init();
+  if (!curl_handle) {
+    rb_raise(eCurlErrInvalidPostField, "Failed to initialize curl handle for escaping");
+  }
+  tmpchrs = curl_easy_escape(curl_handle, StringValuePtr(name_utf8), (int)RSTRING_LEN(name_utf8));
+  if (!tmpchrs) {
+    curl_easy_cleanup(curl_handle);
+    rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name");
+  }
+#else
+  tmpchrs = curl_escape(StringValuePtr(name_utf8), (int)RSTRING_LEN(name_utf8));
+  if (!tmpchrs) {
+    rb_raise(eCurlErrInvalidPostField, "Failed to url-encode name");
+  }
+#endif
+
+  VALUE escd_name = rb_str_new2(tmpchrs);
+#ifdef HAVE_CURL_EASY_ESCAPE
+  curl_free(tmpchrs);
+#else
+  curl_free(tmpchrs);
+#endif
+
+  VALUE tmpcontent = Qnil;
+  if (rbcpf->content_proc != Qnil) {
+    tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
+  } else if (rbcpf->content != Qnil) {
+    tmpcontent = rbcpf->content;
+  } else if (rbcpf->local_file != Qnil) {
+    tmpcontent = rbcpf->local_file;
+  } else if (rbcpf->remote_file != Qnil) {
+    tmpcontent = rbcpf->remote_file;
+  } else {
+    tmpcontent = rb_str_new2("");
+  }
+  if (TYPE(tmpcontent) != T_STRING) {
+    if (rb_respond_to(tmpcontent, rb_intern("to_s")))
+      tmpcontent = rb_funcall(tmpcontent, rb_intern("to_s"), 0);
+    else {
+#ifdef HAVE_CURL_EASY_ESCAPE
+      curl_easy_cleanup(curl_handle);
+#endif
+      rb_raise(rb_eRuntimeError,
+               "postfield(%s) is not a string and does not respond_to to_s",
+               RSTRING_PTR(escd_name));
     }
-  
+  }
+  /* Force content to UTF-8 before escaping */
+  VALUE content_utf8 = rb_str_export_to_enc(tmpcontent, rb_utf8_encoding());
+#ifdef HAVE_CURL_EASY_ESCAPE
+  tmpchrs = curl_easy_escape(curl_handle, StringValuePtr(content_utf8), (int)RSTRING_LEN(content_utf8));
+  if (!tmpchrs) {
+    curl_easy_cleanup(curl_handle);
+    rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content");
+  }
+#else
+  tmpchrs = curl_escape(StringValuePtr(content_utf8), (int)RSTRING_LEN(content_utf8));
+  if (!tmpchrs) {
+    rb_raise(eCurlErrInvalidPostField, "Failed to url-encode content");
+  }
+#endif
+
+  VALUE escd_content = rb_str_new2(tmpchrs);
+#ifdef HAVE_CURL_EASY_ESCAPE
+  curl_free(tmpchrs);
+  curl_easy_cleanup(curl_handle);
+#else
+  curl_free(tmpchrs);
+#endif
+
+  result = escd_name;
+  rb_str_cat(result, "=", 1);
+  rb_str_concat(result, escd_content);
+
   return result;
 }
 

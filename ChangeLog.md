@@ -1,5 +1,6 @@
 # Change Log
 ## 1.0.7
+* With newer versions of libcurl we can use curl_easy_escape instead of curl_escape, this should improve character encoding support
 * When available use curl_multi_wait for greater system compatibility, users of libcurl 7.28.0 and later should benefit from this change
 * Improve easy handle cloning to deep copy related lists, headers, cookies , proxy_headers, ftp_commands and resolve list.
 * Updating test suite and internal tools for ruby 3.4 
