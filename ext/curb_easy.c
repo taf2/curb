@@ -31,6 +31,7 @@ static FILE * rb_io_stdio_file(rb_io_t *fptr) {
   return fptr->f;
 }
 #endif
+static struct curl_slist *duplicate_curl_slist(struct curl_slist *list);
 
 /* ================== CURL HANDLER FUNCS ==============*/
 
@@ -264,7 +265,7 @@ void curl_easy_free(ruby_curl_easy *rbce) {
 static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->opts = rb_hash_new();
 
-  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+  memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
 
   rbce->curl_headers = NULL;
   rbce->curl_proxy_headers = NULL;
@@ -370,6 +371,16 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
   return self;
 }
 
+/* Helper to duplicate a curl_slist */
+static struct curl_slist *duplicate_curl_slist(struct curl_slist *list) {
+    struct curl_slist *dup = NULL;
+    struct curl_slist *tmp;
+    for (tmp = list; tmp; tmp = tmp->next) {
+        dup = curl_slist_append(dup, tmp->data);
+    }
+    return dup;
+}
+
 /*
  * call-seq:
  *   easy.clone                                       => <easy clone>
@@ -384,14 +395,22 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
   newrbce = ALLOC(ruby_curl_easy);
+  /* shallow copy */
   memcpy(newrbce, rbce, sizeof(ruby_curl_easy));
-  newrbce->curl = curl_easy_duphandle(rbce->curl);
-  newrbce->curl_headers = NULL;
-  newrbce->curl_proxy_headers = NULL;
-  newrbce->curl_ftp_commands = NULL;
-  newrbce->curl_resolve = NULL;
 
-  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
+  /* now deep copy */
+  newrbce->curl = curl_easy_duphandle(rbce->curl);
+  newrbce->curl_headers = (rbce->curl_headers) ? duplicate_curl_slist(rbce->curl_headers) : NULL;
+  newrbce->curl_proxy_headers = (rbce->curl_proxy_headers) ? duplicate_curl_slist(rbce->curl_proxy_headers) : NULL;
+  newrbce->curl_ftp_commands = (rbce->curl_ftp_commands) ? duplicate_curl_slist(rbce->curl_ftp_commands) : NULL;
+  newrbce->curl_resolve = (rbce->curl_resolve) ? duplicate_curl_slist(rbce->curl_resolve) : NULL;
+
+  if (rbce->opts != Qnil) {
+    newrbce->opts = rb_funcall(rbce->opts, rb_intern("dup"), 0);
+  }
+
+  /* Set the error buffer on the new curl handle using the new err_buf */
+  curl_easy_setopt(newrbce->curl, CURLOPT_ERRORBUFFER, newrbce->err_buf);
 
   return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
 }
@@ -2614,7 +2633,7 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
-  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+  memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
 
@@ -2681,7 +2700,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
-  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+  memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
@@ -2754,7 +2773,7 @@ static VALUE ruby_curl_easy_perform_put(VALUE self, VALUE data) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
   curl = rbce->curl;
 
-  memset(rbce->err_buf, 0, sizeof(rbce->err_buf));
+  memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
 
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
   ruby_curl_easy_put_data_set(self, data);
