@@ -27,6 +27,21 @@
   #include <fcntl.h>
 #endif
 
+#ifdef HAVE_CURL_MULTI_WAIT
+#include <stdint.h>  /* for intptr_t */
+
+struct wait_args {
+  CURLM *handle;
+  long timeout_ms;
+  int numfds;
+};
+static void *curl_multi_wait_wrapper(void *p) {
+  struct wait_args *args = p;
+  CURLMcode code = curl_multi_wait(args->handle, NULL, 0, args->timeout_ms, &args->numfds);
+  return (void *)(intptr_t)code;
+}
+#endif
+
 extern VALUE mCurl;
 static VALUE idCall;
 
@@ -528,7 +543,6 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   do {
     while (rbcm->running) {
-
 #ifdef HAVE_CURL_MULTI_TIMEOUT
       /* get the curl suggested time out */
       mcode = curl_multi_timeout(rbcm->handle, &timeout_milliseconds);
@@ -551,6 +565,31 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
                                                         /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
       }
+
+#ifdef HAVE_CURL_MULTI_WAIT
+      {
+        struct wait_args wait_args;
+        wait_args.handle     = rbcm->handle;
+        wait_args.timeout_ms = timeout_milliseconds;
+        wait_args.numfds     = 0;
+#if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+        CURLMcode wait_rc = (CURLMcode)(intptr_t)
+                            rb_thread_call_without_gvl(curl_multi_wait_wrapper, &wait_args, RUBY_UBF_IO, NULL);
+#else
+        CURLMcode wait_rc = curl_multi_wait(rbcm->handle, NULL, 0, timeout_milliseconds, &wait_args.numfds);
+#endif
+        if (wait_rc != CURLM_OK) {
+          raise_curl_multi_error_exception(wait_rc);
+        }
+        if (wait_args.numfds == 0) {
+          rb_thread_wait_for(tv_100ms);
+        }
+        /* Process pending transfers after waiting */
+        rb_curl_multi_run(self, rbcm->handle, &(rbcm->running));
+        rb_curl_multi_read_info(self, rbcm->handle);
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self); }
+      }
+#else
 
       tv.tv_sec  = 0; /* never wait longer than 1 second */
       tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
@@ -618,6 +657,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
         break;
       }
+#endif /* HAVE_CURL_MULTI_WAIT */
     }
 
   } while( rbcm->running );
