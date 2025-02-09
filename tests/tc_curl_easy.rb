@@ -110,7 +110,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end    
 
   def test_class_perform_02
-    data = ""
+    data = String.new
     assert_instance_of Curl::Easy, c = Curl::Easy.perform($TEST_URL) { |curl| curl.on_body { |d| data << d; d.length } }    
 
     assert_nil c.body_str
@@ -211,7 +211,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end    
 
   def test_get_02
-    data = ""
+    data = String.new
     c = Curl::Easy.new($TEST_URL) do |curl|
       curl.on_body { |d| data << d; d.length }
     end

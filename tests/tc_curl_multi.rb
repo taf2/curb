@@ -114,13 +114,13 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   end
 
   def test_new_multi_01
-    d1 = ""
+    d1 = String.new
     c1 = Curl::Easy.new($TEST_URL) do |curl|
       curl.headers["User-Agent"] = "myapp-0.0"
       curl.on_body {|d| d1 << d; d.length }
     end
 
-    d2 = ""
+    d2 = String.new
     c2 = Curl::Easy.new($TEST_URL) do |curl|
       curl.headers["User-Agent"] = "myapp-0.0"
       curl.on_body {|d| d2 << d; d.length }
@@ -206,7 +206,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m = Curl::Multi.new
     responses = []
     n.times do|i|
-      responses[i] = ""
+      responses[i] = String.new
       c = Curl::Easy.new($TEST_URL) do|curl|
         curl.on_body{|data| responses[i] << data; data.size }
       end
@@ -230,7 +230,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     5.times do|it|
       responses = []
       n.times do|i|
-        responses[i] = ""
+        responses[i] = String.new
         c = Curl::Easy.new($TEST_URL) do|curl|
           curl.on_body{|data| responses[i] << data; data.size }
         end
@@ -376,7 +376,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     attr_reader :buf
 
     def t_method
-      @buf = ""
+      @buf = String.new
       @m = Curl::Multi.new
       10.times do|i|
         c = Curl::Easy.new($TEST_URL)
@@ -422,8 +422,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m = Curl::Multi.new
     # add a few easy handles
     requests.each do |url|
-      responses[url] = ""
-      responses["#{url}-header"] = ""
+      responses[url] = String.new
+      responses["#{url}-header"] = String.new
       c = Curl::Easy.new(url) do|curl|
         curl.follow_location = true
         curl.on_header{|data| responses["#{url}-header"] << data; data.size }

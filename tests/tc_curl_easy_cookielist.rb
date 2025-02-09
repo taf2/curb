@@ -15,12 +15,21 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
 
     # Since 7.43.0 cookies that were imported in the Set-Cookie format without a domain name are not exported by this option.
     # So, before 7.43.0, c3 and c4 will be exported too; but that version is far too old for current curb version, so it's not handled here.
+    if Curl::CURL_VERSION.to_f > 8
+    expected_cookielist = [
+      ".127.0.0.1\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc5\tv5",
+      ".127.0.0.1\tTRUE\t/\tFALSE\t0\tc6\tv6",
+      ".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc1\tv1",
+      ".localhost\tTRUE\t/\tFALSE\t0\tc2\tv2",
+    ]
+    else
     expected_cookielist = [
       "127.0.0.1\tFALSE\t/\tFALSE\t#{expires.to_time.to_i}\tc5\tv5",
       "127.0.0.1\tFALSE\t/\tFALSE\t0\tc6\tv6",
       ".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc1\tv1",
       ".localhost\tTRUE\t/\tFALSE\t0\tc2\tv2",
     ]
+    end
     assert_equal expected_cookielist, easy.cookielist
 
     easy.url = "#{TestServlet.url}/get_cookies"
