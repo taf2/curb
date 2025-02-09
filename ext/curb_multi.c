@@ -241,6 +241,8 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 
   mcode = curl_multi_add_handle(rbcm->handle, rbce->curl);
   if (mcode != CURLM_CALL_MULTI_PERFORM && mcode != CURLM_OK) {
+    ruby_curl_easy_cleanup(easy, rbce);
+
     raise_curl_multi_error_exception(mcode);
   }
 
@@ -279,6 +281,7 @@ VALUE ruby_curl_multi_remove(VALUE self, VALUE rb_easy_handle) {
 
   return self;
 }
+
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   CURLMcode result;
   ruby_curl_easy *rbce;
