@@ -3,6 +3,10 @@
 require 'rake/clean'
 require 'rake/testtask'
 require "ruby_memcheck"
+begin
+require 'mixlib/shellout'
+rescue LoadError
+end
 
 CLEAN.include '**/*.o'
 CLEAN.include "**/*.#{(defined?(RbConfig) ? RbConfig : Config)::MAKEFILE_CONFIG['DLEXT']}"
