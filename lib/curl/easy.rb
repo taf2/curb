@@ -374,13 +374,36 @@ module Curl
       #
       # call-seq:
       #   Curl::Easy.http_put(url, data) {|c| ... }
+      #   Curl::Easy.http_put(url, "some=urlencoded%20form%20data&and=so%20on") => true
+      #   Curl::Easy.http_put(url, "some=urlencoded%20form%20data", "and=so%20on", ...) => true
+      #   Curl::Easy.http_put(url, "some=urlencoded%20form%20data", Curl::PostField, "and=so%20on", ...) => true
+      #   Curl::Easy.http_put(url, Curl::PostField, Curl::PostField ..., Curl::PostField) => true
       #
       # see easy.http_put
       #
-      def http_put(url, data)
-        c = Curl::Easy.new url
+      def http_put(*args)
+        url = args.shift
+        c = Curl::Easy.new(url)
         yield c if block_given?
-        c.http_put data
+        c.http_put(*args)
+        c
+      end
+
+      #
+      # call-seq:
+      #   Curl::Easy.http_patch(url, data) {|c| ... }
+      #   Curl::Easy.http_patch(url, "some=urlencoded%20form%20data&and=so%20on") => true
+      #   Curl::Easy.http_patch(url, "some=urlencoded%20form%20data", "and=so%20on", ...) => true
+      #   Curl::Easy.http_patch(url, "some=urlencoded%20form%20data", Curl::PostField, "and=so%20on", ...) => true
+      #   Curl::Easy.http_patch(url, Curl::PostField, Curl::PostField ..., Curl::PostField) => true
+      #
+      # see easy.http_patch
+      #
+      def http_patch(*args)
+        url = args.shift
+        c = Curl::Easy.new(url)
+        yield c if block_given?
+        c.http_patch(*args)
         c
       end
 

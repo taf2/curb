@@ -765,20 +765,27 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 'GET', curl.body_str
   end
   
-  def test_post_remote
+  def test_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_post([Curl::PostField.content('document_id', 5)])
     assert_equal "POST\ndocument_id=5", curl.unescape(curl.body_str)
+
+    curl.http_put([Curl::PostField.content('document_id', 5)])
+    assert_equal "PUT\ndocument_id=5", curl.unescape(curl.body_str)
+
+    curl.http_patch([Curl::PostField.content('document_id', 5)])
+    assert_equal "PATCH\ndocument_id=5", curl.unescape(curl.body_str)
   end
 
-  def test_post_remote_is_easy_handle
+  def test_remote_is_easy_handle
     # see: http://pastie.org/560852 and
     # http://groups.google.com/group/curb---ruby-libcurl-bindings/browse_thread/thread/216bb2d9b037f347?hl=en
-    [:post, :get, :head, :delete].each do |method|
+    [:post, :patch, :put, :get, :head, :delete].each do |method|
       retries = 0
       begin
         count = 0
-        Curl::Easy.send("http_#{method}", TestServlet.url) do|c|
+        m = "http_#{method}".to_sym
+        Curl::Easy.send(m, TestServlet.url) do|c|
           count += 1
           assert_equal Curl::Easy, c.class
         end
@@ -787,12 +794,14 @@ class TestCurbCurlEasy < Test::Unit::TestCase
         retries+=1
         retry if retries < 3
         raise e
+      rescue ArgumentError => e
+        assert false, "#{m} - #{e.message}"
       end
     end
   end
 
   # see: https://github.com/rvanlieshout/curb/commit/8bcdefddc0162484681ebd1a92d52a642666a445
-  def test_post_multipart_array_remote
+  def test_multipart_array_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.multipart_form_post = true
     fields = [
@@ -802,9 +811,23 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl.http_post(fields)
     assert_match(/HTTP POST file upload/, curl.body_str)
     assert_match(/Content-Disposition: form-data/, curl.body_str)
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = true
+    fields = [
+      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown'))),
+      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
+    ]
+    curl.http_put(fields)
+    assert_match(/HTTP POST file upload/, curl.body_str)
+    assert_match(/Content-Disposition: form-data/, curl.body_str)
+
+    curl.http_patch(fields)
+    assert_match(/HTTP POST file upload/, curl.body_str)
+    assert_match(/Content-Disposition: form-data/, curl.body_str)
   end
   
-  def test_post_with_body_remote
+  def test_with_body_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.post_body = 'foo=bar&encoded%20string=val'
     
@@ -812,23 +835,42 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     
     assert_equal "POST\nfoo=bar&encoded%20string=val", curl.body_str
     assert_equal 'foo=bar&encoded%20string=val', curl.post_body
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.put_data = 'foo=bar&encoded%20string=val'
+    
+    curl.perform
+    
+    assert_equal "PUT\nfoo=bar&encoded%20string=val", curl.body_str
   end
   
-  def test_form_post_body_remote
+  def test_form_body_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_post('foo=bar', 'encoded%20string=val')
     
     assert_equal "POST\nfoo=bar&encoded%20string=val", curl.body_str
     assert_equal 'foo=bar&encoded%20string=val', curl.post_body
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_put('foo=bar', 'encoded%20string=val')
+    
+    assert_equal "PUT\nfoo=bar&encoded%20string=val", curl.body_str
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.http_patch('foo=bar', 'encoded%20string=val')
+    
+    assert_equal "PATCH\nfoo=bar&encoded%20string=val", curl.body_str
   end
 
-  def test_post_multipart_file_remote
-    curl = Curl::Easy.new(TestServlet.url)
-    curl.multipart_form_post = true
-    pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
-    curl.http_post(pf)
-    assert_match(/HTTP POST file upload/, curl.body_str)
-    assert_match(/Content-Disposition: form-data/, curl.body_str)
+  def test_multipart_file_remote
+    [:put, :post, :patch].each {|method|
+      curl = Curl::Easy.new(TestServlet.url)
+      curl.multipart_form_post = true
+      pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
+      curl.send("http_#{method}", pf)
+      assert_match(/HTTP POST file upload/, curl.body_str)
+      assert_match(/Content-Disposition: form-data/, curl.body_str)
+    }
   end
 
   def test_delete_remote
@@ -1065,6 +1107,12 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal "PUT\nhello", curl.body_str
     curl.http('COPY')
     assert_equal 'COPY', curl.body_str
+
+    curl.http_patch
+    assert_equal "PATCH\n", curl.body_str
+
+    curl.http_put
+    assert_equal "PUT\n", curl.body_str
   end
 
   def test_easy_http_verbs_must_respond_to_str

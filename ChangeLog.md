@@ -1,4 +1,6 @@
 # Change Log
+## 1.0.8
+* PUT and PATCH requests now behave like POST requests with multipart form data supporting http_post, http_put, and http_patch with PostField arguments
 ## 1.0.7
 * Clean up easy handle after failing to add to a multi handle
 * With newer versions of libcurl we can use curl_easy_escape instead of curl_escape, this should improve character encoding support
