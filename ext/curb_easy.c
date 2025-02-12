@@ -2535,7 +2535,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
       rb_iterate(rb_each, rb_easy_get("proxy_headers"), cb_each_http_proxy_header, wrap);
     } else {
       VALUE proxy_headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
-      *phdrs = curl_slist_append(*hdrs, StringValuePtr(proxy_headers_str));
+      *phdrs = curl_slist_append(*phdrs, StringValuePtr(proxy_headers_str));
     }
 
     if (*phdrs) {
