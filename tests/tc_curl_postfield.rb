@@ -58,12 +58,13 @@ class TestCurbCurlPostfield < Test::Unit::TestCase
 
   def test_new_file_01
     pf = Curl::PostField.file('foo', 'localname')
+    pf.content_type = 'text/super'
 
     assert_equal 'foo', pf.name
     assert_equal 'localname', pf.local_file
     assert_equal 'localname', pf.remote_file
     assert_nothing_raised { pf.to_s }
-    assert_nil pf.content_type
+    assert_equal 'text/super', pf.content_type
     assert_nil pf.content
     assert_nil pf.set_content_proc
   end
