@@ -3,6 +3,7 @@
 $CURB_TESTING = true
 require 'uri'
 require 'stringio'
+require 'digest/md5'
 
 $TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
 $EXTDIR = File.join($TOPDIR, 'ext')

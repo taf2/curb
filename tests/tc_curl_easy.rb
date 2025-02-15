@@ -1058,10 +1058,9 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.multipart_form_post = true
     easy.http_post(pf)
 
-    assert_not_equal(0,easy.body_str.size)
-    assert_equal(easy.body_str.tr("\r", ''), File.read(readme))
+    assert_not_equal(0,easy.body.size)
+    assert_equal(Digest::MD5.hexdigest(easy.body), Digest::MD5.hexdigest(File.read(readme)))
   end
-
 
   def test_easy_close
     easy = Curl::Easy.new
