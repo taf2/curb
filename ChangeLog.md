@@ -1,6 +1,7 @@
 # Change Log
 ## 1.0.9
 * Fix for proxy headers see #457
+* Add CI for Ruby 2.7, Ruby 3.3 and 3.4
 ## 1.0.8
 * PUT and PATCH requests now behave like POST requests with multipart form data supporting http_post, http_put, and http_patch with PostField arguments
 ## 1.0.7
