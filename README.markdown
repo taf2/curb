@@ -10,6 +10,8 @@ cURL and libcurl live at [https://curl.se/libcurl/](https://curl.se/libcurl/) .
 
 Curb is a work-in-progress, and currently only supports libcurl's `easy` and `multi` modes.
 
+A big advantage to Curb over all other known ruby http libraries is it's ability to handle timeouts without the use of threads.
+
 ## License
 
 Curb is copyright (c) 2006 Ross Bamford, and released under the terms of the
