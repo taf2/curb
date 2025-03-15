@@ -190,6 +190,25 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
 /*
  * call-seq:
  * multi = Curl::Multi.new
+ * multi.max_host_connections = 1
+ *
+ * Set the max number of connections per host
+ */
+static VALUE ruby_curl_multi_max_host_connections(VALUE self, VALUE count) {
+#ifdef HAVE_CURLMOPT_MAX_HOST_CONNECTIONS
+  ruby_curl_multi *rbcm;
+
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+
+  curl_multi_setopt(rbcm->handle, CURLMOPT_MAX_HOST_CONNECTIONS, NUM2LONG(count));
+#endif
+
+  return count;
+}
+
+/*
+ * call-seq:
+ * multi = Curl::Multi.new
  * multi.pipeline = true
  *
  * Pass a long set to 1 for HTTP/1.1 pipelining, 2 for HTTP/2 multiplexing, or 0 to disable.
@@ -704,6 +723,7 @@ void init_curb_multi() {
   rb_define_singleton_method(cCurlMulti, "autoclose", ruby_curl_multi_get_autoclose, 0);
   /* Instance methods */
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
+  rb_define_method(cCurlMulti, "max_host_connections=", ruby_curl_multi_max_host_connections, 1);
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
   rb_define_method(cCurlMulti, "_add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "_remove", ruby_curl_multi_remove, 1);
