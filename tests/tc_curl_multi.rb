@@ -552,6 +552,25 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_multi_easy_http_with_max_host_connections
+    urls = [
+      { :url => TestServlet.url + '?q=1', :method => :get },
+      { :url => TestServlet.url + '?q=2', :method => :get },
+      { :url => TestServlet.url + '?q=3', :method => :get }
+    ]
+    Curl::Multi.http(urls, {:pipeline => true, :max_host_connections => 1}) do|easy, code, method|
+      assert_equal 200, code
+      case method
+      when :post
+        assert_match(/POST/, easy.body)
+      when :get
+        assert_match(/GET/, easy.body)
+      when :put
+        assert_match(/PUT/, easy.body)
+      end
+    end
+  end
+
   def test_multi_recieves_500
     m = Curl::Multi.new
     e = Curl::Easy.new("http://127.0.0.1:9129/methods")
