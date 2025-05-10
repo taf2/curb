@@ -3,7 +3,6 @@ require 'curb_core'
 require 'curl/easy'
 require 'curl/multi'
 require 'uri'
-require 'cgi'
 
 # expose shortcut methods
 module Curl
