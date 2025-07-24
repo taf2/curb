@@ -309,6 +309,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->enable_cookies = 0;
   rbce->ignore_content_length = 0;
   rbce->callback_active = 0;
+  rbce->last_result = 0;
 }
 
 /*

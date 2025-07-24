@@ -1095,6 +1095,18 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.http_get
   end
 
+  def test_last_result_initialization
+    # Test for issue #463 - ensure last_result is properly initialized to 0
+    easy = Curl::Easy.new
+    assert_equal 0, easy.last_result, "last_result should be initialized to 0 for new instance"
+    
+    # Test that reset also sets last_result to 0
+    easy.url = TestServlet.url
+    easy.http_get
+    easy.reset
+    assert_equal 0, easy.last_result, "last_result should be reset to 0 after calling reset"
+  end
+
   def test_easy_use_http_versions
     easy = Curl::Easy.new
     easy.url = TestServlet.url + "?query=foo"
