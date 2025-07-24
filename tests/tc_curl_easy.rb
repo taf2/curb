@@ -18,6 +18,20 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 200, easy.code
   end
 
+  def test_curlopt_resolve
+    require 'resolv'
+    uri = URI.parse(TestServlet.url)
+    resolved_ip = Resolv.getaddress(uri.host)   # perform DNS lookup once
+    mapping = "#{uri.host}:#{uri.port}:#{resolved_ip}"
+
+    http = Curl::Easy.new(TestServlet.url)
+    http.setopt(Curl::CURLOPT_RESOLVE, [mapping])
+
+    http.get
+
+    assert_match(/GET/, http.body)
+  end
+
   def test_curlopt_stderr_with_file
     # does not work with Tempfile directly
     path = Tempfile.new('curb_test_curlopt_stderr').path

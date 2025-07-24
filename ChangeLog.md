@@ -1,4 +1,19 @@
 # Change Log
+## 1.1.0
+* Add support for CURLOPT_RESOLVE
+  ```ruby
+    require 'resolv'
+    uri = URI.parse("https://google.com/")
+    resolved_ip = Resolv.getaddress(uri.host)   # perform DNS lookup once
+    mapping = "#{uri.host}:#{uri.port}:#{resolved_ip}"
+
+    http = Curl::Easy.new("https://google.com/")
+    http.setopt(Curl::CURLOPT_RESOLVE, [mapping])
+
+    http.get
+
+    assert_match(/GET/, http.body)
+  ```
 ## 1.0.9
 * Fix for proxy headers see #457
 * Add CI for Ruby 2.7, Ruby 3.3 and 3.4

@@ -3822,6 +3822,27 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_PROXY_SSL_VERIFYHOST, NUM2LONG(val));
     break;
 #endif
+#if HAVE_CURLOPT_RESOLVE
+  case CURLOPT_RESOLVE: {
+    struct curl_slist *list = NULL;
+    if (NIL_P(val)) {
+      /* When nil is passed, we clear any previous resolve list */
+      list = NULL;
+    } else if (TYPE(val) == T_ARRAY) {
+      long i, len = RARRAY_LEN(val);
+      for (i = 0; i < len; i++) {
+        VALUE item = rb_ary_entry(val, i);
+        list = curl_slist_append(list, StringValueCStr(item));
+      }
+    } else {
+      /* If a single string is passed, use it directly */
+      list = curl_slist_append(NULL, StringValueCStr(val));
+    }
+    /* Save the list pointer in the ruby_curl_easy structure for cleanup later */
+    rbce->curl_resolve = list;
+    curl_easy_setopt(rbce->curl, CURLOPT_RESOLVE, list);
+  } break;
+#endif
   default:
     rb_raise(rb_eTypeError, "Curb unsupported option");
   }
