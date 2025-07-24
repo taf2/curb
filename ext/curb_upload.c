@@ -24,6 +24,9 @@ static void curl_upload_free(ruby_curl_upload *rbcu) {
 VALUE ruby_curl_upload_new(VALUE klass) {
   VALUE upload;
   ruby_curl_upload *rbcu = ALLOC(ruby_curl_upload);
+  if (!rbcu) {
+    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Upload");
+  }
   rbcu->stream = Qnil;
   rbcu->offset = 0;
   upload = Data_Wrap_Struct(klass, curl_upload_mark, curl_upload_free, rbcu);

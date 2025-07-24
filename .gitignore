@@ -16,3 +16,6 @@ vendor/
 .bundle/
 .idea
 *.lock
+*.gem
+
+ext/curb_core.bundle.dSYM/

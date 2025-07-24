@@ -317,6 +317,9 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
 static VALUE ruby_curl_easy_allocate(VALUE klass) {
   ruby_curl_easy *rbce;
   rbce = ALLOC(ruby_curl_easy);
+  if (!rbce) {
+    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Easy");
+  }
   rbce->curl = NULL;
   rbce->opts  = Qnil;
   rbce->multi = Qnil;
@@ -375,8 +378,14 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
 static struct curl_slist *duplicate_curl_slist(struct curl_slist *list) {
     struct curl_slist *dup = NULL;
     struct curl_slist *tmp;
+    struct curl_slist *new_list;
     for (tmp = list; tmp; tmp = tmp->next) {
-        dup = curl_slist_append(dup, tmp->data);
+        new_list = curl_slist_append(dup, tmp->data);
+        if (!new_list) {
+            if (dup) { curl_slist_free_all(dup); }
+            rb_raise(rb_eNoMemError, "Failed to duplicate curl_slist");
+        }
+        dup = new_list;
     }
     return dup;
 }
@@ -395,6 +404,9 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   Data_Get_Struct(self, ruby_curl_easy, rbce);
 
   newrbce = ALLOC(ruby_curl_easy);
+  if (!newrbce) {
+    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Easy clone");
+  }
   /* shallow copy */
   memcpy(newrbce, rbce, sizeof(ruby_curl_easy));
 
@@ -2165,7 +2177,11 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap, int _c, const VALUE *
 
   //rb_p(header_str);
 
-  *list = curl_slist_append(*list, StringValuePtr(header_str));
+  struct curl_slist *new_list = curl_slist_append(*list, StringValuePtr(header_str));
+  if (!new_list) {
+    rb_raise(rb_eNoMemError, "Failed to append to header list");
+  }
+  *list = new_list;
   return header_str;
 }
 
@@ -2197,7 +2213,11 @@ static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap, int _c, c
 
   //rb_p(header_str);
 
-  *list = curl_slist_append(*list, StringValuePtr(proxy_header_str));
+  struct curl_slist *new_list = curl_slist_append(*list, StringValuePtr(proxy_header_str));
+  if (!new_list) {
+    rb_raise(rb_eNoMemError, "Failed to append to proxy header list");
+  }
+  *list = new_list;
   return proxy_header_str;
 }
 
@@ -2210,7 +2230,11 @@ static VALUE cb_each_ftp_command(VALUE ftp_command, VALUE wrap, int _c, const VA
   Data_Get_Struct(wrap, struct curl_slist *, list);
 
   ftp_command_string = rb_obj_as_string(ftp_command);
-  *list = curl_slist_append(*list, StringValuePtr(ftp_command));
+  struct curl_slist *new_list = curl_slist_append(*list, StringValuePtr(ftp_command));
+  if (!new_list) {
+    rb_raise(rb_eNoMemError, "Failed to append to FTP command list");
+  }
+  *list = new_list;
 
   return ftp_command_string;
 }
@@ -2224,7 +2248,11 @@ static VALUE cb_each_resolve(VALUE resolve, VALUE wrap, int _c, const VALUE *_pt
   Data_Get_Struct(wrap, struct curl_slist *, list);
 
   resolve_string = rb_obj_as_string(resolve);
-  *list = curl_slist_append(*list, StringValuePtr(resolve));
+  struct curl_slist *new_list = curl_slist_append(*list, StringValuePtr(resolve));
+  if (!new_list) {
+    rb_raise(rb_eNoMemError, "Failed to append to resolve list");
+  }
+  *list = new_list;
 
   return resolve_string;
 }
@@ -2517,7 +2545,11 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
       rb_iterate(rb_each, rb_easy_get("headers"), cb_each_http_header, wrap);
     } else {
       VALUE headers_str = rb_obj_as_string(rb_easy_get("headers"));
-      *hdrs = curl_slist_append(*hdrs, StringValuePtr(headers_str));
+      struct curl_slist *new_list = curl_slist_append(*hdrs, StringValuePtr(headers_str));
+      if (!new_list) {
+        rb_raise(rb_eNoMemError, "Failed to append to headers list");
+      }
+      *hdrs = new_list;
     }
 
     if (*hdrs) {
@@ -2535,7 +2567,11 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
       rb_iterate(rb_each, rb_easy_get("proxy_headers"), cb_each_http_proxy_header, wrap);
     } else {
       VALUE proxy_headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
-      *phdrs = curl_slist_append(*phdrs, StringValuePtr(proxy_headers_str));
+      struct curl_slist *new_list = curl_slist_append(*phdrs, StringValuePtr(proxy_headers_str));
+      if (!new_list) {
+        rb_raise(rb_eNoMemError, "Failed to append to proxy headers list");
+      }
+      *phdrs = new_list;
     }
 
     if (*phdrs) {
@@ -3832,11 +3868,19 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
       long i, len = RARRAY_LEN(val);
       for (i = 0; i < len; i++) {
         VALUE item = rb_ary_entry(val, i);
-        list = curl_slist_append(list, StringValueCStr(item));
+        struct curl_slist *new_list = curl_slist_append(list, StringValueCStr(item));
+        if (!new_list) {
+          curl_slist_free_all(list);
+          rb_raise(rb_eNoMemError, "Failed to append to resolve list");
+        }
+        list = new_list;
       }
     } else {
       /* If a single string is passed, use it directly */
       list = curl_slist_append(NULL, StringValueCStr(val));
+      if (!list) {
+        rb_raise(rb_eNoMemError, "Failed to create resolve list");
+      }
     }
     /* Save the list pointer in the ruby_curl_easy structure for cleanup later */
     rbce->curl_resolve = list;

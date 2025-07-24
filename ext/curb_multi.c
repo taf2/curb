@@ -102,6 +102,9 @@ static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
  */
 VALUE ruby_curl_multi_new(VALUE klass) {
   ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
+  if (!rbcm) {
+    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Multi");
+  }
 
   ruby_curl_multi_init(rbcm);
 

@@ -209,6 +209,9 @@ void curl_postfield_free(ruby_curl_postfield *rbcpf) {
  */
 static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass) {
   ruby_curl_postfield *rbcpf = ALLOC(ruby_curl_postfield);
+  if (!rbcpf) {
+    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::PostField");
+  }
  
   // wierdness - we actually require two args, unless a block is provided, but
   // we have to work that out below.
@@ -255,6 +258,9 @@ static VALUE ruby_curl_postfield_new_content(int argc, VALUE *argv, VALUE klass)
 static VALUE ruby_curl_postfield_new_file(int argc, VALUE *argv, VALUE klass) {
   // TODO needs to handle content-type too
   ruby_curl_postfield *rbcpf = ALLOC(ruby_curl_postfield);
+  if (!rbcpf) {
+    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::PostField");
+  }
 
   rb_scan_args(argc, argv, "21&", &rbcpf->name, &rbcpf->local_file, &rbcpf->remote_file, &rbcpf->content_proc);
 
