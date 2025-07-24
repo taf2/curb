@@ -338,6 +338,9 @@ have_constant :CURL_SSLVERSION_TLSv1
 have_constant :CURL_SSLVERSION_SSLv2
 have_constant :CURL_SSLVERSION_SSLv3
 
+# Added in 7.30.0
+have_constant "curlmopt_max_host_connections"
+
 # Added in 7.34.0
 have_constant :CURL_SSLVERSION_TLSv1_0
 have_constant :CURL_SSLVERSION_TLSv1_1
