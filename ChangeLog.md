@@ -1,4 +1,4 @@
-# Change Log
+# ChangeLog
 ## 1.1.0
 * Add support for CURLOPT_RESOLVE
   ```ruby
@@ -14,6 +14,9 @@
 
     assert_match(/GET/, http.body)
   ```
+* allow configuration curl multi MAX_HOST_CONNECTIONS (#460)
+
+    https://curl.se/libcurl/c/CURLMOPT_MAX_HOST_CONNECTIONS.html
 ## 1.0.9
 * Fix for proxy headers see #457
 * Add CI for Ruby 2.7, Ruby 3.3 and 3.4
