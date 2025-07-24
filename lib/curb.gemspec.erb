@@ -5,9 +5,9 @@ Gem::Specification.new do |s|
   s.date    = '<%= Time.now.strftime("%Y-%m-%d") %>'
   s.description = %q{Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the libcurl(3), a fully-featured client-side URL transfer library. cURL and libcurl live at http://curl.haxx.se/}
   s.email   = 'todd.fisher@gmail.com'
-  s.extra_rdoc_files = ['LICENSE', 'README.markdown']
+  s.extra_rdoc_files = ['LICENSE', 'README.md']
   <%
-    files = %w(LICENSE README.markdown Rakefile doc.rb ext/extconf.rb) +
+    files = %w(LICENSE README.md Rakefile doc.rb ext/extconf.rb) +
       Dir["lib/**/**.rb"] +
       Dir["ext/**/**.c"] +
       Dir["ext/**/**.h"].
@@ -29,7 +29,7 @@ Gem::Specification.new do |s|
 
   #### Documentation and testing.
   s.homepage = 'https://github.com/taf2/curb'
-  s.rdoc_options = ['--main', 'README.markdown']
+  s.rdoc_options = ['--main', 'README.md']
 
   s.metadata = {
     'changelog_uri' => 'https://github.com/taf2/curb/blob/master/ChangeLog.md'

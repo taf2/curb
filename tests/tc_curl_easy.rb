@@ -805,8 +805,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl = Curl::Easy.new(TestServlet.url)
     curl.multipart_form_post = true
     fields = [
-      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown'))),
-      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
+      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README.md'))),
+      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README.md')))
     ]
     curl.http_post(fields)
     assert_match(/HTTP POST file upload/, curl.body_str)
@@ -815,8 +815,8 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     curl = Curl::Easy.new(TestServlet.url)
     curl.multipart_form_post = true
     fields = [
-      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown'))),
-      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
+      Curl::PostField.file('foo', File.expand_path(File.join(File.dirname(__FILE__),'..','README.md'))),
+      Curl::PostField.file('bar', File.expand_path(File.join(File.dirname(__FILE__),'..','README.md')))
     ]
     curl.http_put(fields)
     assert_match(/HTTP POST file upload/, curl.body_str)
@@ -866,7 +866,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     [:put, :post, :patch].each {|method|
       curl = Curl::Easy.new(TestServlet.url)
       curl.multipart_form_post = true
-      pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown')))
+      pf = Curl::PostField.file('readme', File.expand_path(File.join(File.dirname(__FILE__),'..','README.md')))
       curl.send("http_#{method}", pf)
       assert_match(/HTTP POST file upload/, curl.body_str)
       assert_match(/Content-Disposition: form-data/, curl.body_str)
@@ -1048,7 +1048,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end
 
   def test_post_streaming
-    readme = File.expand_path(File.join(File.dirname(__FILE__),'..','README.markdown'))
+    readme = File.expand_path(File.join(File.dirname(__FILE__),'..','README.md'))
     
     pf = Curl::PostField.file("filename", readme)
 
