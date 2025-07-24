@@ -17,5 +17,10 @@ vendor/
 .idea
 *.lock
 *.gem
+*.gcov
+*.gcda
+*.gcno
+coverage_c/
+coverage/
 
 ext/curb_core.bundle.dSYM/

@@ -11,6 +11,34 @@ $LIBDIR = File.join($TOPDIR, 'lib')
 $:.unshift($LIBDIR)
 $:.unshift($EXTDIR)
 
+# Setup SimpleCov for Ruby code coverage if COVERAGE env var is set
+if ENV['COVERAGE']
+  begin
+    require 'simplecov'
+    require 'simplecov-lcov'
+    
+    SimpleCov::Formatter::LcovFormatter.config.report_with_single_file = true
+    SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter.new([
+      SimpleCov::Formatter::HTMLFormatter,
+      SimpleCov::Formatter::LcovFormatter
+    ])
+    
+    SimpleCov.start do
+      add_filter '/tests/'
+      add_filter '/spec/'
+      add_filter '/vendor/'
+      add_filter '/.bundle/'
+      add_group 'Library', 'lib'
+      add_group 'Extensions', 'ext'
+      
+      # Track branch coverage if available
+      enable_coverage :branch if respond_to?(:enable_coverage)
+    end
+  rescue LoadError
+    puts "SimpleCov not available. Install it with: gem install simplecov simplecov-lcov"
+  end
+end
+
 require 'curb'
 begin
   require 'test/unit'

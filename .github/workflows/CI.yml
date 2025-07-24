@@ -23,7 +23,7 @@ jobs:
     name: Ruby ${{ matrix.ruby }}
     continue-on-error: ${{ matrix.ruby == 'head' }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: apt-get install
         run: |
           sudo apt-get update && sudo apt-get install libcurl4 libcurl3-gnutls libcurl4-openssl-dev -y
@@ -31,5 +31,66 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - run: |
+      - name: Run tests
+        run: |
           bundle exec rake
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4 libcurl3-gnutls libcurl4-openssl-dev lcov
+      
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      
+      - name: Run tests with full coverage
+        run: |
+          # Clean any previous coverage
+          bundle exec rake coverage_clean
+          
+          # Compile with coverage flags
+          bundle exec rake compile_coverage
+          
+          # Run tests with Ruby coverage
+          COVERAGE=1 bundle exec rake test
+          
+          # Generate C coverage report
+          bundle exec rake coverage_report
+      
+      - name: Upload Ruby coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov/curb.lcov
+          flags: ruby
+          name: ruby-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Upload C coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage_c/coverage_filtered.info
+          flags: c
+          name: c-coverage
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+      
+      - name: Archive coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            coverage/
+            coverage_c/
+          retention-days: 30
