@@ -143,12 +143,14 @@ static VALUE ruby_curl_asyncdns_q(VALUE mod) {
  * in RFC 2478). For libcurl versions < 7.10.8, always returns false.
  */
 static VALUE ruby_curl_spnego_q(VALUE mod) {
-#ifdef HAVE_CURL_VERSION_SPNEGO
   curl_version_info_data *ver = curl_version_info(CURLVERSION_NOW);
-  return((ver->features & CURL_VERSION_SPNEGO) ? Qtrue : Qfalse);
-#else
-  return Qfalse;
+#ifdef HAVE_CURL_VERSION_SPNEGO
+  if (ver->features & CURL_VERSION_SPNEGO) return Qtrue;
 #endif
+#ifdef HAVE_CURL_VERSION_GSSNEGOTIATE
+  if (ver->features & CURL_VERSION_GSSNEGOTIATE) return Qtrue;
+#endif
+  return Qfalse;
 }
 
 /*
