@@ -2325,6 +2325,14 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, rb_easy_get_str("proxypwd"));
   }
 
+#if HAVE_CURLOPT_NOPROXY
+  if (rb_easy_nil("noproxy")) {
+    curl_easy_setopt(curl, CURLOPT_NOPROXY, NULL);
+  } else {
+    curl_easy_setopt(curl, CURLOPT_NOPROXY, rb_easy_get_str("noproxy"));
+  }
+#endif
+
   // body/header procs
   if (!rb_easy_nil("body_proc")) {
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&proc_data_handler_body);
@@ -3762,6 +3770,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE proxypwd = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, proxypwd);
     } break;
+#if HAVE_CURLOPT_NOPROXY
+  case CURLOPT_NOPROXY: {
+    VALUE noproxy = val;
+    CURB_OBJECT_HSETTER(ruby_curl_easy, noproxy);
+    } break;
+#endif
   case CURLOPT_COOKIE: {
     VALUE cookies = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, cookies);
