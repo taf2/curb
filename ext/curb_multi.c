@@ -389,11 +389,16 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
 
   } else if (!rb_easy_nil("redirect_proc") && ((response_code >= 300 && response_code < 400) || redirect_count > 0) ) {
-    rbce->callback_active = 1;
-    callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
-    rbce->callback_active = 0;
-    rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
+    /* Skip on_redirect callback if follow_location is false AND max_redirects is 0 */
+    if (!rbce->follow_location && rbce->max_redirs == 0) {
+      // Do nothing - skip the callback
+    } else {
+      rbce->callback_active = 1;
+      callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
+      rbce->callback_active = 0;
+      rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
+      CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
+    }
   } else if (!rb_easy_nil("missing_proc") &&
           (response_code >= 400 && response_code < 500)) {
     rbce->callback_active = 1;

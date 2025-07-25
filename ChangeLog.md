@@ -1,4 +1,7 @@
 # ChangeLog
+## Unreleased
+* Fix on_redirect callback being triggered when follow_location=false and max_redirects=0
+
 ## 1.1.0
 * Add support for CURLOPT_RESOLVE
   ```ruby
