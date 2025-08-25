@@ -5,6 +5,9 @@
  */
 #include "curb_config.h"
 #include <ruby.h>
+#ifdef HAVE_RUBY_IO_H
+#include <ruby/io.h>
+#endif
 #ifdef HAVE_RUBY_ST_H
   #include <ruby/st.h>
 #else
@@ -27,7 +30,7 @@
   #include <fcntl.h>
 #endif
 
-#ifdef HAVE_CURL_MULTI_WAIT
+#if 0 /* disabled curl_multi_wait in favor of scheduler-aware fdsets */
 #include <stdint.h>  /* for intptr_t */
 
 struct wait_args {
@@ -364,7 +367,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
 #ifdef HAVE_CURLINFO_RESPONSE_CODE
   curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
-#else
+#else /* use fdsets path for waiting */
   // old libcurl
   curl_easy_getinfo(rbce->curl, CURLINFO_HTTP_CODE, &response_code);
 #endif
@@ -596,23 +599,38 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
                                                         /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
       }
 
-#ifdef HAVE_CURL_MULTI_WAIT
+#if defined(HAVE_CURL_MULTI_WAIT) && !defined(HAVE_RB_THREAD_FD_SELECT)
       {
         struct wait_args wait_args;
         wait_args.handle     = rbcm->handle;
         wait_args.timeout_ms = timeout_milliseconds;
         wait_args.numfds     = 0;
+        /*
+         * When a Fiber scheduler is available (Ruby >= 3.x), rb_thread_fd_select
+         * integrates with it. If we have rb_thread_fd_select available at build
+         * time, we avoid curl_multi_wait entirely (see preprocessor guard above)
+         * and use the fdset branch below. Otherwise, we use curl_multi_wait and
+         * release the GVL so Ruby threads can continue to run.
+         */
+        CURLMcode wait_rc;
 #if defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
-        CURLMcode wait_rc = (CURLMcode)(intptr_t)
-                            rb_thread_call_without_gvl(curl_multi_wait_wrapper, &wait_args, RUBY_UBF_IO, NULL);
+        wait_rc = (CURLMcode)(intptr_t)rb_thread_call_without_gvl(
+          curl_multi_wait_wrapper, &wait_args, RUBY_UBF_IO, NULL
+        );
 #else
-        CURLMcode wait_rc = curl_multi_wait(rbcm->handle, NULL, 0, timeout_milliseconds, &wait_args.numfds);
+        wait_rc = curl_multi_wait(rbcm->handle, NULL, 0, timeout_milliseconds, &wait_args.numfds);
 #endif
         if (wait_rc != CURLM_OK) {
           raise_curl_multi_error_exception(wait_rc);
         }
         if (wait_args.numfds == 0) {
+#ifdef HAVE_RB_THREAD_FD_SELECT
+          struct timeval tv_sleep = tv_100ms;
+          /* Sleep in a scheduler-aware way. */
+          rb_thread_fd_select(0, NULL, NULL, NULL, &tv_sleep);
+#else
           rb_thread_wait_for(tv_100ms);
+#endif
         }
         /* Process pending transfers after waiting */
         rb_curl_multi_run(self, rbcm->handle, &(rbcm->running));
@@ -636,7 +654,12 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
       if (maxfd == -1) {
         /* libcurl recommends sleeping for 100ms */
+#if HAVE_RB_THREAD_FD_SELECT
+        struct timeval tv_sleep = tv_100ms;
+        rb_thread_fd_select(0, NULL, NULL, NULL, &tv_sleep);
+#else
         rb_thread_wait_for(tv_100ms);
+#endif
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
@@ -658,12 +681,37 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       fdset_args.tv = &tv;
 #endif
 
-#ifdef HAVE_RB_THREAD_CALL_WITHOUT_GVL
+#if HAVE_RB_THREAD_FD_SELECT
+      /* Prefer scheduler-aware waiting when available. Build rb_fdset_t sets. */
+      {
+        rb_fdset_t rfds, wfds, efds;
+        rb_fd_init(&rfds);
+        rb_fd_init(&wfds);
+        rb_fd_init(&efds);
+#ifdef _WIN32
+        /* On Windows, iterate explicit fd arrays for CRT fds. */
+        int i;
+        for (i = 0; i < crt_fdread.fd_count; i++) rb_fd_set(crt_fdread.fd_array[i], &rfds);
+        for (i = 0; i < crt_fdwrite.fd_count; i++) rb_fd_set(crt_fdwrite.fd_array[i], &wfds);
+        for (i = 0; i < crt_fdexcep.fd_count; i++) rb_fd_set(crt_fdexcep.fd_array[i], &efds);
+        rc = rb_thread_fd_select(0, &rfds, &wfds, &efds, &tv);
+#else
+        int fd;
+        for (fd = 0; fd <= maxfd; fd++) {
+          if (FD_ISSET(fd, &fdread)) rb_fd_set(fd, &rfds);
+          if (FD_ISSET(fd, &fdwrite)) rb_fd_set(fd, &wfds);
+          if (FD_ISSET(fd, &fdexcep)) rb_fd_set(fd, &efds);
+        }
+        rc = rb_thread_fd_select(maxfd+1, &rfds, &wfds, &efds, &tv);
+#endif
+        rb_fd_term(&rfds);
+        rb_fd_term(&wfds);
+        rb_fd_term(&efds);
+      }
+#elif defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
       rc = (int)(VALUE) rb_thread_call_without_gvl((void *(*)(void *))curb_select, &fdset_args, RUBY_UBF_IO, 0);
 #elif HAVE_RB_THREAD_BLOCKING_REGION
       rc = rb_thread_blocking_region(curb_select, &fdset_args, RUBY_UBF_IO, 0);
-#elif HAVE_RB_THREAD_FD_SELECT
-      rc = rb_thread_fd_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
 #else
       rc = rb_thread_select(maxfd+1, &fdread, &fdwrite, &fdexcep, &tv);
 #endif
@@ -687,7 +735,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
         break;
       }
-#endif /* HAVE_CURL_MULTI_WAIT */
+#endif /* disabled curl_multi_wait: use fdsets */
     }
 
   } while( rbcm->running );

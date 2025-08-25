@@ -29,4 +29,7 @@ Gem::Specification.new do |s|
   s.platform = Gem::Platform::RUBY
   
   s.licenses = ['Ruby']
+
+  # Developer/test dependencies
+  s.add_development_dependency 'async', '>= 2.20'
 end
