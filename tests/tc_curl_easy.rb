@@ -48,20 +48,48 @@ class TestCurbCurlEasy < Test::Unit::TestCase
   end
 
   def test_curlopt_stderr_with_io
-    path = Tempfile.new('curb_test_curlopt_stderr').path
+    tmp = Tempfile.new('curb_test_curlopt_stderr')
+    path = tmp.path
     fd = IO.sysopen(path, 'w')
-    io = IO.for_fd(fd)
+    io = IO.new(fd, 'w')
+    io.sync = true
 
     easy = Curl::Easy.new(TestServlet.url)
     easy.verbose = true
     easy.setopt(Curl::CURLOPT_STDERR, io)
     easy.perform
 
-
+    io.flush
+    io.close
     output = File.read(path)
 
-    assert_match(output, 'HTTP/1.1 200 OK')
-    assert_match(output, 'Host: 127.0.0.1:9129')
+    assert_match(/HTTP\/1\.1\ 200\ OK(?:\ )?/, output)
+    assert_match('Host: 127.0.0.1:9129', output)
+  ensure
+    tmp.close! if defined?(tmp) && tmp
+  end
+
+  def test_curlopt_stderr_gc_safe
+    tmp = Tempfile.new('curb_test_curlopt_stderr_gc')
+    path = tmp.path
+    fd = IO.sysopen(path, 'w')
+    io = IO.new(fd, 'w')
+
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.verbose = true
+    easy.setopt(Curl::CURLOPT_STDERR, io)
+
+    # Drop our Ruby reference and force GC; curb should retain it internally
+    io = nil
+    GC.start
+
+    easy.perform
+
+    output = File.read(path)
+    assert_match(/HTTP\/1\.1\ 200\ OK(?:\ )?/, output)
+    assert_match('Host: 127.0.0.1:9129', output)
+  ensure
+    tmp.close! if defined?(tmp) && tmp
   end
 
   def test_curlopt_stderr_fails_with_tempdir

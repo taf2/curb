@@ -9,6 +9,9 @@ group 'development', 'test' do
   gem 'mixlib-shellout' # for docker test builds?
   gem 'test-unit'
   gem 'ruby_memcheck'
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.1')
+    gem 'async', '>= 2.20'
+  end
   gem 'simplecov', require: false
   gem 'simplecov-lcov', require: false # For CI integration
 end

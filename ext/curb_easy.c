@@ -418,6 +418,9 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   newrbce->curl_ftp_commands = (rbce->curl_ftp_commands) ? duplicate_curl_slist(rbce->curl_ftp_commands) : NULL;
   newrbce->curl_resolve = (rbce->curl_resolve) ? duplicate_curl_slist(rbce->curl_resolve) : NULL;
 
+  /* A cloned easy should not retain ownership reference to the original multi. */
+  newrbce->multi = Qnil;
+
   if (rbce->opts != Qnil) {
     newrbce->opts = rb_funcall(rbce->opts, rb_intern("dup"), 0);
   }
@@ -3853,6 +3856,9 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     Check_Type(val, T_FILE);
     GetOpenFile(val, open_f_ptr);
     curl_easy_setopt(rbce->curl, CURLOPT_STDERR, rb_io_stdio_file(open_f_ptr));
+    /* Retain a Ruby reference to the IO to prevent GC/finalization
+     * while libcurl still holds and writes to the underlying FILE*. */
+    rb_easy_set("stderr_io", val);
     break;
   case CURLOPT_PROTOCOLS:
   case CURLOPT_REDIR_PROTOCOLS:

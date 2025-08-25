@@ -469,9 +469,28 @@ test_for("curl_easy_escape", "CURL_EASY_ESCAPE", %{
 have_func('rb_thread_blocking_region')
 have_header('ruby/thread.h') && have_func('rb_thread_call_without_gvl', 'ruby/thread.h')
 have_header('ruby/io.h')
+have_func('rb_thread_fd_select', 'ruby/io.h')
+have_func('rb_wait_for_single_fd', 'ruby/io.h')
+have_header('ruby/fiber/scheduler.h')
+have_func('rb_fiber_scheduler_current', 'ruby/fiber/scheduler.h')
+have_func('rb_fiber_scheduler_io_wait', 'ruby/fiber/scheduler.h')
 have_func('rb_io_stdio_file')
 have_func('curl_multi_wait')
+have_func('curl_multi_socket_action')
+have_func('curl_multi_assign')
+have_func('curl_multi_wakeup')
+have_func('curl_multi_poll')
+have_func('curl_multi_socket')
+have_func('curl_multi_timer_callback')
+have_constant 'curlmopt_socketfunction'
+have_constant 'curlmopt_timerfunction'
 have_func('curl_easy_duphandle')
+
+# Optional: enable verbose socket-action debug logging.
+# Set CURB_SOCKET_DEBUG=1 in the environment before running extconf to enable.
+if ENV['CURB_SOCKET_DEBUG'] == '1'
+  $defs << '-DCURB_SOCKET_DEBUG=1'
+end
 
 create_header('curb_config.h')
 create_makefile('curb_core')
