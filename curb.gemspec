@@ -31,5 +31,7 @@ Gem::Specification.new do |s|
   s.licenses = ['Ruby']
 
   # Developer/test dependencies
-  s.add_development_dependency 'async', '>= 2.20'
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.1')
+    s.add_development_dependency 'async', '>= 2.20'
+  end
 end

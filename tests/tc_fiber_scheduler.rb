@@ -54,3 +54,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     assert_equal [200, 200], results.sort
   end
 end
+if Gem::Version.new(RUBY_VERSION) < Gem::Version.new('3.1')
+  warn 'Skipping fiber scheduler tests on Ruby < 3.1'
+  return
+end
