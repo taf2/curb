@@ -557,6 +557,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   timeout_milliseconds = cCurlMutiDefaulttimeout;
 
+  // Note: Do not force an initial sleep here; it may slow down driver turns.
   // Run curl_multi_perform for the first time to get the ball rolling
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
 
@@ -590,7 +591,15 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       if (timeout_milliseconds == 0) { /* no delay */
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
-        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self); }
+        /*
+         * Avoid tight busy-looping that can starve other fibers. Yield once
+         * to the Ruby scheduler with zero timeout so other fibers can run.
+         */
+        {
+          struct timeval tv_yield = {0, 1000}; /* ~1ms */
+          rb_thread_wait_for(tv_yield);
+        }
         continue;
       }
 
@@ -638,7 +647,6 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self); }
       }
 #else
-
       tv.tv_sec  = 0; /* never wait longer than 1 second */
       tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
 

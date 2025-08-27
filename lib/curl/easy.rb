@@ -64,14 +64,19 @@ module Curl
     # the configured HTTP Verb.
     #
     def perform
-      self.multi = Curl::Multi.new if self.multi.nil?
-      self.multi.add self
-      ret = self.multi.perform
-      self.multi.remove self
+      if defined?(Fiber) && Fiber.respond_to?(:scheduler) && Fiber.scheduler
+        # Use the per-thread scheduler driver to multiplex requests cooperatively.
+        Curl::SchedulerDriver.current.perform_easy(self)
+      else
+        self.multi = Curl::Multi.new if self.multi.nil?
+        self.multi.add self
+        ret = self.multi.perform
+        self.multi.remove self
 
-      if Curl::Multi.autoclose
-        self.multi.close
-        self.multi = nil
+        if Curl::Multi.autoclose
+          self.multi.close
+          self.multi = nil
+        end
       end
 
       if self.last_result != 0 && self.on_failure.nil?
@@ -80,7 +85,7 @@ module Curl
         raise err_class.new([err_summary, err_detail].compact.join(": "))
       end
 
-      ret
+      true
     end
 
     #

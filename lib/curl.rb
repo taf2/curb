@@ -2,14 +2,20 @@
 require 'curb_core'
 require 'curl/easy'
 require 'curl/multi'
+require 'curl/scheduler'
 require 'uri'
 
 # expose shortcut methods
 module Curl
 
   def self.http(verb, url, post_body=nil, put_data=nil, &block)
-    if Thread.current[:curb_curl_yielding]
-      handle = Curl::Easy.new # we can't reuse this
+    # In a fiber-scheduler environment, prefer a fresh Easy handle per call to
+    # avoid sharing a single per-thread handle across concurrent fibers.
+    scheduler_active = defined?(Fiber) && Fiber.respond_to?(:scheduler) && Fiber.scheduler
+    use_fresh_easy = Thread.current[:curb_curl_yielding] || scheduler_active
+
+    if use_fresh_easy
+      handle = Curl::Easy.new
     else
       handle = Thread.current[:curb_curl] ||= Curl::Easy.new
       handle.reset
