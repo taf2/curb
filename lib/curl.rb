@@ -9,9 +9,9 @@ require 'uri'
 module Curl
 
   def self.http(verb, url, post_body=nil, put_data=nil, &block)
-    # In a fiber-scheduler environment, prefer a fresh Easy handle per call to
-    # avoid sharing a single per-thread handle across concurrent fibers.
-    scheduler_active = defined?(Fiber) && Fiber.respond_to?(:scheduler) && Fiber.scheduler
+    # In a fiber/Async environment, prefer a fresh Easy per call so concurrent
+    # tasks don't share the per-thread handle.
+    scheduler_active = Curl::SchedulerDriver.active?
     use_fresh_easy = Thread.current[:curb_curl_yielding] || scheduler_active
 
     if use_fresh_easy

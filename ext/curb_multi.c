@@ -594,12 +594,20 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self); }
         /*
          * Avoid tight busy-looping that can starve other fibers. Yield once
-         * to the Ruby scheduler with zero timeout so other fibers can run.
+         * to the Ruby fiber scheduler (scheduler-aware select) with zero
+         * timeout so other fibers can run.
          */
+#if HAVE_RB_THREAD_FD_SELECT
+        {
+          struct timeval tv0 = {0, 0};
+          rb_thread_fd_select(0, NULL, NULL, NULL, &tv0);
+        }
+#else
         {
           struct timeval tv_yield = {0, 1000}; /* ~1ms */
           rb_thread_wait_for(tv_yield);
         }
+#endif
         continue;
       }
 

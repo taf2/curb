@@ -13,8 +13,8 @@ end
 class TestCurbFiberScheduler < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
-  ITERS = 4
-  MIN_S = 0.55
+  ITERS = 12
+  MIN_S = 0.25
   # Each request sleeps 0.25s; two concurrent requests should be ~0.25–0.5s.
   # Allow some jitter in CI environments.
   THRESHOLD = (MIN_S + (MIN_S/2.0))
@@ -55,7 +55,8 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     duration = Time.now - started
 
     assert duration < THRESHOLD, "Requests did not run concurrently under fiber scheduler (#{duration}s)"
-    assert_equal [200, 200, 200, 200], results.sort
+    assert_equal ITERS, results.size
+    assert_equal ITERS.times.map {200}, results
   end
 
   def test_easy_perform_is_scheduler_friendly
@@ -69,12 +70,11 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     started = Time.now
     results = []
 
-    Async do
-      tasks = 4.times.map do
-        Async do
-        puts "starting Curl.get: #{Time.now.to_f - started.to_f} seconds later"
+    Async do |top|
+      tasks = ITERS.times.map do
+        top.async do
           c = Curl.get(url)
-          results << c.response_code
+          results << c.code
         end
       end
       tasks.each(&:wait)
@@ -83,7 +83,8 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     duration = Time.now - started
 
     assert duration < THRESHOLD, "Requests did not run concurrently under fiber scheduler (#{duration}s)"
-    assert_equal [200, 200, 200, 200], results.sort
+    assert_equal ITERS, results.size
+    assert_equal ITERS.times.map {200}, results
   end
 end
 if Gem::Version.new(RUBY_VERSION) < Gem::Version.new('3.1')

@@ -64,7 +64,7 @@ module Curl
     # the configured HTTP Verb.
     #
     def perform
-      if defined?(Fiber) && Fiber.respond_to?(:scheduler) && Fiber.scheduler
+      if Curl::SchedulerDriver.active?
         # Use the per-thread scheduler driver to multiplex requests cooperatively.
         Curl::SchedulerDriver.current.perform_easy(self)
       else
