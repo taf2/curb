@@ -89,18 +89,26 @@ end
 explicit_parallel = ENV.key?('EXTCONF_PARALLEL') && ENV['EXTCONF_PARALLEL'] == '1'
 job_hints = detect_job_hints
 
-PARALLEL_JOBS = begin
-  if job_hints && job_hints > 1
-    job_hints
-  elsif explicit_parallel
-    Etc.respond_to?(:nprocessors) ? Etc.nprocessors : 2
-  else
-    1
-  end
+DEFAULT_PARALLEL_JOBS = begin
+  n = Etc.respond_to?(:nprocessors) ? Etc.nprocessors.to_i : 1
+  n = 1 if n <= 0
+  # Use half the CPUs by default (rounded up), but at least 1
+  jobs = [(n.to_f / 2).ceil, 1].max
+  jobs
 rescue
-  (job_hints && job_hints > 1) ? job_hints : 1
+  1
 end
 
+PARALLEL_JOBS = begin
+  if job_hints && job_hints > 0
+    job_hints
+  else
+    # If no hints provided, default to half the CPUs.
+    DEFAULT_PARALLEL_JOBS
+  end
+end
+
+# Only enable if the platform supports fork. On Windows this stays sequential.
 PARALLEL_CONSTANT_CHECKS = PARALLEL_JOBS > 1 && Process.respond_to?(:fork)
 
 $queued_constants = []
