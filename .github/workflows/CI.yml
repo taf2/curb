@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
         ruby:
           - '2.6'
           - '2.7'
@@ -20,6 +20,11 @@ jobs:
           - '3.2'
           - '3.3'
           - '3.4'
+        include:
+          - os: macos-latest
+            ruby: '3.4'
+          - os: windows-latest
+            ruby: '3.4'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} Ruby ${{ matrix.ruby }}
     continue-on-error: ${{ matrix.ruby == 'head' }}
