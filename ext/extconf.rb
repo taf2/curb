@@ -1,4 +1,10 @@
 require 'mkmf'
+require 'tmpdir'
+begin
+  require 'etc'
+rescue LoadError
+  # Etc may not be available on all Ruby builds (very rare). Fallback later.
+end
 
 dir_config('curl')
 
@@ -37,26 +43,187 @@ end
 #  puts "Selected arch: #{archs.first}"
 #end
 
-def define(s, v=1)
-  $defs.push( format("-D HAVE_%s=%d", s.to_s.upcase, v) )
+def define(s, v = 1)
+  $defs.push(format("-D HAVE_%s=%d", s.to_s.upcase, v))
+end
+
+# Optional parallelization support for constant checks only.
+# Enable automatically when job hints are present (JOBS, BUNDLE_JOBS, MAKEFLAGS -jN),
+# or explicitly via EXTCONF_JOBS/EXTCONF_PARALLEL.
+
+def parse_jobs_from_makeflags(flags)
+  return nil if flags.nil? || flags.empty?
+  tokens = flags.to_s.split(/\s+/)
+  jobs = nil
+  tokens.each_with_index do |tok, i|
+    case tok
+    when /\A-j(\d+)\z/
+      jobs = $1.to_i
+    when '-j'
+      nxt = tokens[i + 1]
+      jobs = nxt.to_i if nxt && nxt =~ /\A\d+\z/
+    when /\A--jobs(?:=(\d+)|\s+(\d+))\z/
+      jobs = ($1 || $2).to_i
+    when /\Aj(\d+)\z/ # sometimes make condenses flags
+      jobs = $1.to_i
+    end
+    break if jobs && jobs > 0
+  end
+  jobs
+end
+
+def detect_job_hints
+  # Priority: explicit extconf hint, then common envs used by bundler/rubygems
+  [
+    ENV['EXTCONF_JOBS'],
+    ENV['JOBS'],
+    ENV['BUNDLE_JOBS'],
+    parse_jobs_from_makeflags(ENV['MAKEFLAGS'])
+  ].each do |v|
+    n = v.to_i if v
+    return n if n && n > 0
+  end
+  nil
+end
+
+explicit_parallel = ENV.key?('EXTCONF_PARALLEL') && ENV['EXTCONF_PARALLEL'] == '1'
+job_hints = detect_job_hints
+
+PARALLEL_JOBS = begin
+  if job_hints && job_hints > 1
+    job_hints
+  elsif explicit_parallel
+    Etc.respond_to?(:nprocessors) ? Etc.nprocessors : 2
+  else
+    1
+  end
+rescue
+  (job_hints && job_hints > 1) ? job_hints : 1
+end
+
+PARALLEL_CONSTANT_CHECKS = PARALLEL_JOBS > 1 && Process.respond_to?(:fork)
+
+$queued_constants = []
+
+def try_constant_compile(sname)
+  src = %{
+    #include <curl/curl.h>
+    int main() {
+      int test = (int)#{sname};
+      (void)test;
+      return 0;
+    }
+  }
+  try_compile(src, "#{$CFLAGS} #{$LIBS}")
 end
 
 def have_constant(name)
-  sname = name.is_a?(Symbol) ? name.to_s : name.upcase
-  checking_for name do
-    src = %{
-      #include <curl/curl.h>
-      int main() {
-        int test = (int)#{sname};
-        return 0;
-      }
-    }
-    if try_compile(src,"#{$CFLAGS} #{$LIBS}")
-      define name
-      true
-    else
-      #define name, 0
-      false
+  # Queue constants for optional parallel probing. Falls back to sequential.
+  if PARALLEL_CONSTANT_CHECKS
+    $queued_constants << name
+    true
+  else
+    sname = name.is_a?(Symbol) ? name.to_s : name.upcase
+    checking_for name do
+      if try_constant_compile(sname)
+        define name
+        true
+      else
+        false
+      end
+    end
+  end
+end
+
+def flush_constant_checks
+  return if $queued_constants.empty?
+
+  constants = $queued_constants.uniq
+  $queued_constants.clear
+
+  # On platforms without fork (e.g., Windows), run sequentially.
+  unless PARALLEL_CONSTANT_CHECKS
+    constants.each { |name| have_constant(name) }
+    return
+  end
+
+  # Run constant probes in isolated child processes to avoid mkmf
+  # scratch file and logfile contention.
+  results = {}
+  pending = constants.dup
+  running = {}
+  max_jobs = PARALLEL_JOBS
+
+  spawn_probe = lambda do |const_name|
+    r, w = IO.pipe
+    pid = fork do
+      begin
+        r.close
+        Dir.mktmpdir('curb-mkmf-') do |dir|
+          Dir.chdir(dir) do
+            begin
+              # Avoid clobbering the main mkmf.log
+              Logging::logfile = File.open(File::NULL, 'w') rescue File.open(File.join(dir, 'mkmf.log'), 'w')
+            rescue
+              # best-effort
+            end
+            sname = const_name.is_a?(Symbol) ? const_name.to_s : const_name.upcase
+            ok = try_constant_compile(sname)
+            w.write([const_name, ok ? 1 : 0].join("\t"))
+          end
+        end
+      rescue
+        # Treat as failure if anything unexpected happens in child
+        begin
+          w.write([const_name, 0].join("\t"))
+        rescue
+        end
+      ensure
+        begin w.close rescue nil end
+        # Ensure the child exits without running at_exit handlers
+        exit! 0
+      end
+    end
+    w.close
+    running[pid] = r
+  end
+
+  # Start initial batch
+  while running.size < max_jobs && !pending.empty?
+    spawn_probe.call(pending.shift)
+  end
+
+  # Collect results and keep spawning until done
+  until running.empty?
+    pid = Process.wait
+    io = running.delete(pid)
+    if io
+      begin
+        msg = io.read.to_s
+        name_str, ok_str = msg.split("\t", 2)
+        if name_str
+          # Map back to the original object if symbol-like
+          original = constants.find { |n| n.to_s == name_str }
+          results[original || name_str] = ok_str.to_i == 1
+        end
+      ensure
+        begin io.close rescue nil end
+      end
+    end
+    # Fill next task slot
+    spawn_probe.call(pending.shift) unless pending.empty?
+  end
+
+  # Apply results to $defs and output summary via checking_for
+  results.each do |const_name, ok|
+    sname = const_name.is_a?(Symbol) ? const_name.to_s : const_name.upcase
+    checking_for const_name do
+      if ok
+        define const_name
+        true
+      else
+        false
+      end
     end
   end
 end
@@ -491,6 +658,9 @@ have_func('curl_easy_duphandle')
 if ENV['CURB_SOCKET_DEBUG'] == '1'
   $defs << '-DCURB_SOCKET_DEBUG=1'
 end
+
+# Run any queued constant checks (in parallel if enabled) before header generation.
+flush_constant_checks
 
 create_header('curb_config.h')
 create_makefile('curb_core')
