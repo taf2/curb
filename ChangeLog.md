@@ -1,5 +1,6 @@
 # ChangeLog
-## Unreleased
+
+## 1.2.0
 * Fix on_redirect callback being triggered when follow_location=false and max_redirects=0
 * Add support for CURLOPT_NOPROXY option (#441)
 * Fix Curl.spnego? to check for both CURL_VERSION_SPNEGO and CURL_VERSION_GSSNEGOTIATE (#227)
