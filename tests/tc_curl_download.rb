@@ -59,7 +59,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
     assert File.exist?(dl_path)
     assert_equal File.read(File.join(File.dirname(__FILE__), '..','ext','curb_easy.c')), File.read(dl_path)
   ensure
-    File.unlink(dl_path) if File.exist?(dl_path)
+    File.unlink(dl_path) if dl_path && File.exist?(dl_path)
   end
 
   def test_download_bad_url_gives_404
