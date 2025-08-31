@@ -12,6 +12,9 @@
 
 #include <errno.h>
 #include <string.h>
+#ifndef _WIN32
+#include <strings.h>
+#endif
 
 extern VALUE mCurl;
 
@@ -2683,10 +2686,31 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
 
   memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
 
+  /* Use method override and adjust related options for special verbs. */
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
+
+  /* For HEAD, ensure no body is requested/downloaded, as some servers
+   * include a Content-Length header which should not cause libcurl to
+   * wait for a body that will never arrive. */
+  int is_head = (verb && (
+#ifdef _WIN32
+    _stricmp(verb, "HEAD") == 0
+#else
+    strcasecmp(verb, "HEAD") == 0
+#endif
+  ));
+  if (is_head) {
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 0L);
+    curl_easy_setopt(curl, CURLOPT_POST, 0L);
+  }
 
   retval = rb_funcall(self, rb_intern("perform"), 0);
 
+  /* Restore state after request. */
+  if (is_head) {
+    curl_easy_setopt(curl, CURLOPT_NOBODY, 0L);
+  }
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, NULL);
 
   return retval;

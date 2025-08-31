@@ -5,6 +5,7 @@
 * Fix Curl.spnego? to check for both CURL_VERSION_SPNEGO and CURL_VERSION_GSSNEGOTIATE (#227)
 * Add Fiber scheduler awareness for Curl::Multi: prefer scheduler-friendly socket-action path and `rb_thread_fd_select` when available (non-Windows)
   - Add compile-time CURB_SOCKET_DEBUG flag to enable optional socket-action debug logging in curb_multi.c (default off; set CURB_SOCKET_DEBUG=1 when running extconf)
+* When using request method HEAD ensure CURLOPT_NOBODY is set to 1 automatically
 
 ## 1.1.0
 * Add support for CURLOPT_RESOLVE

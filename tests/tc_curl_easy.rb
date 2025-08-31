@@ -92,6 +92,20 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     tmp.close! if defined?(tmp) && tmp
   end
 
+  def test_head_request_no_body_and_no_timeout
+    # Ensure a HEAD request completes and does not attempt to read a body
+    # even when the server advertises a Content-Length.
+    easy = nil
+    assert_nothing_raised do
+      easy = Curl.http(:HEAD, TestServlet.url)
+    end
+    assert_not_nil easy
+    # Header string should contain the HTTP status line.
+    assert_match(/HTTP\/1\.1\s\d+\s/, easy.header_str.to_s)
+    # Body should be empty for HEAD requests (libcurl won't call the write callback).
+    assert_equal "", easy.body_str.to_s
+  end
+
   def test_curlopt_stderr_fails_with_tempdir
     Tempfile.open('curb_test_curlopt_stderr') do |tempfile|
       easy = Curl::Easy.new(TestServlet.url)
