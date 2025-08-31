@@ -164,6 +164,10 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
   private
   def skip_no_async
+    if WINDOWS
+      warn 'Skipping fiber scheduler tests on Windows'
+      return true
+    end
     unless HAS_ASYNC
       warn 'Skipping fiber scheduler test (Async gem not available)'
       return true

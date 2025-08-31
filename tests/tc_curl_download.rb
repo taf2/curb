@@ -32,6 +32,7 @@ class TestCurbCurlDownload < Test::Unit::TestCase
   end
 
   def test_download_url_to_file_via_io
+    omit('fork not available on this platform') if NO_FORK || WINDOWS
     dl_url = "http://127.0.0.1:9129/ext/curb_easy.c"
     dl_path = File.join(Dir::tmpdir, "dl_url_test.file")
     reader, writer = IO.pipe

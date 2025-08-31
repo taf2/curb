@@ -47,6 +47,11 @@ rescue LoadError
   require 'test/unit'
 end
 require 'fileutils'
+require 'rbconfig'
+
+# Platform helpers
+WINDOWS = /mswin|msys|mingw|cygwin|bccwin|wince|emc|windows/i.match?(RbConfig::CONFIG['host_os'])
+NO_FORK = !Process.respond_to?(:fork)
 
 $TEST_URL = "file://#{'/' if RUBY_DESCRIPTION =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/}#{File.expand_path(__FILE__).tr('\\','/')}"
 

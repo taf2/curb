@@ -6,6 +6,9 @@ require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 # Run some tests to measure the memory usage of curb, these tests require fork and ps
 #
 class TestCurbMemory < Test::Unit::TestCase
+  def setup
+    omit('Memory fork/ps tests not supported on Windows') if WINDOWS || NO_FORK
+  end
 
   def test_easy_memory
     easy_avg, easy_std = measure_object_memory(Curl::Easy)

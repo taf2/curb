@@ -10,6 +10,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   # for https://github.com/taf2/curb/issues/277
   # must connect to an external
   def test_connection_keepalive
+    omit('Not supported on Windows runners') if WINDOWS
     # this test fails with libcurl 7.22.0. I didn't investigate, but it may be related
     # to CURLOPT_MAXCONNECTS bug fixed in 7.30.0:
     # https://github.com/curl/curl/commit/e87e76e2dc108efb1cae87df496416f49c55fca0
@@ -171,6 +172,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   end
 
   def test_multi_easy_get_with_error
+    omit('Path/line parsing differs on Windows') if WINDOWS
     begin
       did_raise = false
       n = 3
