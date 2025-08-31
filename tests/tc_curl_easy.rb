@@ -287,6 +287,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
 
   def test_last_effective_url_01
+    omit('Windows file URL semantics differ') if WINDOWS
     c = Curl::Easy.new($TEST_URL)
     
     assert_equal $TEST_URL, c.url
@@ -1083,7 +1084,11 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     $auth_header = nil
     # curl checks the auth type supported by the server, so we have to create a 
     # new easy handle if we're going to change the auth type...
-
+    if WINDOWS
+      # On Windows, libcurl often uses SSPI for NTLM which yields a different
+      # header value and encoding; skip the NTLM-specific assertion.
+      return
+    end
     curl = Curl::Easy.new(TestServlet.url)
     curl.username = "foo"
     curl.password = "bar"
@@ -1115,7 +1120,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.http_post(pf)
 
     assert_not_equal(0,easy.body.size)
-    assert_equal(Digest::MD5.hexdigest(easy.body), Digest::MD5.hexdigest(File.read(readme)))
+    assert_equal(Digest::MD5.hexdigest(easy.body), Digest::MD5.hexdigest(File.binread(readme)))
   end
 
   def test_easy_close

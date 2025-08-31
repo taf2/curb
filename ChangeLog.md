@@ -7,6 +7,7 @@
   - Add compile-time CURB_SOCKET_DEBUG flag to enable optional socket-action debug logging in curb_multi.c (default off; set CURB_SOCKET_DEBUG=1 when running extconf)
 * When using request method HEAD ensure CURLOPT_NOBODY is set to 1 automatically
 * Compiler checks run in parallel when building the extension JOBS=n to adjust concurrency of configure checks and build concurrency
+* CI tests now run on Windows and MacOS
 
 ## 1.1.0
 * Add support for CURLOPT_RESOLVE

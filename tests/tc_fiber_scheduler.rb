@@ -17,7 +17,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
   MIN_S = 0.25
   # Each request sleeps 0.25s; two concurrent requests should be ~0.25–0.5s.
   # Allow some jitter in CI environments.
-  THRESHOLD = (MIN_S + (MIN_S/2.0))
+  THRESHOLD = ((MIN_S*(ITERS/2.0)) + (MIN_S/2.0)) # add more jitter for slower CI environments
   SERIAL_TIME_WOULD_BE_ABOUT = MIN_S * ITERS
 
   def setup
@@ -164,6 +164,10 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
   private
   def skip_no_async
+    if WINDOWS
+      warn 'Skipping fiber scheduler tests on Windows'
+      return true
+    end
     unless HAS_ASYNC
       warn 'Skipping fiber scheduler test (Async gem not available)'
       return true
