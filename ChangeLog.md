@@ -48,7 +48,7 @@
 * When available use curl_multi_wait for greater system compatibility, users of libcurl 7.28.0 and later should benefit from this change
 * Improve easy handle cloning to deep copy related lists, headers, cookies , proxy_headers, ftp_commands and resolve list.
 
-* FTP: Document correct way to perform NLST/LIST (don’t use `ftp_commands` for data-transfer commands). Add README section for HTTP proxy tunnel usage and examples. Map the following libcurl options through `Easy#set`:
+* FTP: Document correct way to perform NLST/LIST (don’t use `ftp_commands` for data-transfer commands). Add README section for HTTP proxy tunnel usage and examples, including full LIST snippets. Map the following libcurl options through `Easy#set`:
   - `:dirlistonly` -> `CURLOPT_DIRLISTONLY`
   - `:ftp_use_epsv` -> `CURLOPT_FTP_USE_EPSV`
   - `:ftp_use_eprt` -> `CURLOPT_FTP_USE_EPRT`

@@ -105,6 +105,39 @@ puts list.body
 
 If you need a full `LIST` output instead of just names, omit `dirlistonly` and parse the server response accordingly. The key is to let libcurl initiate the data connection (PASV/EPSV) instead of trying to drive it via `ftp_commands`.
 
+#### Full LIST directory listing
+To retrieve the full `LIST` output (permissions, owner, size, timestamp, name), simply do not set `dirlistonly`:
+
+```ruby
+list = Curl::Easy.new('ftp://ftp.example.com/remote/directory/')
+list.username = 'user'
+list.password = 'password'
+
+# Explicitly ensure names+metadata (LIST) rather than NLST
+# list.set(:dirlistonly, 0) # optional; default is LIST for directory URLs
+
+list.perform
+puts list.body # multi-line LIST output
+```
+
+Through an HTTP proxy tunnel, the same considerations apply as the NLST example above — just omit `dirlistonly` and keep the optional EPSV/EPRT/PASV tweaks if needed:
+
+```ruby
+list = Curl::Easy.new('ftp://ftp.example.com/remote/directory/')
+list.username = 'user'
+list.password = 'password'
+list.proxy_url = 'http://proxy.example.com:80'
+list.proxy_tunnel = true
+
+# Optional tweaks if the proxy/server combination struggles
+# list.set(:ftp_use_epsv, 0)
+# list.set(:ftp_use_eprt, 0)
+# list.set(:ftp_skip_pasv_ip, 1)
+
+list.perform
+puts list.body
+```
+
 ### Advanced FTP Usage with Various Options
 ```
 puts "\n=== Advanced FTP Example ==="
