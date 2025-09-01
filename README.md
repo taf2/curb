@@ -327,6 +327,8 @@ end
 
 ### HTTP POST form:
 
+Note: Instance methods like `easy.http_post(...)` do not accept a URL argument. Set the URL first (for example, `Curl::Easy.new(url)` or `easy.url = url`) and then call `easy.http_post(...)`. If you want to pass the URL directly to the call, use the class/module helpers such as `Curl::Easy.http_post(url, ...)` or `Curl.post(url, ...)`.
+
 ```ruby
 c = Curl::Easy.http_post("http://my.rails.box/thing/create",
                          Curl::PostField.content('thing[name]', 'box'),
