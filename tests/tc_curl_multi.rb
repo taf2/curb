@@ -573,6 +573,35 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  # Regression test for issue #267 (2015): ensure that when reusing
+  # easy handles with constrained concurrency, the callback receives
+  # the correct URL for each completed request rather than repeating
+  # the first URL.
+  def test_multi_easy_http_urls_unique_across_max_connects
+    urls = [
+      { :url => TestServlet.url + '?q=1', :method => :get },
+      { :url => TestServlet.url + '?q=2', :method => :get },
+      { :url => TestServlet.url + '?q=3', :method => :get }
+    ]
+
+    [1, 2, 3].each do |max|
+      results = []
+      Curl::Multi.http(urls.dup, {:pipeline => true, :max_connects => max}) do |easy, code, method|
+        assert_equal 200, code
+        assert_equal :get, method
+        results << easy.last_effective_url
+      end
+
+      # Ensure we saw one completion per input URL
+      assert_equal urls.size, results.size, "expected #{urls.size} results with max_connects=#{max}"
+
+      # And that each URL completed exactly once (no accidental reuse/mis-reporting)
+      expected_urls = urls.map { |u| u[:url] }
+      assert_equal expected_urls.to_set, results.to_set, "unexpected URLs for max_connects=#{max}: #{results.inspect}"
+      assert_equal expected_urls.size, results.uniq.size, "duplicate URLs seen for max_connects=#{max}: #{results.inspect}"
+    end
+  end
+
   def test_multi_recieves_500
     m = Curl::Multi.new
     e = Curl::Easy.new("http://127.0.0.1:9129/methods")
