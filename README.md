@@ -74,10 +74,36 @@ puts "\n=== FTP Directory Listing Example ==="
 list = Curl::Easy.new('ftp://ftp.example.com/remote/directory/')
 list.username = 'user'
 list.password = 'password'
-list.dirlistonly = true
+list.set(:dirlistonly, 1)
 list.perform
 puts list.body
 ```
+
+### FTP over HTTP proxy tunnel (NLST/LIST)
+When listing directories through an HTTP proxy with `proxy_tunnel` (CONNECT), let libcurl manage the passive data connection. Do not send `PASV`/`EPSV` or `NLST` via `easy.ftp_commands` — QUOTE commands run on the control connection and libcurl will not open the data connection, resulting in 425 errors.
+
+To get NLST-like output safely:
+
+```ruby
+list = Curl::Easy.new('ftp://ftp.example.com/remote/directory/')
+list.username = 'user'
+list.password = 'password'
+list.proxy_url = 'http://proxy.example.com:80'
+list.proxy_tunnel = true
+
+# Ask libcurl to perform a listing (names only)
+list.set(:dirlistonly, 1)
+
+# If the proxy or server has trouble with EPSV/EPRT, you can adjust:
+# list.set(:ftp_use_epsv, 0)       # disable EPSV
+# list.set(:ftp_use_eprt, 0)       # disable EPRT (stick to IPv4 PASV)
+# list.set(:ftp_skip_pasv_ip, 1)   # ignore PASV host, reuse control host
+
+list.perform
+puts list.body
+```
+
+If you need a full `LIST` output instead of just names, omit `dirlistonly` and parse the server response accordingly. The key is to let libcurl initiate the data connection (PASV/EPSV) instead of trying to drive it via `ftp_commands`.
 
 ### Advanced FTP Usage with Various Options
 ```

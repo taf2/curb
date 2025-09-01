@@ -996,7 +996,15 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
  * call-seq:
  *   easy.ftp_commands = ["CWD /", "MKD directory"]   => ["CWD /", ...]
  *
- * Explicitly sets the list of commands to execute on the FTP server when calling perform
+ * Explicitly sets the list of commands to execute on the FTP server when calling perform.
+ *
+ * NOTE:
+ * - This maps to libcurl CURLOPT_QUOTE; it sends commands on the control connection.
+ * - Do not include data-transfer commands like LIST/NLST/RETR/STOR here. libcurl does not
+ *   parse PASV/EPSV replies from QUOTE commands and will not establish the required data
+ *   connection. For directory listings, set CURLOPT_DIRLISTONLY (via `easy.set(:dirlistonly, true)`)
+ *   and request an FTP directory URL (e.g. "ftp://host/path/") so libcurl manages PASV/EPSV
+ *   and the data connection for you.
  */
 static VALUE ruby_curl_easy_ftp_commands_set(VALUE self, VALUE ftp_commands) {
   CURB_OBJECT_HSETTER(ruby_curl_easy, ftp_commands);
@@ -3849,6 +3857,63 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_TCP_NODELAY: {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, NUM2LONG(val));
     } break;
+  /* FTP-specific toggles */
+#if HAVE_CURLOPT_DIRLISTONLY
+  case CURLOPT_DIRLISTONLY: {
+    int type = rb_type(val);
+    VALUE value;
+    if (type == T_TRUE) {
+      value = rb_int_new(1);
+    } else if (type == T_FALSE) {
+      value = rb_int_new(0);
+    } else {
+      value = rb_funcall(val, rb_intern("to_i"), 0);
+    }
+    curl_easy_setopt(rbce->curl, CURLOPT_DIRLISTONLY, NUM2LONG(value));
+    } break;
+#endif
+#if HAVE_CURLOPT_FTP_USE_EPSV
+  case CURLOPT_FTP_USE_EPSV: {
+    int type = rb_type(val);
+    VALUE value;
+    if (type == T_TRUE) {
+      value = rb_int_new(1);
+    } else if (type == T_FALSE) {
+      value = rb_int_new(0);
+    } else {
+      value = rb_funcall(val, rb_intern("to_i"), 0);
+    }
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPSV, NUM2LONG(value));
+    } break;
+#endif
+#if HAVE_CURLOPT_FTP_USE_EPRT
+  case CURLOPT_FTP_USE_EPRT: {
+    int type = rb_type(val);
+    VALUE value;
+    if (type == T_TRUE) {
+      value = rb_int_new(1);
+    } else if (type == T_FALSE) {
+      value = rb_int_new(0);
+    } else {
+      value = rb_funcall(val, rb_intern("to_i"), 0);
+    }
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPRT, NUM2LONG(value));
+    } break;
+#endif
+#if HAVE_CURLOPT_FTP_SKIP_PASV_IP
+  case CURLOPT_FTP_SKIP_PASV_IP: {
+    int type = rb_type(val);
+    VALUE value;
+    if (type == T_TRUE) {
+      value = rb_int_new(1);
+    } else if (type == T_FALSE) {
+      value = rb_int_new(0);
+    } else {
+      value = rb_funcall(val, rb_intern("to_i"), 0);
+    }
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_SKIP_PASV_IP, NUM2LONG(value));
+    } break;
+#endif
   case CURLOPT_RANGE: {
     curl_easy_setopt(rbce->curl, CURLOPT_RANGE, StringValueCStr(val));
     } break;

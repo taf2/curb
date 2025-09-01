@@ -46,6 +46,14 @@
 * With newer versions of libcurl we can use curl_easy_escape instead of curl_escape, this should improve character encoding support
 * When available use curl_multi_wait for greater system compatibility, users of libcurl 7.28.0 and later should benefit from this change
 * Improve easy handle cloning to deep copy related lists, headers, cookies , proxy_headers, ftp_commands and resolve list.
+
+* FTP: Document correct way to perform NLST/LIST (don’t use `ftp_commands` for data-transfer commands). Add README section for HTTP proxy tunnel usage and examples. Map the following libcurl options through `Easy#set`:
+  - `:dirlistonly` -> `CURLOPT_DIRLISTONLY`
+  - `:ftp_use_epsv` -> `CURLOPT_FTP_USE_EPSV`
+  - `:ftp_use_eprt` -> `CURLOPT_FTP_USE_EPRT`
+  - `:ftp_skip_pasv_ip` -> `CURLOPT_FTP_SKIP_PASV_IP`
+  Also expand `ftp_commands` RDoc with guidance to avoid LIST/NLST/PASV/EPSV there.
+  Add a basic regression test in `tests/tc_ftp_options.rb` ensuring these options can be set without raising.
 * Updating test suite and internal tools for ruby 3.4 
 * CURLOPT_COOKIELIST support see examples:
 ```ruby
