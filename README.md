@@ -341,6 +341,19 @@ c = Curl::Easy.http_post("http://my.rails.box/thing/create",
 c = Curl::Easy.new("http://my.rails.box/files/upload")
 c.multipart_form_post = true
 c.http_post(Curl::PostField.file('thing[file]', 'myfile.rb'))
+
+### Custom request target
+
+Some advanced scenarios need a request-target that differs from the URL host/path (for example, absolute-form targets or special values like `*`). If your libcurl supports `CURLOPT_REQUEST_TARGET` (libcurl ≥ 7.55), you can override it:
+
+```ruby
+c = Curl::Easy.new("http://127.0.0.1:9129/methods")
+c.request_target = "http://localhost:9129/methods"  # absolute-form target
+c.headers = { 'Host' => 'example.com' }              # override Host header if needed
+c.perform
+```
+
+For HTTPS, prefer `easy.resolve = ["host:443:IP"]` to keep Host/SNI/certificates aligned.
 ```
 
 ### Using HTTP/2

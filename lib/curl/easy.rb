@@ -158,6 +158,22 @@ module Curl
       set :proxy, url
     end
 
+    #
+    # call-seq:
+    #   easy.request_target = string                    => string
+    #
+    # Set the request-target used in the HTTP request line (libcurl CURLOPT_REQUEST_TARGET).
+    # Useful for absolute-form request targets (e.g., when speaking to proxies) or
+    # special targets like "*" (OPTIONS *). Requires libcurl with CURLOPT_REQUEST_TARGET support.
+    #
+    def request_target=(value)
+      if Curl.const_defined?(:CURLOPT_REQUEST_TARGET)
+        set :request_target, value
+      else
+        raise NotImplementedError, "CURLOPT_REQUEST_TARGET is not supported by this libcurl"
+      end
+    end
+
     def ssl_verify_host=(value)
       value = 1 if value.class == TrueClass
       value = 0 if value.class == FalseClass

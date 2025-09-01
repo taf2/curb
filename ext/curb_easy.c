@@ -3840,6 +3840,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE cookiejar = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
     } break;
+#if HAVE_CURLOPT_REQUEST_TARGET
+  case CURLOPT_REQUEST_TARGET: {
+    /* Forward request-target directly to libcurl as a string. */
+    curl_easy_setopt(rbce->curl, CURLOPT_REQUEST_TARGET, NIL_P(val) ? NULL : StringValueCStr(val));
+    } break;
+#endif
   case CURLOPT_TCP_NODELAY: {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, NUM2LONG(val));
     } break;

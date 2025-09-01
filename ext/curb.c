@@ -616,6 +616,11 @@ void Init_curb_core() {
 #if HAVE_CURLOPT_PROXYHEADER
   CURB_DEFINE(CURLOPT_PROXYHEADER);
 #endif
+#if HAVE_CURLOPT_REQUEST_TARGET
+  /* Allows overriding the Request-URI target used in the request line.
+   * Useful for absolute-form requests or special targets like "*". */
+  CURB_DEFINE(CURLOPT_REQUEST_TARGET);
+#endif
 #if HAVE_CURLOPT_HTTP200ALIASES
   CURB_DEFINE(CURLOPT_HTTP200ALIASES);
 #endif
