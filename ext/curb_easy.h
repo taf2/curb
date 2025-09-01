@@ -77,6 +77,7 @@ typedef struct {
   char verbose;
   char multipart_form_post;
   char enable_cookies;
+  char cookielist_engine_enabled; /* track if CURLOPT_COOKIELIST was used with a non-command to enable engine */
   char ignore_content_length;
   char callback_active;
 

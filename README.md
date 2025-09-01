@@ -418,3 +418,31 @@ end
 * `on_missing` is called when the response code is 4xx
 * `on_failure` is called when the response code is 5xx
 * `on_complete` is called in all cases.
+
+### Cookies
+
+- Manual cookies: Set the outgoing `Cookie` header via `easy.cookies = "name=value; other=val"`. This only affects the request header and does not modify libcurl's internal cookie engine.
+- Cookie engine: Enable with `easy.enable_cookies = true`. Optionally set `easy.cookiefile` (to load) and/or `easy.cookiejar` (to persist). Cookies received via `Set-Cookie` go into this engine.
+- Inspect engine cookies: `easy.cookielist` returns an array of strings (Netscape or Set-Cookie format).
+- Modify engine cookies: use `easy.cookielist = ...` or `easy.set(:cookielist, ...)` with either a `Set-Cookie` style string, Netscape cookie lines, or special commands: `"ALL"` (clear), `"SESS"` (remove session cookies), `"FLUSH"` (write to jar), `"RELOAD"` (reload from file).
+- Clearing manual cookies: assign an empty string (`easy.cookies = ''`). Assigning `nil` has no effect in current versions.
+
+Examples:
+
+```ruby
+easy = Curl::Easy.new("https://example.com")
+
+# Use the cookie engine and persist cookies
+easy.enable_cookies = true
+easy.cookiejar = "/tmp/cookies.txt"
+easy.perform
+
+# Later: inspect and tweak engine cookies
+p easy.cookielist
+easy.cookielist = 'ALL' # clear stored cookies
+
+# Send custom Cookie header for a single request
+easy.cookies = "flag=1; session_override=abc"
+easy.perform
+easy.cookies = ''  # clear manual Cookie header
+```

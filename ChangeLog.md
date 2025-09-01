@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Unreleased
+* Clarify cookie behavior in README and RDoc:
+  - Differentiate between manual `cookies` header and the libcurl cookie engine
+  - Add `cookielist=` helper and examples for manipulating engine cookies (ALL/SESS/FLUSH/RELOAD)
+  - Note that `cookies = ''` clears the manual Cookie header; `nil` has no effect
+
 ## 1.2.0
 * Fix on_redirect callback being triggered when follow_location=false and max_redirects=0
 * Add support for CURLOPT_NOPROXY option (#441)

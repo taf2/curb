@@ -216,9 +216,18 @@ module Curl
     # call-seq:
     #   easy.cookies = "name1=content1; name2=content2;" => string
     #
-    # Set cookies to be sent by this Curl::Easy instance. The format of the string should
-    # be NAME=CONTENTS, where NAME is the cookie name and CONTENTS is what the cookie should contain.
-    # Set multiple cookies in one string like this: "name1=content1; name2=content2;" etc.
+    # Set the manual Cookie request header for this Curl::Easy instance.
+    # The format of the string should be NAME=CONTENTS, where NAME is the cookie name and
+    # CONTENTS is what the cookie should contain. Set multiple cookies in one string like this:
+    # "name1=content1; name2=content2;".
+    #
+    # Notes:
+    # - This only affects the outgoing Cookie header (libcurl CURLOPT_COOKIE) and does NOT
+    #   alter the internal libcurl cookie engine (which stores cookies from Set-Cookie).
+    # - To change cookies stored in the engine, use {#cookielist} / {#cookielist=} or
+    #   {#set} with :cookielist.
+    # - To clear a previously set manual Cookie header, assign an empty string ('').
+    #   Assigning +nil+ has no effect in current curb versions.
     #
     def cookies=(value)
       set :cookie, value
@@ -233,6 +242,8 @@ module Curl
     # *Note* that you must set enable_cookies true to enable the cookie
     # engine, or this option will be ignored.
     #
+    # Note: assigning +nil+ has no effect; pass a path string to use a cookie file.
+    #
     def cookiefile=(value)
       set :cookiefile, value
     end
@@ -241,14 +252,38 @@ module Curl
     # call-seq:
     #   easy.cookiejar = string                          => string
     #
-    # Set a cookiejar file to use for this Curl::Easy instance.
-    # Cookies from the response will be written into this file.
+    # Set a cookiejar file to use for this Curl::Easy instance. Cookies from the response
+    # will be written into this file.
     #
     # *Note* that you must set enable_cookies true to enable the cookie
     # engine, or this option will be ignored.
     #
+    # Note: assigning +nil+ has no effect; pass a path string to persist cookies to a file.
+    #
     def cookiejar=(value)
       set :cookiejar, value
+    end
+
+    #
+    # call-seq:
+    #   easy.cookielist = string                         => string
+    #
+    # Modify cookies in libcurl's internal cookie engine (CURLOPT_COOKIELIST).
+    # Accepts a Set-Cookie style string, one or more lines in Netscape cookie file format,
+    # or one of the special commands: "ALL" (clear), "SESS" (remove session cookies),
+    # "FLUSH" (write to jar), "RELOAD" (reload from file).
+    #
+    # Examples:
+    #   easy.cookielist = "Set-Cookie: session=42; Domain=example.com; Path=/;"
+    #   easy.cookielist = [
+    #     ['.example.com', 'TRUE', '/', 'FALSE', 0, 'c1', 'v1'].join("\t"),
+    #     ['.example.com', 'TRUE', '/', 'FALSE', 0, 'c2', 'v2'].join("\t"),
+    #     ''
+    #   ].join("\n")
+    #   easy.cookielist = 'ALL'   # clear all cookies in the engine
+    #
+    def cookielist=(value)
+      set :cookielist, value
     end
 
     #

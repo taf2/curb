@@ -310,6 +310,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->verbose = 0;
   rbce->multipart_form_post = 0;
   rbce->enable_cookies = 0;
+  rbce->cookielist_engine_enabled = 0;
   rbce->ignore_content_length = 0;
   rbce->callback_active = 0;
   rbce->last_result = 0;
@@ -664,7 +665,16 @@ static VALUE ruby_curl_easy_proxypwd_get(VALUE self) {
  * call-seq:
  *   easy.cookies                                     => "name1=content1; name2=content2;"
  *
- * Obtain the cookies for this Curl::Easy instance.
+ * Obtain the manually set Cookie header string for this Curl::Easy instance.
+ *
+ * Notes:
+ * - This corresponds to libcurl's CURLOPT_COOKIE and only affects the outgoing
+ *   Cookie request header. It does NOT modify the internal libcurl cookie engine
+ *   that stores cookies received via Set-Cookie.
+ * - To inspect or modify cookies stored in the cookie engine, use
+ *   +easy.cookielist+ (getter) and +easy.cookielist=+ or +easy.set(:cookielist, ...)+ (setter).
+ * - To clear a previously set manual Cookie header, assign an empty string.
+ *   Assigning +nil+ currently has no effect.
  */
 static VALUE ruby_curl_easy_cookies_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, cookies);
@@ -674,7 +684,8 @@ static VALUE ruby_curl_easy_cookies_get(VALUE self) {
  * call-seq:
  *   easy.cookiefile                                  => string
  *
- * Obtain the cookiefile file for this Curl::Easy instance.
+ * Obtain the cookiefile path for this Curl::Easy instance (used to load cookies when the
+ * cookie engine is enabled).
  */
 static VALUE ruby_curl_easy_cookiefile_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, cookiefile);
@@ -684,7 +695,8 @@ static VALUE ruby_curl_easy_cookiefile_get(VALUE self) {
  * call-seq:
  *   easy.cookiejar                                   => string
  *
- * Obtain the cookiejar file to use for this Curl::Easy instance.
+ * Obtain the cookiejar path for this Curl::Easy instance (used to persist cookies when the
+ * cookie engine is enabled).
  */
 static VALUE ruby_curl_easy_cookiejar_get(VALUE self) {
   CURB_OBJECT_HGETTER(ruby_curl_easy, cookiejar);
@@ -1893,7 +1905,12 @@ static VALUE ruby_curl_easy_multipart_form_post_q(VALUE self) {
  *   easy.enable_cookies = boolean                    => boolean
  *
  * Configure whether the libcurl cookie engine is enabled for this Curl::Easy
- * instance.
+ * instance. When enabled, cookies received via Set-Cookie are stored by libcurl
+ * and automatically sent on subsequent matching requests. Use +easy.cookiefile+
+ * to load cookies and +easy.cookiejar+ to persist them.
+ *
+ * This setting is independent from the manual Cookie header set via +easy.cookies+.
+ * The manual header is additive and can be cleared by assigning an empty string.
  */
 static VALUE ruby_curl_easy_enable_cookies_set(VALUE self, VALUE enable_cookies)
 {
@@ -2486,9 +2503,8 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 #endif
   }
 
-  /* Set up HTTP cookie handling if necessary
-     FIXME this may not get disabled if it's enabled, the disabled again from ruby.
-     */
+  /* Set up HTTP cookie handling if necessary */
+  /* Enable/attach cookie engine if requested, or implicitly via COOKIELIST usage */
   if (rbce->enable_cookies) {
     if (!rb_easy_nil("cookiejar")) {
       curl_easy_setopt(curl, CURLOPT_COOKIEJAR, rb_easy_get_str("cookiejar"));
@@ -2499,6 +2515,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     } else {
       curl_easy_setopt(curl, CURLOPT_COOKIEFILE, ""); /* "" = magic to just enable */
     }
+  } else if (rbce->cookielist_engine_enabled) {
+    /* Ensure cookie engine is enabled even if enable_cookies? is false. */
+    curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "");
   }
 
   if (!rb_easy_nil("cookies")) {
@@ -3595,6 +3614,12 @@ static VALUE ruby_curl_easy_num_connects_get(VALUE self) {
  * Returned strings are in Netscape cookiejar format or in Set-Cookie format.
  * Since 7.43.0 cookies in the Set-Cookie format without a domain name are not exported.
  *
+ * To modify the cookie engine (add/replace/remove), use +easy.cookielist= string+
+ * or +easy.set(:cookielist, string)+ with one of the following accepted inputs:
+ * - A Set-Cookie style header string: "Set-Cookie: name=value; Domain=example.com; Path=/; Expires=..."
+ * - One or more lines in Netscape cookie file format (tab-separated fields)
+ * - Special commands: "ALL" (clear all), "SESS" (remove session cookies), "FLUSH" (write to jar), "RELOAD" (reload from file)
+ *
  * @see https://curl.se/libcurl/c/CURLINFO_COOKIELIST.html option <code>CURLINFO_COOKIELIST</code> of 
  *   <code>curl_easy_getopt(3)</code> to see how libcurl behaves.
  * @note requires libcurl 7.14.1 or higher, otherwise +-1+ is always returned
@@ -3895,8 +3920,23 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #endif
 #if HAVE_CURLOPT_COOKIELIST
   case CURLOPT_COOKIELIST: {
+	/* Forward to libcurl */
 	curl_easy_setopt(rbce->curl, CURLOPT_COOKIELIST, StringValueCStr(val));
-    } break;
+	/* Track whether the cookie engine should be enabled for requests.
+	 * According to libcurl docs, CURLOPT_COOKIELIST also enables the cookie engine
+	 * when provided with a non-command string. Some environments may still require
+	 * an explicit "enable" via CURLOPT_COOKIEFILE="" to send cookies on requests.
+	 * We do that in the perform setup when this flag is set.
+	 */
+	if (RB_TYPE_P(val, T_STRING)) {
+	  const char *s = StringValueCStr(val);
+	  if (!(strcmp(s, "ALL") == 0 || strcmp(s, "SESS") == 0 || strcmp(s, "FLUSH") == 0 || strcmp(s, "RELOAD") == 0)) {
+	    rbce->cookielist_engine_enabled = 1;
+	  }
+	} else {
+	  /* Non-string values are unexpected; be conservative and do not enable. */
+	}
+  } break;
 #endif
 #if HAVE_CURLOPT_PROXY_SSL_VERIFYHOST
   case CURLOPT_PROXY_SSL_VERIFYHOST:
