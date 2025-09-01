@@ -3656,7 +3656,7 @@ static VALUE ruby_curl_easy_ftp_entry_path_get(VALUE self) {
     return Qnil;
   }
 #else
-  rb_warn("Installed libcurl is too old to support num_connects");
+  rb_warn("Installed libcurl is too old to support ftp_entry_path");
   return Qnil;
 #endif
 }
