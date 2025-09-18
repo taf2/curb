@@ -76,6 +76,10 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running);
 
+static int detach_easy_entry(st_data_t key, st_data_t val, st_data_t arg);
+static void rb_curl_multi_detach_all(ruby_curl_multi *rbcm);
+static void curl_multi_mark(void *ptr);
+
 static VALUE callback_exception(VALUE did_raise, VALUE exception) {
   // TODO: we could have an option to enable exception reporting
 /*  VALUE ret = rb_funcall(exception, rb_intern("message"), 0);
@@ -97,8 +101,67 @@ static VALUE callback_exception(VALUE did_raise, VALUE exception) {
   return exception;
 }
 
+static int detach_easy_entry(st_data_t key, st_data_t val, st_data_t arg) {
+  ruby_curl_multi *rbcm = (ruby_curl_multi *)arg;
+  VALUE easy = (VALUE)val;
+  ruby_curl_easy *rbce = NULL;
+
+  if (RB_TYPE_P(easy, T_DATA)) {
+    Data_Get_Struct(easy, ruby_curl_easy, rbce);
+  }
+
+  if (!rbce) {
+    return ST_CONTINUE;
+  }
+
+  if (rbcm && rbcm->handle && rbce->curl) {
+    curl_multi_remove_handle(rbcm->handle, rbce->curl);
+  }
+
+  rbce->multi = Qnil;
+
+  return ST_CONTINUE;
+}
+
+void rb_curl_multi_forget_easy(ruby_curl_multi *rbcm, void *rbce_ptr) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)rbce_ptr;
+
+  if (!rbcm || !rbce || !rbcm->attached) {
+    return;
+  }
+
+  st_data_t key = (st_data_t)rbce;
+  st_delete(rbcm->attached, &key, NULL);
+}
+
+static void rb_curl_multi_detach_all(ruby_curl_multi *rbcm) {
+  if (!rbcm || !rbcm->attached) {
+    return;
+  }
+
+  st_table *attached = rbcm->attached;
+  rbcm->attached = NULL;
+
+  st_foreach(attached, detach_easy_entry, (st_data_t)rbcm);
+
+  st_free_table(attached);
+
+  rbcm->active = 0;
+  rbcm->running = 0;
+}
+
 void curl_multi_free(ruby_curl_multi *rbcm) {
-  curl_multi_cleanup(rbcm->handle);
+  if (!rbcm) {
+    return;
+  }
+
+  rb_curl_multi_detach_all(rbcm);
+
+  if (rbcm->handle) {
+    curl_multi_cleanup(rbcm->handle);
+    rbcm->handle = NULL;
+  }
+
   free(rbcm);
 }
 
@@ -110,6 +173,18 @@ static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
 
   rbcm->active = 0;
   rbcm->running = 0;
+
+  if (rbcm->attached) {
+    st_free_table(rbcm->attached);
+    rbcm->attached = NULL;
+  }
+
+  rbcm->attached = st_init_numtable();
+  if (!rbcm->attached) {
+    curl_multi_cleanup(rbcm->handle);
+    rbcm->handle = NULL;
+    rb_raise(rb_eNoMemError, "Failed to allocate multi attachment table");
+  }
 }
 
 /*
@@ -124,6 +199,8 @@ VALUE ruby_curl_multi_new(VALUE klass) {
     rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Multi");
   }
 
+  MEMZERO(rbcm, ruby_curl_multi, 1);
+
   ruby_curl_multi_init(rbcm);
 
   /*
@@ -131,8 +208,8 @@ VALUE ruby_curl_multi_new(VALUE klass) {
    * If your structure references other Ruby objects, then your mark function needs to
    * identify these objects using rb_gc_mark(value). If the structure doesn't reference
    * other Ruby objects, you can simply pass 0 as a function pointer.
-  */
-  return Data_Wrap_Struct(klass, 0, curl_multi_free, rbcm);
+   */
+  return Data_Wrap_Struct(klass, curl_multi_mark, curl_multi_free, rbcm);
 }
 
 /*
@@ -292,6 +369,17 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
    * If this number is not correct, the next call to curl_multi_perform will correct it. */
   rbcm->running++;
 
+  if (!rbcm->attached) {
+    rbcm->attached = st_init_numtable();
+    if (!rbcm->attached) {
+      curl_multi_remove_handle(rbcm->handle, rbce->curl);
+      ruby_curl_easy_cleanup(easy, rbce);
+      rb_raise(rb_eNoMemError, "Failed to allocate multi attachment table");
+    }
+  }
+
+  st_insert(rbcm->attached, (st_data_t)rbce, (st_data_t)easy);
+
   /* track a reference to associated multi handle */
   rbce->multi = self;
 
@@ -332,9 +420,13 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
     raise_curl_multi_error_exception(result);
   }
 
-  rbcm->active--;
+  if (rbcm->active > 0) {
+    rbcm->active--;
+  }
 
   ruby_curl_easy_cleanup( easy, rbce );
+
+  rb_curl_multi_forget_easy(rbcm, rbce);
 }
 
 // on_success, on_failure, on_complete
@@ -1158,9 +1250,30 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 VALUE ruby_curl_multi_close(VALUE self) {
   ruby_curl_multi *rbcm;
   Data_Get_Struct(self, ruby_curl_multi, rbcm);
-  curl_multi_cleanup(rbcm->handle);
+  rb_curl_multi_detach_all(rbcm);
+
+  if (rbcm->handle) {
+    curl_multi_cleanup(rbcm->handle);
+    rbcm->handle = NULL;
+  }
+
   ruby_curl_multi_init(rbcm);
   return self;
+}
+
+/* GC mark: keep attached easy VALUEs alive while associated. */
+static int mark_attached_i(st_data_t key, st_data_t val, st_data_t arg) {
+  VALUE easy = (VALUE)val;
+  if (!NIL_P(easy)) rb_gc_mark(easy);
+  return ST_CONTINUE;
+}
+
+static void curl_multi_mark(void *ptr) {
+  ruby_curl_multi *rbcm = (ruby_curl_multi *)ptr;
+  if (!rbcm) return;
+  if (rbcm->attached) {
+    st_foreach(rbcm->attached, mark_attached_i, (st_data_t)0);
+  }
 }
 
 

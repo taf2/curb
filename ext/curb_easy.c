@@ -225,6 +225,24 @@ void curl_easy_mark(ruby_curl_easy *rbce) {
 }
 
 static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
+  if (!rbce) {
+    return;
+  }
+
+  if (!NIL_P(rbce->multi)) {
+    VALUE multi_val = rbce->multi;
+    ruby_curl_multi *rbcm = NULL;
+
+    rbce->multi = Qnil;
+
+    if (!NIL_P(multi_val) && RB_TYPE_P(multi_val, T_DATA)) {
+      Data_Get_Struct(multi_val, ruby_curl_multi, rbcm);
+      if (rbcm) {
+        rb_curl_multi_forget_easy(rbcm, rbce);
+      }
+    }
+  }
+
   if (rbce->curl_headers) {
     curl_slist_free_all(rbce->curl_headers);
   }
