@@ -1,12 +1,13 @@
 # ChangeLog
 
-## Unreleased
+## 1.2.1
 * Clarify cookie behavior in README and RDoc:
   - Differentiate between manual `cookies` header and the libcurl cookie engine
   - Add `cookielist=` helper and examples for manipulating engine cookies (ALL/SESS/FLUSH/RELOAD)
   - Note that `cookies = ''` clears the manual Cookie header; `nil` has no effect
 * Add support for `CURLOPT_REQUEST_TARGET` (libcurl ≥ 7.55), including `easy.request_target=` setter, tests, and README usage notes
 * Clarify that instance `easy.http_post` does not accept a URL argument; use `Curl::Easy.http_post(url, ...)` or set `easy.url` first
+* Use after free fix
 
 ## 1.2.0
 * Fix on_redirect callback being triggered when follow_location=false and max_redirects=0
