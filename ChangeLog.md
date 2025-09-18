@@ -5,6 +5,7 @@
 * Store `ruby_curl_easy*` in `CURLOPT_PRIVATE` and use it for all libcurl callbacks (write/header/progress/debug) so GC.compact can’t invalidate stored VALUE pointers.
 * Pass `ruby_curl_easy` as libcurl userdata for default body/header handlers so GC.compact can’t invalidate stored VALUE pointers.
 * Safer GC: detach `Easy` from `Multi` during free to avoid dangling references.
+* add work around for libcurl 8.16.0 max redirects regression
 
 ## 1.2.1
 * Clarify cookie behavior in README and RDoc:

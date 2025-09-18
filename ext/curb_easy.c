@@ -2482,7 +2482,14 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   curl_easy_setopt(curl, CURLOPT_HEADER, rbce->header_in_body);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, rbce->follow_location);
+#if LIBCURL_VERSION_NUM == 0x081000
+  /* Work around 8.16.0 regression that clamps -1 (infinite) to zero */
+  if (rbce->max_redirs >= 0) {
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
+  }
+#else
   curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
+#endif
 
   curl_easy_setopt(curl, CURLOPT_HTTPPROXYTUNNEL, rbce->proxy_tunnel);
   curl_easy_setopt(curl, CURLOPT_FILETIME, rbce->fetch_file_time);
