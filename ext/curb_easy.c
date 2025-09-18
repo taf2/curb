@@ -42,13 +42,34 @@ static VALUE callback_exception(VALUE unused, VALUE exception) {
   return Qfalse;
 }
 
-/* These handle both body and header data */
-static size_t default_data_handler(char *stream,
+/* Default body handler appends to easy.body_data buffer */
+static size_t default_body_handler(char *stream,
                                    size_t size,
                                    size_t nmemb,
-                                   VALUE out) {
-  rb_str_buf_cat(out, stream, size * nmemb);
-  return size * nmemb;
+                                   void *userdata) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)userdata;
+  size_t total = size * nmemb;
+  VALUE out = rb_easy_get("body_data");
+  if (NIL_P(out)) {
+    out = rb_easy_set("body_data", rb_str_buf_new(32768));
+  }
+  rb_str_buf_cat(out, stream, total);
+  return total;
+}
+
+/* Default header handler appends to easy.header_data buffer */
+static size_t default_header_handler(char *stream,
+                                     size_t size,
+                                     size_t nmemb,
+                                     void *userdata) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)userdata;
+  size_t total = size * nmemb;
+  VALUE out = rb_easy_get("header_data");
+  if (NIL_P(out)) {
+    out = rb_easy_set("header_data", rb_str_buf_new(16384));
+  }
+  rb_str_buf_cat(out, stream, total);
+  return total;
 }
 
 // size_t function( void *ptr, size_t size, size_t nmemb, void *stream);
@@ -172,11 +193,16 @@ static VALUE call_progress_handler(VALUE ary) {
                     rb_ary_entry(ary, 4)); // rb_float_new(ulnow));
 }
 
-static int proc_progress_handler(VALUE proc,
+static int proc_progress_handler(void *clientp,
                                  double dltotal,
                                  double dlnow,
                                  double ultotal,
                                  double ulnow) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)clientp;
+  VALUE proc = rb_easy_get("progress_proc");
+  if (proc == Qnil) {
+    return 0;
+  }
   VALUE procret;
   VALUE callargs = rb_ary_new2(5);
 
@@ -205,7 +231,12 @@ static int proc_debug_handler(CURL *curl,
                               curl_infotype type,
                               char *data,
                               size_t data_len,
-                              VALUE proc) {
+                              void *clientp) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)clientp;
+  VALUE proc = rb_easy_get("debug_proc");
+  if (proc == Qnil) {
+    return 0;
+  }
   VALUE callargs = rb_ary_new2(3);
   rb_ary_store(callargs, 0, proc);
   rb_ary_store(callargs, 1, INT2NUM(type));
@@ -238,6 +269,12 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     if (!NIL_P(multi_val) && RB_TYPE_P(multi_val, T_DATA)) {
       Data_Get_Struct(multi_val, ruby_curl_multi, rbcm);
       if (rbcm) {
+        /* Best-effort: ensure the handle is detached from the multi to
+         * avoid libcurl retaining a dangling pointer to a soon-to-be
+         * cleaned-up easy handle. We cannot raise from GC, so ignore errors. */
+        if (rbcm->handle && rbce->curl) {
+          curl_multi_remove_handle(rbcm->handle, rbce->curl);
+        }
         rb_curl_multi_forget_easy(rbcm, rbce);
       }
     }
@@ -273,6 +310,8 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     curl_easy_cleanup(rbce->curl);
     rbce->curl = NULL;
   }
+
+  rbce->self = Qnil;
 }
 
 void curl_easy_free(ruby_curl_easy *rbce) {
@@ -288,6 +327,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
 
   memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
 
+  rbce->self = Qnil;
   rbce->curl_headers = NULL;
   rbce->curl_proxy_headers = NULL;
   rbce->curl_ftp_commands = NULL;
@@ -379,13 +419,14 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
   rbce->opts  = Qnil;
 
   ruby_curl_easy_zero(rbce);
+  rbce->self = self;
 
   curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
   rb_easy_set("url", url);
 
   /* set the pointer to the curl handle */
-  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
+  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)rbce);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
   }
@@ -450,7 +491,11 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   /* Set the error buffer on the new curl handle using the new err_buf */
   curl_easy_setopt(newrbce->curl, CURLOPT_ERRORBUFFER, newrbce->err_buf);
 
-  return Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
+  VALUE clone = Data_Wrap_Struct(cCurlEasy, curl_easy_mark, curl_easy_free, newrbce);
+  newrbce->self = clone;
+  curl_easy_setopt(newrbce->curl, CURLOPT_PRIVATE, (void*)newrbce);
+
+  return clone;
 }
 
 /*
@@ -482,9 +527,10 @@ static VALUE ruby_curl_easy_close(VALUE self) {
   rbce->multi = Qnil;
 
   ruby_curl_easy_zero(rbce);
+  rbce->self = self;
 
   /* give the new curl handle a reference back to the ruby object */
-  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
+  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)rbce);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
   }
@@ -518,11 +564,12 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
 
   curl_easy_reset(rbce->curl);
   ruby_curl_easy_zero(rbce);
+  rbce->self = self;
 
   curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
   /* reset clobbers the private setting, so reset it to self */
-  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)self);
+  ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)rbce);
   if (ecode != CURLE_OK) {
     raise_curl_easy_error_exception(ecode);
   }
@@ -2389,9 +2436,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     /* clear out the body_data if it was set */
     rb_easy_del("body_data");
   } else {
-    VALUE body_buffer = rb_easy_set("body_data", rb_str_buf_new(32768));
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&default_data_handler);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, body_buffer);
+    rb_easy_set("body_data", rb_str_buf_new(32768));
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&default_body_handler);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, rbce);
   }
 
   if (!rb_easy_nil("header_proc")) {
@@ -2400,9 +2447,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     /* clear out the header_data if it was set */
     rb_easy_del("header_data");
   } else {
-    VALUE header_buffer = rb_easy_set("header_data", rb_str_buf_new(16384));
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&default_data_handler);
-    curl_easy_setopt(curl, CURLOPT_HEADERDATA, header_buffer);
+    rb_easy_set("header_data", rb_str_buf_new(16384));
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&default_header_handler);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, rbce);
   }
 
   /* encoding */
@@ -2413,20 +2460,21 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   // progress and debug procs
   if (!rb_easy_nil("progress_proc")) {
     curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, (curl_progress_callback)&proc_progress_handler);
-    curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, rb_easy_get("progress_proc"));
+    curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, rbce);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
   } else {
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1);
+    curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, rbce);
   }
 
   if (!rb_easy_nil("debug_proc")) {
     curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, (curl_debug_callback)&proc_debug_handler);
-    curl_easy_setopt(curl, CURLOPT_DEBUGDATA, rb_easy_get("debug_proc"));
+    curl_easy_setopt(curl, CURLOPT_DEBUGDATA, rbce);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
   } else {
     // have to remove handler to re-enable standard verbosity
     curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, NULL);
-    curl_easy_setopt(curl, CURLOPT_DEBUGDATA, NULL);
+    curl_easy_setopt(curl, CURLOPT_DEBUGDATA, rbce);
     curl_easy_setopt(curl, CURLOPT_VERBOSE, rbce->verbose);
   }
 

@@ -39,6 +39,7 @@ typedef struct {
   /* Buffer for error details from CURLOPT_ERRORBUFFER */
   char err_buf[CURL_ERROR_SIZE];
 
+  VALUE self; /* owning Ruby object */
   VALUE opts; /* rather then allocate everything we might need to store, allocate a Hash and only store objects we actually use... */
   VALUE multi; /* keep a multi handle alive for each easy handle not being used by a multi handle.  This improves easy performance when not within a multi context */
 

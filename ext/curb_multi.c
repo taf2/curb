@@ -454,15 +454,56 @@ static void flush_stderr_if_any(ruby_curl_easy *rbce) {
   }
 }
 
+/* Helper to locate the Ruby Easy VALUE from the attached table using the
+ * underlying CURL* handle when CURLINFO_PRIVATE is unavailable or stale. */
+struct find_easy_ctx { CURL *handle; VALUE easy; };
+static int find_easy_by_handle_i(st_data_t key, st_data_t val, st_data_t arg) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)key;
+  struct find_easy_ctx *ctx = (struct find_easy_ctx *)arg;
+  if (rbce && rbce->curl == ctx->handle) {
+    ctx->easy = (VALUE)val;
+    return ST_STOP;
+  }
+  return ST_CONTINUE;
+}
+
+static VALUE find_easy_by_handle(ruby_curl_multi *rbcm, CURL *easy_handle) {
+  if (!rbcm || !rbcm->attached) return Qnil;
+  struct find_easy_ctx ctx; ctx.handle = easy_handle; ctx.easy = Qnil;
+  st_foreach(rbcm->attached, find_easy_by_handle_i, (st_data_t)&ctx);
+  return ctx.easy;
+}
+
 static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result) {
   long response_code = -1;
-  VALUE easy;
+  VALUE easy = Qnil;
   ruby_curl_easy *rbce = NULL;
   VALUE callargs;
+  ruby_curl_multi *rbcm = NULL;
 
-  CURLcode ecode = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&easy);
+  Data_Get_Struct(self, ruby_curl_multi, rbcm);
 
-  Data_Get_Struct(easy, ruby_curl_easy, rbce);
+  /* Try to recover the ruby_curl_easy pointer stored via CURLOPT_PRIVATE. */
+  CURLcode private_rc = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
+  if (private_rc == CURLE_OK && rbce) {
+    easy = rbce->self;
+  }
+
+  /* If PRIVATE is unavailable or invalid, fall back to scanning attachments. */
+  if (NIL_P(easy) || !RB_TYPE_P(easy, T_DATA)) {
+    easy = find_easy_by_handle(rbcm, easy_handle);
+    if (!NIL_P(easy) && RB_TYPE_P(easy, T_DATA)) {
+      Data_Get_Struct(easy, ruby_curl_easy, rbce);
+    }
+  }
+
+  /* If we still cannot identify the easy handle, remove it and bail. */
+  if (NIL_P(easy) || !RB_TYPE_P(easy, T_DATA) || !rbce) {
+    if (rbcm && rbcm->handle && easy_handle) {
+      curl_multi_remove_handle(rbcm->handle, easy_handle);
+    }
+    return;
+  }
 
   rbce->last_result = result; /* save the last easy result code */
 
@@ -481,10 +522,6 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   /* Flush again after removal to cover any last buffered data. */
   flush_stderr_if_any(rbce);
-
-  if (ecode != 0) {
-    raise_curl_easy_error_exception(ecode);
-  }
 
   VALUE did_raise = rb_hash_new();
 
