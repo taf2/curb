@@ -3,7 +3,7 @@
 require File.expand_path('helper', __dir__)
 
 class TestGcCompact < Test::Unit::TestCase
-  ITERATIONS = (ENV['CURB_GC_COMPACT_ITERATIONS'] || 5).to_i
+  ITERATIONS = (ENV['CURB_GC_COMPACT_ITERATIONS'] || 50).to_i
   EASY_PER_MULTI = 3
 
   def setup
@@ -41,6 +41,21 @@ class TestGcCompact < Test::Unit::TestCase
 
     handles.each { |easy| multi.remove(easy) }
     compact
+  end
+
+  def test_gc_compact_easy
+    iteration = 0
+    responses = []
+    while iteration < ITERATIONS
+      res = Curl.get($TEST_URL) do |easy|
+        easy.timeout = 5
+        easy.on_complete { |_e| }
+        easy.on_failure { |_e, _code| }
+      end
+      iteration += 1
+      responses << res.body
+      compact
+    end
   end
 
   private
