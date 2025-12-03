@@ -4,6 +4,7 @@
 * Address many libcurl deprecations
 
 ## 1.2.2
+* Add `Curl::Easy#http_version` getter/setter along with HTTP/2 TLS/prior-knowledge constants so clients can force a specific HTTP protocol.
 * Fix rare `Multi#perform` segfault with GC.compact by recovering the Easy when `CURLINFO_PRIVATE` is stale and pruning unknown handles.
 * Store `ruby_curl_easy*` in `CURLOPT_PRIVATE` and use it for all libcurl callbacks (write/header/progress/debug) so GC.compact can’t invalidate stored VALUE pointers.
 * Pass `ruby_curl_easy` as libcurl userdata for default body/header handlers so GC.compact can’t invalidate stored VALUE pointers.

@@ -109,12 +109,16 @@ module Curl
     #
     #  easy = Curl::Easy.new("url")
     #  easy.version = Curl::HTTP_2_0
-    #  easy.version = Curl::HTTP_1_1
-    #  easy.version = Curl::HTTP_1_0
-    #  easy.version = Curl::HTTP_NONE
+    #  easy.http_version = Curl::HTTP_1_1
+    #  easy.http_version = Curl::HTTP_1_0
+    #  easy.http_version = Curl::HTTP_NONE
     #
     def version=(http_version)
-      set :http_version, http_version
+      self.http_version = http_version
+    end
+
+    def version
+      http_version
     end
 
     #

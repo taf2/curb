@@ -433,6 +433,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->ssl_version = -1;
   rbce->use_ssl = -1;
   rbce->ftp_filemethod = -1;
+  rbce->http_version = CURL_HTTP_VERSION_NONE;
   rbce->resolve_mode = CURL_IPRESOLVE_WHATEVER;
 
   /* bool opts */
@@ -2165,6 +2166,46 @@ static VALUE ruby_curl_easy_resolve_mode_set(VALUE self, VALUE resolve_mode) {
   }
 }
 
+/*
+ * call-seq:
+ *   easy.http_version = Curl::HTTP_1_1               => Curl::HTTP_1_1
+ *
+ * Force libcurl to use a specific HTTP protocol version. By default libcurl
+ * negotiates the highest version supported by both peers. Supported constants
+ * include Curl::HTTP_NONE, Curl::HTTP_1_0, Curl::HTTP_1_1, Curl::HTTP_2_0,
+ * Curl::HTTP_2TLS, and Curl::HTTP_2_PRIOR_KNOWLEDGE (when provided by libcurl).
+ */
+static VALUE ruby_curl_easy_http_version_set(VALUE self, VALUE version) {
+  ruby_curl_easy *rbce;
+  long http_version;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (NIL_P(version)) {
+    http_version = CURL_HTTP_VERSION_NONE;
+  } else {
+    http_version = NUM2LONG(version);
+  }
+
+  rbce->http_version = http_version;
+
+  return version;
+}
+
+/*
+ * call-seq:
+ *   easy.http_version                                => integer
+ *
+ * Returns the HTTP protocol version currently configured.
+ */
+static VALUE ruby_curl_easy_http_version_get(VALUE self) {
+  ruby_curl_easy *rbce;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  return LONG2NUM(rbce->http_version);
+}
+
 
 /* ================= EVENT PROCS ================== */
 
@@ -2605,6 +2646,9 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   curl_easy_setopt(curl, CURLOPT_IGNORE_CONTENT_LENGTH, rbce->ignore_content_length);
 
   curl_easy_setopt(curl, CURLOPT_IPRESOLVE, rbce->resolve_mode);
+#if HAVE_CURLOPT_HTTP_VERSION
+  curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, rbce->http_version);
+#endif
 
 
 #if LIBCURL_VERSION_NUM >= 0x070a08
@@ -3971,9 +4015,11 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_CUSTOMREQUEST:
     curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, NIL_P(val) ? NULL : StringValueCStr(val));
     break;
-  case CURLOPT_HTTP_VERSION:
-    curl_easy_setopt(rbce->curl, CURLOPT_HTTP_VERSION, NUM2LONG(val));
-    break;
+  case CURLOPT_HTTP_VERSION: {
+    long http_version = NIL_P(val) ? CURL_HTTP_VERSION_NONE : NUM2LONG(val);
+    rbce->http_version = http_version;
+    curl_easy_setopt(rbce->curl, CURLOPT_HTTP_VERSION, http_version);
+    } break;
   case CURLOPT_PROXY: {
     VALUE proxy_url = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, proxy_url);
@@ -4374,6 +4420,8 @@ void init_curb_easy() {
   /* Attributes for config next perform */
   rb_define_method(cCurlEasy, "url", ruby_curl_easy_url_get, 0);
   rb_define_method(cCurlEasy, "proxy_url", ruby_curl_easy_proxy_url_get, 0);
+  rb_define_method(cCurlEasy, "http_version=", ruby_curl_easy_http_version_set, 1);
+  rb_define_method(cCurlEasy, "http_version", ruby_curl_easy_http_version_get, 0);
 
   rb_define_method(cCurlEasy, "proxy_headers=", ruby_curl_easy_proxy_headers_set, 1);
   rb_define_method(cCurlEasy, "proxy_headers", ruby_curl_easy_proxy_headers_get, 0);

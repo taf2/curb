@@ -736,6 +736,27 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_raises(ArgumentError) { c.resolve_mode = :bad }
   end
 
+  def test_http_version_accessors
+    c = Curl::Easy.new
+    assert_equal Curl::HTTP_NONE, c.http_version
+
+    c.http_version = Curl::HTTP_1_1
+    assert_equal Curl::HTTP_1_1, c.http_version
+
+    if Curl.const_defined?(:HTTP_2TLS)
+      c.http_version = Curl::HTTP_2TLS
+      assert_equal Curl::HTTP_2TLS, c.http_version
+    end
+
+    if Curl.const_defined?(:HTTP_2_PRIOR_KNOWLEDGE)
+      c.http_version = Curl::HTTP_2_PRIOR_KNOWLEDGE
+      assert_equal Curl::HTTP_2_PRIOR_KNOWLEDGE, c.http_version
+    end
+
+    c.http_version = nil
+    assert_equal Curl::HTTP_NONE, c.http_version
+  end
+
   def test_enable_cookies
     c = Curl::Easy.new
     assert !c.enable_cookies?

@@ -1261,6 +1261,12 @@ void Init_curb_core() {
 #if LIBCURL_VERSION_NUM >= 0x072100 /* 7.33.0 */
   rb_define_const(mCurl, "HTTP_2_0", LONG2NUM(CURL_HTTP_VERSION_2_0));
 #endif
+#ifdef CURL_HTTP_VERSION_2TLS
+  rb_define_const(mCurl, "HTTP_2TLS", LONG2NUM(CURL_HTTP_VERSION_2TLS));
+#endif
+#ifdef CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE
+  rb_define_const(mCurl, "HTTP_2_PRIOR_KNOWLEDGE", LONG2NUM(CURL_HTTP_VERSION_2_PRIOR_KNOWLEDGE));
+#endif
   rb_define_const(mCurl, "HTTP_1_1", LONG2NUM(CURL_HTTP_VERSION_1_1));
   rb_define_const(mCurl, "HTTP_1_0", LONG2NUM(CURL_HTTP_VERSION_1_0));
   rb_define_const(mCurl, "HTTP_NONE", LONG2NUM(CURL_HTTP_VERSION_NONE));
