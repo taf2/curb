@@ -193,6 +193,8 @@ static VALUE call_progress_handler(VALUE ary) {
                     rb_ary_entry(ary, 4)); // rb_float_new(ulnow));
 }
 
+/* CURLOPT_PROGRESSFUNCTION callback (deprecated since 7.32.0) */
+#ifndef HAVE_CURLOPT_XFERINFOFUNCTION
 static int proc_progress_handler(void *clientp,
                                  double dltotal,
                                  double dlnow,
@@ -212,15 +214,38 @@ static int proc_progress_handler(void *clientp,
   rb_ary_store(callargs, 3, rb_float_new(ultotal));
   rb_ary_store(callargs, 4, rb_float_new(ulnow));
 
-	//v = rb_rescue(range_check, (VALUE)args, range_failed, 0);
-  //procret = rb_funcall(proc, idCall, 4, rb_float_new(dltotal),
-  //                                      rb_float_new(dlnow),
-  //                                      rb_float_new(ultotal),
-  //                                      rb_float_new(ulnow));
   procret = rb_rescue(call_progress_handler, callargs, callback_exception, Qnil);
 
   return(((procret == Qfalse) || (procret == Qnil)) ? -1 : 0);
 }
+#endif
+
+/* CURLOPT_XFERINFOFUNCTION callback (since 7.32.0, replaces PROGRESSFUNCTION) */
+#ifdef HAVE_CURLOPT_XFERINFOFUNCTION
+static int proc_xferinfo_handler(void *clientp,
+                                 curl_off_t dltotal,
+                                 curl_off_t dlnow,
+                                 curl_off_t ultotal,
+                                 curl_off_t ulnow) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)clientp;
+  VALUE proc = rb_easy_get("progress_proc");
+  if (proc == Qnil) {
+    return 0;
+  }
+  VALUE procret;
+  VALUE callargs = rb_ary_new2(5);
+
+  rb_ary_store(callargs, 0, proc);
+  rb_ary_store(callargs, 1, LL2NUM(dltotal));
+  rb_ary_store(callargs, 2, LL2NUM(dlnow));
+  rb_ary_store(callargs, 3, LL2NUM(ultotal));
+  rb_ary_store(callargs, 4, LL2NUM(ulnow));
+
+  procret = rb_rescue(call_progress_handler, callargs, callback_exception, Qnil);
+
+  return(((procret == Qfalse) || (procret == Qnil)) ? -1 : 0);
+}
+#endif
 
 static VALUE call_debug_handler(VALUE ary) {
   return rb_funcall(rb_ary_entry(ary, 0), idCall, 2,
@@ -305,7 +330,11 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     curl_easy_setopt(rbce->curl, CURLOPT_DEBUGFUNCTION, NULL);
     curl_easy_setopt(rbce->curl, CURLOPT_DEBUGDATA, NULL);
     curl_easy_setopt(rbce->curl, CURLOPT_VERBOSE, 0);
+#ifdef HAVE_CURLOPT_XFERINFOFUNCTION
+    curl_easy_setopt(rbce->curl, CURLOPT_XFERINFOFUNCTION, NULL);
+#else
     curl_easy_setopt(rbce->curl, CURLOPT_PROGRESSFUNCTION, NULL);
+#endif
     curl_easy_setopt(rbce->curl, CURLOPT_NOPROGRESS, 1);
     curl_easy_cleanup(rbce->curl);
     rbce->curl = NULL;
@@ -2459,12 +2488,21 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   // progress and debug procs
   if (!rb_easy_nil("progress_proc")) {
+#ifdef HAVE_CURLOPT_XFERINFOFUNCTION
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, &proc_xferinfo_handler);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, rbce);
+#else
     curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, (curl_progress_callback)&proc_progress_handler);
     curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, rbce);
+#endif
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
   } else {
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1);
+#ifdef HAVE_CURLOPT_XFERINFOFUNCTION
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, rbce);
+#else
     curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, rbce);
+#endif
   }
 
   if (!rb_easy_nil("debug_proc")) {
@@ -3439,12 +3477,17 @@ static VALUE ruby_curl_easy_redirect_url_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_uploaded_bytes_get(VALUE self) {
   ruby_curl_easy *rbce;
-  double bytes;
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_getinfo(rbce->curl, CURLINFO_SIZE_UPLOAD, &bytes);
 
+#ifdef HAVE_CURLINFO_SIZE_UPLOAD_T
+  curl_off_t bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SIZE_UPLOAD_T, &bytes);
+  return LL2NUM(bytes);
+#else
+  double bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SIZE_UPLOAD, &bytes);
   return rb_float_new(bytes);
+#endif
 }
 
 /*
@@ -3456,12 +3499,17 @@ static VALUE ruby_curl_easy_uploaded_bytes_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_downloaded_bytes_get(VALUE self) {
   ruby_curl_easy *rbce;
-  double bytes;
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_getinfo(rbce->curl, CURLINFO_SIZE_DOWNLOAD, &bytes);
 
+#ifdef HAVE_CURLINFO_SIZE_DOWNLOAD_T
+  curl_off_t bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SIZE_DOWNLOAD_T, &bytes);
+  return LL2NUM(bytes);
+#else
+  double bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SIZE_DOWNLOAD, &bytes);
   return rb_float_new(bytes);
+#endif
 }
 
 /*
@@ -3473,12 +3521,17 @@ static VALUE ruby_curl_easy_downloaded_bytes_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_upload_speed_get(VALUE self) {
   ruby_curl_easy *rbce;
-  double bytes;
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_getinfo(rbce->curl, CURLINFO_SPEED_UPLOAD, &bytes);
 
+#ifdef HAVE_CURLINFO_SPEED_UPLOAD_T
+  curl_off_t bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SPEED_UPLOAD_T, &bytes);
+  return LL2NUM(bytes);
+#else
+  double bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SPEED_UPLOAD, &bytes);
   return rb_float_new(bytes);
+#endif
 }
 
 /*
@@ -3490,12 +3543,17 @@ static VALUE ruby_curl_easy_upload_speed_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_download_speed_get(VALUE self) {
   ruby_curl_easy *rbce;
-  double bytes;
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_getinfo(rbce->curl, CURLINFO_SPEED_DOWNLOAD, &bytes);
 
+#ifdef HAVE_CURLINFO_SPEED_DOWNLOAD_T
+  curl_off_t bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SPEED_DOWNLOAD_T, &bytes);
+  return LL2NUM(bytes);
+#else
+  double bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_SPEED_DOWNLOAD, &bytes);
   return rb_float_new(bytes);
+#endif
 }
 
 /*
@@ -3567,12 +3625,17 @@ NOTE: you must call curl_slist_free_all(3) on the list pointer once you're done 
  */
 static VALUE ruby_curl_easy_downloaded_content_length_get(VALUE self) {
   ruby_curl_easy *rbce;
-  double bytes;
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_getinfo(rbce->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &bytes);
 
+#ifdef HAVE_CURLINFO_CONTENT_LENGTH_DOWNLOAD_T
+  curl_off_t bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &bytes);
+  return LL2NUM(bytes);
+#else
+  double bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &bytes);
   return rb_float_new(bytes);
+#endif
 }
 
 /*
@@ -3583,12 +3646,17 @@ static VALUE ruby_curl_easy_downloaded_content_length_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_uploaded_content_length_get(VALUE self) {
   ruby_curl_easy *rbce;
-  double bytes;
-
   Data_Get_Struct(self, ruby_curl_easy, rbce);
-  curl_easy_getinfo(rbce->curl, CURLINFO_CONTENT_LENGTH_UPLOAD, &bytes);
 
+#ifdef HAVE_CURLINFO_CONTENT_LENGTH_UPLOAD_T
+  curl_off_t bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_CONTENT_LENGTH_UPLOAD_T, &bytes);
+  return LL2NUM(bytes);
+#else
+  double bytes;
+  curl_easy_getinfo(rbce->curl, CURLINFO_CONTENT_LENGTH_UPLOAD, &bytes);
   return rb_float_new(bytes);
+#endif
 }
 
 /*

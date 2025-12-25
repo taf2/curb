@@ -299,6 +299,38 @@ have_constant "curlopt_sockoptdata"
 have_constant "curlopt_opensocketfunction"
 have_constant "curlopt_opensocketdata"
 
+# Deprecated constants (still check for them for backward compat)
+have_constant "curlopt_ioctlfunction"
+have_constant "curlopt_ioctldata"
+have_constant "curlopt_progressfunction"
+have_constant "curlopt_progressdata"
+have_constant "curlopt_conv_to_network_function"
+have_constant "curlopt_conv_from_network_function"
+have_constant "curlopt_conv_from_utf8_function"
+
+# Replacements for deprecated constants
+# CURLOPT_PROGRESSFUNCTION -> CURLOPT_XFERINFOFUNCTION (since 7.32.0)
+have_constant "curlopt_xferinfofunction"
+have_constant "curlopt_xferinfodata"
+
+# CURLOPT_PROTOCOLS -> CURLOPT_PROTOCOLS_STR (since 7.85.0)
+have_constant "curlopt_protocols_str"
+have_constant "curlopt_redir_protocols_str"
+
+# CURLOPT_SOCKS5_GSSAPI_SERVICE -> CURLOPT_PROXY_SERVICE_NAME (since 7.49.0)
+have_constant "curlopt_proxy_service_name"
+
+# CURLOPT_HTTPPOST -> CURLOPT_MIMEPOST (since 7.56.0)
+have_constant "curlopt_mimepost"
+
+# CURLINFO_* -> CURLINFO_*_T (since 7.55.0)
+have_constant "curlinfo_size_upload_t"
+have_constant "curlinfo_size_download_t"
+have_constant "curlinfo_speed_upload_t"
+have_constant "curlinfo_speed_download_t"
+have_constant "curlinfo_content_length_download_t"
+have_constant "curlinfo_content_length_upload_t"
+
 # additional consts
 have_constant "curle_conv_failed"
 have_constant "curle_conv_reqd"
@@ -619,6 +651,14 @@ have_constant "curlproto_tftp"
 
 if try_compile('int main() { return 0; }','-Wall')
   $CFLAGS << ' -Wall'
+end
+
+# Clang-specific warning suppressions (not recognized by GCC)
+# These are used to suppress warnings in Ruby header macros
+%w[-Wno-self-assign -Wno-parentheses-equality -Wno-constant-logical-operand].each do |flag|
+  if try_compile('int main() { return 0; }', flag)
+    $CFLAGS << " #{flag}"
+  end
 end
 
 # do some checking to detect ruby 1.8 hash.c vs ruby 1.9 hash.c
