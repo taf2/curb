@@ -119,7 +119,7 @@ VALUE mCurlErrBadEasyHandle;
 VALUE mCurlErrOutOfMemory;
 VALUE mCurlErrInternalError;
 VALUE mCurlErrBadSocket;
-#if HAVE_CURLM_ADDED_ALREADY
+#ifdef HAVE_CURLM_ADDED_ALREADY
 VALUE mCurlErrAddedAlready;
 #endif
 VALUE mCurlErrUnknownOption;
@@ -561,17 +561,17 @@ VALUE rb_curl_multi_error(CURLMcode code) {
     case CURLM_INTERNAL_ERROR: /* 4 */
       exclz = mCurlErrInternalError;
       break;
-#if HAVE_CURLM_BAD_SOCKET
+#ifdef HAVE_CURLM_BAD_SOCKET
     case CURLM_BAD_SOCKET: /* 5 */
       exclz = mCurlErrBadSocket;
       break;
 #endif
-#if HAVE_CURLM_UNKNOWN_OPTION
+#ifdef HAVE_CURLM_UNKNOWN_OPTION
     case CURLM_UNKNOWN_OPTION: /* 6 */
       exclz = mCurlErrUnknownOption;
       break;
 #endif
-#if HAVE_CURLM_ADDED_ALREADY
+#ifdef HAVE_CURLM_ADDED_ALREADY
     case CURLM_ADDED_ALREADY: /* 7 */
       exclz = mCurlErrAddedAlready;
       break;
@@ -709,7 +709,7 @@ void init_curb_errors() {
   mCurlErrOutOfMemory        = rb_define_class_under(mCurlErr, "MultiOutOfMemory", eCurlErrError);
   mCurlErrInternalError      = rb_define_class_under(mCurlErr, "MultiInternalError", eCurlErrError);
   mCurlErrBadSocket          = rb_define_class_under(mCurlErr, "MultiBadSocket", eCurlErrError);
-#if HAVE_CURLM_ADDED_ALREADY
+#ifdef HAVE_CURLM_ADDED_ALREADY
   mCurlErrAddedAlready       = rb_define_class_under(mCurlErr, "MultiAddedAlready", eCurlErrError);
 #endif
   mCurlErrUnknownOption      = rb_define_class_under(mCurlErr, "MultiUnknownOption", eCurlErrError);

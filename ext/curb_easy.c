@@ -998,11 +998,11 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   curl_easy_setopt(curl, CURLOPT_NOBODY, 0);
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
   curl_easy_setopt(curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
-#if HAVE_CURLOPT_SEEKFUNCTION
+#ifdef HAVE_CURLOPT_SEEKFUNCTION
   curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, (curl_seek_callback)seek_data_handler);
 #endif
   curl_easy_setopt(curl, CURLOPT_READDATA, rbce);
-#if HAVE_CURLOPT_SEEKDATA
+#ifdef HAVE_CURLOPT_SEEKDATA
   curl_easy_setopt(curl, CURLOPT_SEEKDATA, rbce);
 #endif
 
@@ -1602,7 +1602,7 @@ static VALUE ruby_curl_easy_max_recv_speed_large_get(VALUE self) {
  * Set the HTTP Authentication username.
  */
 static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
-#if HAVE_CURLOPT_USERNAME
+#ifdef HAVE_CURLOPT_USERNAME
   CURB_OBJECT_HSETTER(ruby_curl_easy, username);
 #else
   return Qnil;
@@ -1616,7 +1616,7 @@ static VALUE ruby_curl_easy_username_set(VALUE self, VALUE username) {
  * Get the current username
  */
 static VALUE ruby_curl_easy_username_get(VALUE self) {
-#if HAVE_CURLOPT_USERNAME
+#ifdef HAVE_CURLOPT_USERNAME
   CURB_OBJECT_HGETTER(ruby_curl_easy, username);
 #else
   return Qnil;
@@ -1630,7 +1630,7 @@ static VALUE ruby_curl_easy_username_get(VALUE self) {
  * Set the HTTP Authentication password.
  */
 static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
-#if HAVE_CURLOPT_PASSWORD
+#ifdef HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_HSETTER(ruby_curl_easy, password);
 #else
   return Qnil;
@@ -1644,7 +1644,7 @@ static VALUE ruby_curl_easy_password_set(VALUE self, VALUE password) {
  * Get the current password
  */
 static VALUE ruby_curl_easy_password_get(VALUE self) {
-#if HAVE_CURLOPT_PASSWORD
+#ifdef HAVE_CURLOPT_PASSWORD
   CURB_OBJECT_HGETTER(ruby_curl_easy, password);
 #else
   return Qnil;
@@ -2385,7 +2385,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     curl_easy_setopt(curl, CURLOPT_INTERFACE, NULL);
   }
 
-#if HAVE_CURLOPT_USERNAME == 1 && HAVE_CURLOPT_PASSWORD == 1
+#ifdef HAVE_CURLOPT_USERNAME == 1 && HAVE_CURLOPT_PASSWORD == 1
   if (!rb_easy_nil("username")) {
     curl_easy_setopt(curl, CURLOPT_USERNAME, rb_easy_get_str("username"));
   } else {
@@ -2401,7 +2401,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   if (!rb_easy_nil("userpwd")) {
     curl_easy_setopt(curl, CURLOPT_USERPWD, rb_easy_get_str("userpwd"));
-#if HAVE_CURLOPT_USERNAME == 1
+#ifdef HAVE_CURLOPT_USERNAME == 1
   } else if (rb_easy_nil("username") && rb_easy_nil("password")) { /* don't set this even to NULL if we have set username and password */
 #else
   } else {
@@ -2421,7 +2421,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, rb_easy_get_str("proxypwd"));
   }
 
-#if HAVE_CURLOPT_NOPROXY
+#ifdef HAVE_CURLOPT_NOPROXY
   if (rb_easy_nil("noproxy")) {
     curl_easy_setopt(curl, CURLOPT_NOPROXY, NULL);
   } else {
@@ -2504,12 +2504,12 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   curl_easy_setopt(curl, CURLOPT_UNRESTRICTED_AUTH, rbce->unrestricted_auth);
 
-#if HAVE_CURLOPT_TIMEOUT_MS
+#ifdef HAVE_CURLOPT_TIMEOUT_MS
   curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, rbce->timeout_ms);
 #endif
 
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, rbce->connect_timeout);
-#if HAVE_CURLOPT_CONNECTTIMEOUT_MS
+#ifdef HAVE_CURLOPT_CONNECTTIMEOUT_MS
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, rbce->connect_timeout_ms);
 #endif
   curl_easy_setopt(curl, CURLOPT_DNS_CACHE_TIMEOUT, rbce->dns_cache_timeout);
@@ -2672,7 +2672,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
-#if HAVE_CURLOPT_PROXYHEADER
+#ifdef HAVE_CURLOPT_PROXYHEADER
   /* Setup HTTP proxy headers if necessary */
   curl_easy_setopt(curl, CURLOPT_PROXYHEADER, NULL);   // XXX: maybe we shouldn't be clearing this?
 
@@ -2707,7 +2707,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
     }
   }
 
-#if HAVE_CURLOPT_RESOLVE
+#ifdef HAVE_CURLOPT_RESOLVE
   /* Setup resolve list if necessary */
   if (!rb_easy_nil("resolve")) {
     if (rb_easy_type_check("resolve", T_ARRAY)) {
@@ -3867,10 +3867,10 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_HEADER:
   case CURLOPT_NOPROGRESS:
   case CURLOPT_NOSIGNAL:
-#if HAVE_CURLOPT_PATH_AS_IS
+#ifdef HAVE_CURLOPT_PATH_AS_IS
   case CURLOPT_PATH_AS_IS:
 #endif
-#if HAVE_CURLOPT_PIPEWAIT
+#ifdef HAVE_CURLOPT_PIPEWAIT
   case CURLOPT_PIPEWAIT:
 #endif
   case CURLOPT_HTTPGET:
@@ -3903,7 +3903,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE proxypwd = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, proxypwd);
     } break;
-#if HAVE_CURLOPT_NOPROXY
+#ifdef HAVE_CURLOPT_NOPROXY
   case CURLOPT_NOPROXY: {
     VALUE noproxy = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, noproxy);
@@ -3921,7 +3921,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     VALUE cookiejar = val;
     CURB_OBJECT_HSETTER(ruby_curl_easy, cookiejar);
     } break;
-#if HAVE_CURLOPT_REQUEST_TARGET
+#ifdef HAVE_CURLOPT_REQUEST_TARGET
   case CURLOPT_REQUEST_TARGET: {
     /* Forward request-target directly to libcurl as a string. */
     curl_easy_setopt(rbce->curl, CURLOPT_REQUEST_TARGET, NIL_P(val) ? NULL : StringValueCStr(val));
@@ -3931,7 +3931,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_NODELAY, NUM2LONG(val));
     } break;
   /* FTP-specific toggles */
-#if HAVE_CURLOPT_DIRLISTONLY
+#ifdef HAVE_CURLOPT_DIRLISTONLY
   case CURLOPT_DIRLISTONLY: {
     int type = rb_type(val);
     VALUE value;
@@ -3945,7 +3945,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_DIRLISTONLY, NUM2LONG(value));
     } break;
 #endif
-#if HAVE_CURLOPT_FTP_USE_EPSV
+#ifdef HAVE_CURLOPT_FTP_USE_EPSV
   case CURLOPT_FTP_USE_EPSV: {
     int type = rb_type(val);
     VALUE value;
@@ -3959,7 +3959,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPSV, NUM2LONG(value));
     } break;
 #endif
-#if HAVE_CURLOPT_FTP_USE_EPRT
+#ifdef HAVE_CURLOPT_FTP_USE_EPRT
   case CURLOPT_FTP_USE_EPRT: {
     int type = rb_type(val);
     VALUE value;
@@ -3973,7 +3973,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPRT, NUM2LONG(value));
     } break;
 #endif
-#if HAVE_CURLOPT_FTP_SKIP_PASV_IP
+#ifdef HAVE_CURLOPT_FTP_SKIP_PASV_IP
   case CURLOPT_FTP_SKIP_PASV_IP: {
     int type = rb_type(val);
     VALUE value;
@@ -4002,32 +4002,32 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_FORBID_REUSE: {
     curl_easy_setopt(rbce->curl, CURLOPT_FORBID_REUSE, NUM2LONG(val));
     } break;
-#if HAVE_CURLOPT_GSSAPI_DELEGATION
+#ifdef HAVE_CURLOPT_GSSAPI_DELEGATION
   case CURLOPT_GSSAPI_DELEGATION: {
     curl_easy_setopt(rbce->curl, CURLOPT_GSSAPI_DELEGATION, NUM2LONG(val));
     } break;
 #endif
-#if HAVE_CURLOPT_UNIX_SOCKET_PATH
+#ifdef HAVE_CURLOPT_UNIX_SOCKET_PATH
   case CURLOPT_UNIX_SOCKET_PATH: {
 	curl_easy_setopt(rbce->curl, CURLOPT_UNIX_SOCKET_PATH, StringValueCStr(val));
     } break;
 #endif
-#if HAVE_CURLOPT_MAX_SEND_SPEED_LARGE
+#ifdef HAVE_CURLOPT_MAX_SEND_SPEED_LARGE
   case CURLOPT_MAX_SEND_SPEED_LARGE: {
     curl_easy_setopt(rbce->curl, CURLOPT_MAX_SEND_SPEED_LARGE, (curl_off_t) NUM2LL(val));
     } break;
 #endif
-#if HAVE_CURLOPT_MAX_RECV_SPEED_LARGE
+#ifdef HAVE_CURLOPT_MAX_RECV_SPEED_LARGE
   case CURLOPT_MAX_RECV_SPEED_LARGE: {
     curl_easy_setopt(rbce->curl, CURLOPT_MAX_RECV_SPEED_LARGE, (curl_off_t) NUM2LL(val));
     } break;
 #endif
-#if HAVE_CURLOPT_MAXFILESIZE
+#ifdef HAVE_CURLOPT_MAXFILESIZE
   case CURLOPT_MAXFILESIZE:
     curl_easy_setopt(rbce->curl, CURLOPT_MAXFILESIZE, NUM2LONG(val));
     break;
 #endif
-#if HAVE_CURLOPT_TCP_KEEPALIVE
+#ifdef HAVE_CURLOPT_TCP_KEEPALIVE
   case CURLOPT_TCP_KEEPALIVE:
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_KEEPALIVE, NUM2LONG(val));
     break;
@@ -4038,7 +4038,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_TCP_KEEPINTVL, NUM2LONG(val));
     break;
 #endif
-#if HAVE_CURLOPT_HAPROXYPROTOCOL
+#ifdef HAVE_CURLOPT_HAPROXYPROTOCOL
   case CURLOPT_HAPROXYPROTOCOL:
     curl_easy_setopt(rbce->curl, CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
     break;
@@ -4057,12 +4057,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_REDIR_PROTOCOLS:
     curl_easy_setopt(rbce->curl, option, NUM2LONG(val));
     break;
-#if HAVE_CURLOPT_SSL_SESSIONID_CACHE
+#ifdef HAVE_CURLOPT_SSL_SESSIONID_CACHE
   case CURLOPT_SSL_SESSIONID_CACHE:
     curl_easy_setopt(rbce->curl, CURLOPT_SSL_SESSIONID_CACHE, NUM2LONG(val));
     break;
 #endif
-#if HAVE_CURLOPT_COOKIELIST
+#ifdef HAVE_CURLOPT_COOKIELIST
   case CURLOPT_COOKIELIST: {
 	/* Forward to libcurl */
 	curl_easy_setopt(rbce->curl, CURLOPT_COOKIELIST, StringValueCStr(val));
@@ -4082,12 +4082,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 	}
   } break;
 #endif
-#if HAVE_CURLOPT_PROXY_SSL_VERIFYHOST
+#ifdef HAVE_CURLOPT_PROXY_SSL_VERIFYHOST
   case CURLOPT_PROXY_SSL_VERIFYHOST:
     curl_easy_setopt(rbce->curl, CURLOPT_PROXY_SSL_VERIFYHOST, NUM2LONG(val));
     break;
 #endif
-#if HAVE_CURLOPT_RESOLVE
+#ifdef HAVE_CURLOPT_RESOLVE
   case CURLOPT_RESOLVE: {
     struct curl_slist *list = NULL;
     if (NIL_P(val)) {

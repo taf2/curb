@@ -707,17 +707,21 @@ static int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp, v
     st_data_t k = (st_data_t)fd;
     st_data_t rec;
     st_delete(ctx->sock_map, &k, &rec);
+#if CURB_SOCKET_DEBUG
     {
       char b[16];
       curb_debugf("[curb.socket] sock_cb fd=%d what=%s (removed)", fd, poll_what_str(what, b, sizeof(b)));
     }
+#endif
   } else {
     /* store current interest mask for this fd */
     st_insert(ctx->sock_map, (st_data_t)fd, (st_data_t)what);
+#if CURB_SOCKET_DEBUG
     {
       char b[16];
       curb_debugf("[curb.socket] sock_cb fd=%d what=%s (tracked)", fd, poll_what_str(what, b, sizeof(b)));
     }
+#endif
   }
   return 0;
 }
@@ -741,6 +745,7 @@ static int rb_fdset_from_sockmap_i(st_data_t key, st_data_t val, st_data_t argp)
   if (fd > a->maxfd) a->maxfd = fd;
   return ST_CONTINUE;
 }
+RBIMPL_ATTR_MAYBE_UNUSED()
 static void rb_fdset_from_sockmap(st_table *map, rb_fdset_t *rfds, rb_fdset_t *wfds, rb_fdset_t *efds, int *maxfd_out) {
   if (!map) { *maxfd_out = -1; return; }
   struct build_fdset_args a; a.r = rfds; a.w = wfds; a.e = efds; a.maxfd = -1;
@@ -941,8 +946,12 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
         if (wait_what == CURL_POLL_IN || wait_what == CURL_POLL_INOUT) flags |= CURL_CSELECT_IN;
         if (wait_what == CURL_POLL_OUT || wait_what == CURL_POLL_INOUT) flags |= CURL_CSELECT_OUT;
         flags |= CURL_CSELECT_ERR;
-        char b[32];
-        curb_debugf("[curb.socket] socket_action fd=%d flags=%s", wait_fd, cselect_flags_str(flags, b, sizeof(b)));
+#if CURB_SOCKET_DEBUG
+        {
+          char b[32];
+          curb_debugf("[curb.socket] socket_action fd=%d flags=%s", wait_fd, cselect_flags_str(flags, b, sizeof(b)));
+        }
+#endif
         mrc = curl_multi_socket_action(rbcm->handle, (curl_socket_t)wait_fd, flags, &rbcm->running);
         curb_debugf("[curb.socket] socket_action -> mrc=%d running=%d", mrc, rbcm->running);
         if (mrc != CURLM_OK) raise_curl_multi_error_exception(mrc);
@@ -1037,7 +1046,8 @@ void cleanup_crt_fd(fd_set *os_set, fd_set *crt_set)
 }
 #endif
 
-#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+/* curb_select is only needed when rb_thread_fd_select is NOT available */
+#if !defined(HAVE_RB_THREAD_FD_SELECT) && (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
 struct _select_set {
   int maxfd;
   fd_set *fdread, *fdwrite, *fdexcep;
@@ -1078,7 +1088,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   struct timeval tv = {0, 0};
   struct timeval tv_100ms = {0, 100000};
   VALUE block = Qnil;
-#if defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+#if !defined(HAVE_RB_THREAD_FD_SELECT) && (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
   struct _select_set fdset_args;
 #endif
 
@@ -1185,7 +1195,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
       if (maxfd == -1) {
         /* libcurl recommends sleeping for 100ms */
-#if HAVE_RB_THREAD_FD_SELECT
+#ifdef HAVE_RB_THREAD_FD_SELECT
         struct timeval tv_sleep = tv_100ms;
         rb_thread_fd_select(0, NULL, NULL, NULL, &tv_sleep);
 #else
@@ -1204,7 +1214,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 #endif
 
 
-#if (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
+#if !defined(HAVE_RB_THREAD_FD_SELECT) && (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
       fdset_args.maxfd = maxfd+1;
       fdset_args.fdread = &fdread;
       fdset_args.fdwrite = &fdwrite;
@@ -1212,7 +1222,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       fdset_args.tv = &tv;
 #endif
 
-#if HAVE_RB_THREAD_FD_SELECT
+#ifdef HAVE_RB_THREAD_FD_SELECT
       /* Prefer scheduler-aware waiting when available. Build rb_fdset_t sets. */
       {
         rb_fdset_t rfds, wfds, efds;
