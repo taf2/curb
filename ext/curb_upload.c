@@ -10,12 +10,35 @@ VALUE cCurlUpload;
   mCurl = rb_define_module("Curl");
 #endif
 
-static void curl_upload_mark(ruby_curl_upload *rbcu) {
-  if (rbcu->stream && !NIL_P(rbcu->stream)) rb_gc_mark(rbcu->stream);
+static void curl_upload_mark(void *ptr) {
+  ruby_curl_upload *rbcu = (ruby_curl_upload *)ptr;
+  if (rbcu && rbcu->stream && !NIL_P(rbcu->stream)) rb_gc_mark(rbcu->stream);
 }
-static void curl_upload_free(ruby_curl_upload *rbcu) {
-  free(rbcu);
+
+static void curl_upload_free(void *ptr) {
+  if (ptr) free(ptr);
 }
+
+static size_t curl_upload_memsize(const void *ptr) {
+  (void)ptr;
+  return sizeof(ruby_curl_upload);
+}
+
+const rb_data_type_t ruby_curl_upload_data_type = {
+  "Curl::Upload",
+  {
+    curl_upload_mark,
+    curl_upload_free,
+    curl_upload_memsize,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+    NULL, /* compact */
+#endif
+  },
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+  NULL, NULL, /* parent, data */
+  RUBY_TYPED_FREE_IMMEDIATELY
+#endif
+};
 
 /*
  * call-seq:
@@ -29,7 +52,7 @@ VALUE ruby_curl_upload_new(VALUE klass) {
   }
   rbcu->stream = Qnil;
   rbcu->offset = 0;
-  upload = Data_Wrap_Struct(klass, curl_upload_mark, curl_upload_free, rbcu);
+  upload = TypedData_Wrap_Struct(klass, &ruby_curl_upload_data_type, rbcu);
   return upload;
 }
 
@@ -39,7 +62,7 @@ VALUE ruby_curl_upload_new(VALUE klass) {
  */
 VALUE ruby_curl_upload_stream_set(VALUE self, VALUE stream) {
   ruby_curl_upload *rbcu;
-  Data_Get_Struct(self, ruby_curl_upload, rbcu);
+  TypedData_Get_Struct(self, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
   rbcu->stream = stream;
   return stream;
 }
@@ -49,7 +72,7 @@ VALUE ruby_curl_upload_stream_set(VALUE self, VALUE stream) {
  */
 VALUE ruby_curl_upload_stream_get(VALUE self) {
   ruby_curl_upload *rbcu;
-  Data_Get_Struct(self, ruby_curl_upload, rbcu);
+  TypedData_Get_Struct(self, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
   return rbcu->stream;
 }
 /*
@@ -58,7 +81,7 @@ VALUE ruby_curl_upload_stream_get(VALUE self) {
  */
 VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset) {
   ruby_curl_upload *rbcu;
-  Data_Get_Struct(self, ruby_curl_upload, rbcu);
+  TypedData_Get_Struct(self, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
   rbcu->offset = NUM2LONG(offset);
   return offset;
 }
@@ -68,7 +91,7 @@ VALUE ruby_curl_upload_offset_set(VALUE self, VALUE offset) {
  */
 VALUE ruby_curl_upload_offset_get(VALUE self) {
   ruby_curl_upload *rbcu;
-  Data_Get_Struct(self, ruby_curl_upload, rbcu);
+  TypedData_Get_Struct(self, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
   return LONG2NUM(rbcu->offset);
 }
 

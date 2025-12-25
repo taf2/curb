@@ -19,6 +19,8 @@ typedef struct {
 } ruby_curl_upload;
 
 extern VALUE cCurlUpload;
+extern const rb_data_type_t ruby_curl_upload_data_type;
+
 void init_curb_upload();
 
 VALUE ruby_curl_upload_new(VALUE klass);

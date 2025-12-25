@@ -107,7 +107,7 @@ static int detach_easy_entry(st_data_t key, st_data_t val, st_data_t arg) {
   ruby_curl_easy *rbce = NULL;
 
   if (RB_TYPE_P(easy, T_DATA)) {
-    Data_Get_Struct(easy, ruby_curl_easy, rbce);
+    TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
   }
 
   if (!rbce) {
@@ -150,7 +150,9 @@ static void rb_curl_multi_detach_all(ruby_curl_multi *rbcm) {
   rbcm->running = 0;
 }
 
-void curl_multi_free(ruby_curl_multi *rbcm) {
+/* TypedData-compatible free function */
+static void curl_multi_free(void *ptr) {
+  ruby_curl_multi *rbcm = (ruby_curl_multi *)ptr;
   if (!rbcm) {
     return;
   }
@@ -164,6 +166,27 @@ void curl_multi_free(ruby_curl_multi *rbcm) {
 
   free(rbcm);
 }
+
+static size_t curl_multi_memsize(const void *ptr) {
+  (void)ptr;
+  return sizeof(ruby_curl_multi);
+}
+
+const rb_data_type_t ruby_curl_multi_data_type = {
+  "Curl::Multi",
+  {
+    curl_multi_mark,
+    curl_multi_free,
+    curl_multi_memsize,
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+    NULL, /* compact */
+#endif
+  },
+#ifdef RUBY_TYPED_FREE_IMMEDIATELY
+  NULL, NULL, /* parent, data */
+  RUBY_TYPED_FREE_IMMEDIATELY
+#endif
+};
 
 static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
   rbcm->handle = curl_multi_init();
@@ -209,7 +232,7 @@ VALUE ruby_curl_multi_new(VALUE klass) {
    * identify these objects using rb_gc_mark(value). If the structure doesn't reference
    * other Ruby objects, you can simply pass 0 as a function pointer.
    */
-  return Data_Wrap_Struct(klass, curl_multi_mark, curl_multi_free, rbcm);
+  return TypedData_Wrap_Struct(klass, &ruby_curl_multi_data_type, rbcm);
 }
 
 /*
@@ -277,7 +300,7 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
 #ifdef HAVE_CURLMOPT_MAXCONNECTS
   ruby_curl_multi *rbcm;
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2LONG(count));
 #endif
@@ -296,7 +319,7 @@ static VALUE ruby_curl_multi_max_host_connections(VALUE self, VALUE count) {
 #ifdef HAVE_CURLMOPT_MAX_HOST_CONNECTIONS
   ruby_curl_multi *rbcm;
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAX_HOST_CONNECTIONS, NUM2LONG(count));
 #endif
@@ -330,7 +353,7 @@ static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE method) {
     value = NUM2LONG(method);
   } 
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
   curl_multi_setopt(rbcm->handle, CURLMOPT_PIPELINING, value);
 #endif
   return method == Qtrue ? 1 : 0;
@@ -350,8 +373,8 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
   ruby_curl_easy *rbce;
   ruby_curl_multi *rbcm;
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
-  Data_Get_Struct(easy, ruby_curl_easy, rbce);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
 
   /* setup the easy handle */
   ruby_curl_easy_setup( rbce );
@@ -403,7 +426,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 VALUE ruby_curl_multi_remove(VALUE self, VALUE rb_easy_handle) {
   ruby_curl_multi *rbcm;
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   rb_curl_multi_remove(rbcm, rb_easy_handle);
 
@@ -414,7 +437,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
   CURLMcode result;
   ruby_curl_easy *rbce;
 
-  Data_Get_Struct(easy, ruby_curl_easy, rbce);
+  TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
   result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
   if (result != 0) {
     raise_curl_multi_error_exception(result);
@@ -481,7 +504,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   VALUE callargs;
   ruby_curl_multi *rbcm = NULL;
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   /* Try to recover the ruby_curl_easy pointer stored via CURLOPT_PRIVATE. */
   CURLcode private_rc = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
@@ -493,7 +516,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   if (NIL_P(easy) || !RB_TYPE_P(easy, T_DATA)) {
     easy = find_easy_by_handle(rbcm, easy_handle);
     if (!NIL_P(easy) && RB_TYPE_P(easy, T_DATA)) {
-      Data_Get_Struct(easy, ruby_curl_easy, rbce);
+      TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
     }
   }
 
@@ -991,7 +1014,7 @@ VALUE ruby_curl_multi_socket_perform(int argc, VALUE *argv, VALUE self) {
   VALUE block = Qnil;
   rb_scan_args(argc, argv, "0&", &block);
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   multi_socket_ctx ctx;
   ctx.sock_map = st_init_numtable();
@@ -1094,7 +1117,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 
   rb_scan_args(argc, argv, "0&", &block);
 
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   timeout_milliseconds = cCurlMutiDefaulttimeout;
 
@@ -1298,7 +1321,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
  */
 VALUE ruby_curl_multi_close(VALUE self) {
   ruby_curl_multi *rbcm;
-  Data_Get_Struct(self, ruby_curl_multi, rbcm);
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
   rb_curl_multi_detach_all(rbcm);
 
   if (rbcm->handle) {

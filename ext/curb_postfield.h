@@ -30,6 +30,7 @@ typedef struct {
 } ruby_curl_postfield;
 
 extern VALUE cCurlPostField;
+extern const rb_data_type_t ruby_curl_postfield_data_type;
 
 void append_to_form(VALUE self, 
                     struct curl_httppost **first, 
