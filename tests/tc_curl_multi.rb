@@ -50,7 +50,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     else
       ss = `which ss`.strip
       open_fds = lambda do
-        `#{ss} -n4 state established dport = :#{TestServlet.port} | wc -l`.strip.to_i
+        `#{ss} -tn4 state established dport = :#{TestServlet.port} | wc -l`.strip.to_i
       end
     end
     Curl::Multi.autoclose = false
