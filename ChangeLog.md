@@ -1,4 +1,7 @@
 # ChangeLog
+## 1.2.3
+* Ruby 4.0 deprecation typed data conversion
+* Address many libcurl deprecations
 
 ## 1.2.2
 * Fix rare `Multi#perform` segfault with GC.compact by recovering the Easy when `CURLINFO_PRIVATE` is stale and pruning unknown handles.
