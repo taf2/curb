@@ -2480,7 +2480,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   if (!rb_easy_nil("userpwd")) {
     curl_easy_setopt(curl, CURLOPT_USERPWD, rb_easy_get_str("userpwd"));
-#ifdef HAVE_CURLOPT_USERNAME
+#if defined(HAVE_CURLOPT_USERNAME) && defined(HAVE_CURLOPT_PASSWORD)
   } else if (rb_easy_nil("username") && rb_easy_nil("password")) { /* don't set this even to NULL if we have set username and password */
 #else
   } else {
