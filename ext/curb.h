@@ -26,6 +26,7 @@
 #include "curb_multi.h"
 
 #include "curb_macros.h"
+#include "curb_share.h"
 
 // These should be managed from the Rake 'release' task.
 #define CURB_VERSION   "1.2.2"

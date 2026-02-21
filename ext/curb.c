@@ -1242,4 +1242,5 @@ void Init_curb_core() {
   init_curb_postfield();
   init_curb_multi();
   init_curb_upload();
+  init_curb_share();
 }

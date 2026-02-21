@@ -671,6 +671,8 @@ if ENV['CURB_SOCKET_DEBUG'] == '1'
   $defs << '-DCURB_SOCKET_DEBUG=1'
 end
 
+have_library('pthread')
+
 # Run any queued constant checks (in parallel if enabled) before header generation.
 flush_constant_checks
 

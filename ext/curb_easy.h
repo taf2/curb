@@ -42,6 +42,7 @@ typedef struct {
   VALUE self; /* owning Ruby object */
   VALUE opts; /* rather then allocate everything we might need to store, allocate a Hash and only store objects we actually use... */
   VALUE multi; /* keep a multi handle alive for each easy handle not being used by a multi handle.  This improves easy performance when not within a multi context */
+  VALUE share; /* Curl::Share reference — kept here so GC marks it alive while this easy handle is attached */
 
   /* Other opts */
   unsigned short local_port;       // 0 is no port

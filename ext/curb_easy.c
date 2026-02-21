@@ -9,6 +9,7 @@
 #include "curb_postfield.h"
 #include "curb_upload.h"
 #include "curb_multi.h"
+#include "curb_share.h"
 
 #include <errno.h>
 #include <string.h>
@@ -253,6 +254,7 @@ static int proc_debug_handler(CURL *curl,
 void curl_easy_mark(ruby_curl_easy *rbce) {
   if (!NIL_P(rbce->opts)) { rb_gc_mark(rbce->opts); }
   if (!NIL_P(rbce->multi)) { rb_gc_mark(rbce->multi); }
+  if (!NIL_P(rbce->share)) { rb_gc_mark(rbce->share); }
 }
 
 static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
@@ -372,6 +374,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->ignore_content_length = 0;
   rbce->callback_active = 0;
   rbce->last_result = 0;
+  rbce->share = Qnil;
 }
 
 /*
@@ -386,6 +389,7 @@ static VALUE ruby_curl_easy_allocate(VALUE klass) {
   rbce->curl = NULL;
   rbce->opts  = Qnil;
   rbce->multi = Qnil;
+  rbce->share = Qnil;
   ruby_curl_easy_zero(rbce);
   return Data_Wrap_Struct(klass, curl_easy_mark, curl_easy_free, rbce);
 }
@@ -4235,6 +4239,36 @@ static VALUE ruby_curl_easy_error_message(VALUE klass, VALUE code) {
   return rb_curl_easy_error(NUM2INT(code));
 }
 
+/*
+ * call-seq:
+ *   easy.share = share   => share
+ *   easy.share = nil     => nil
+ *
+ * Attach this easy handle to a Curl::Share object so it shares the
+ * connection cache, DNS cache, SSL session cache, and/or cookie jar that
+ * the share has been configured with. Pass nil to detach.
+ *
+ * The share must be configured (via share.enable) before the first perform
+ * call; attaching mid-request is not supported by libcurl.
+ */
+static VALUE rb_easy_set_share(VALUE self, VALUE share) {
+  ruby_curl_easy *rbce;
+  ruby_curl_share *rshare;
+
+  Data_Get_Struct(self, ruby_curl_easy, rbce);
+
+  if (NIL_P(share)) {
+    curl_easy_setopt(rbce->curl, CURLOPT_SHARE, NULL);
+    rbce->share = Qnil;
+    return share;
+  }
+
+  Data_Get_Struct(share, ruby_curl_share, rshare);
+  curl_easy_setopt(rbce->curl, CURLOPT_SHARE, rshare->share);
+  rbce->share = share; /* keep a Ruby reference so GC marks the share alive */
+  return share;
+}
+
 /* =================== INIT LIB =====================*/
 // TODO: https://bugs.ruby-lang.org/issues/18007
 void init_curb_easy() {
@@ -4434,4 +4468,6 @@ void init_curb_easy() {
 
   rb_define_method(cCurlEasy, "setopt", ruby_curl_easy_set_opt, 2);
   rb_define_method(cCurlEasy, "getinfo", ruby_curl_easy_get_opt, 1);
+
+  rb_define_method(cCurlEasy, "share=", rb_easy_set_share, 1);
 }
