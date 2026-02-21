@@ -14,6 +14,9 @@ if find_executable('curl-config')
     $LIBS << " #{`curl-config --static-libs`.strip}"
   else
     $LIBS << " #{`curl-config --libs`.strip}"
+    # Embed rpath for the curl lib dir so the extension loads without LD_LIBRARY_PATH
+    curl_lib_dir = `curl-config --prefix`.strip + "/lib"
+    $LDFLAGS << " -Wl,-rpath,#{curl_lib_dir}" if File.directory?(curl_lib_dir)
   end
   ca_bundle_path=`curl-config --ca`.strip.gsub(/^"([^"]+)"$/,'\1')
   if !ca_bundle_path.nil? and ca_bundle_path != ''
