@@ -2657,7 +2657,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   if (!rb_easy_nil("headers")) {
     if (rb_easy_type_check("headers", T_ARRAY) || rb_easy_type_check("headers", T_HASH)) {
       VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, hdrs);
-      rb_iterate(rb_each, rb_easy_get("headers"), cb_each_http_header, wrap);
+      rb_block_call(rb_easy_get("headers"), rb_intern("each"), 0, NULL, cb_each_http_header, wrap);
     } else {
       VALUE headers_str = rb_obj_as_string(rb_easy_get("headers"));
       struct curl_slist *new_list = curl_slist_append(*hdrs, StringValuePtr(headers_str));
@@ -2679,7 +2679,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   if (!rb_easy_nil("proxy_headers")) {
     if (rb_easy_type_check("proxy_headers", T_ARRAY) || rb_easy_type_check("proxy_headers", T_HASH)) {
       VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, phdrs);
-      rb_iterate(rb_each, rb_easy_get("proxy_headers"), cb_each_http_proxy_header, wrap);
+      rb_block_call(rb_easy_get("proxy_headers"), rb_intern("each"), 0, NULL, cb_each_http_proxy_header, wrap);
     } else {
       VALUE proxy_headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
       struct curl_slist *new_list = curl_slist_append(*phdrs, StringValuePtr(proxy_headers_str));
@@ -2699,7 +2699,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   if (!rb_easy_nil("ftp_commands")) {
     if (rb_easy_type_check("ftp_commands", T_ARRAY)) {
       VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, cmds);
-      rb_iterate(rb_each, rb_easy_get("ftp_commands"), cb_each_ftp_command, wrap);
+      rb_block_call(rb_easy_get("ftp_commands"), rb_intern("each"), 0, NULL, cb_each_ftp_command, wrap);
     }
 
     if (*cmds) {
@@ -2712,7 +2712,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
   if (!rb_easy_nil("resolve")) {
     if (rb_easy_type_check("resolve", T_ARRAY)) {
       VALUE wrap = Data_Wrap_Struct(rb_cObject, 0, 0, rslv);
-      rb_iterate(rb_each, rb_easy_get("resolve"), cb_each_resolve, wrap);
+      rb_block_call(rb_easy_get("resolve"), rb_intern("each"), 0, NULL, cb_each_resolve, wrap);
     }
 
     if (*rslv) {
