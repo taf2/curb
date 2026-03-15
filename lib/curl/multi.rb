@@ -160,16 +160,20 @@ module Curl
           end
         end
 
-        if urls_with_config.empty?
-          m.perform
-        else
-          until urls_with_config.empty?
-            m.perform do
+        begin
+          if urls_with_config.empty?
+            m.perform
+          else
+            until urls_with_config.empty?
+              m.perform do
+                consume_free_handles.call
+              end
               consume_free_handles.call
             end
-            consume_free_handles.call
+            free_handles = nil
           end
-          free_handles = nil
+        ensure
+          m.close
         end
 
       end
@@ -266,10 +270,53 @@ module Curl
       @requests ||= {}
     end
 
+    def __idle_easy_references
+      @__curb_idle_easy_references ||= ObjectSpace::WeakMap.new
+    end
+    
+    def __register_idle_easy_reference(easy)
+      __idle_easy_references[easy] = true
+      self
+    end
+    
+    def __unregister_idle_easy_reference(easy)
+      return self unless instance_variable_defined?(:@__curb_idle_easy_references)
+
+      if @__curb_idle_easy_references.respond_to?(:delete)
+        @__curb_idle_easy_references.delete(easy)
+      else
+        retained_references = ObjectSpace::WeakMap.new
+        @__curb_idle_easy_references.each_key do |tracked_easy|
+          next if tracked_easy.equal?(easy)
+
+          retained_references[tracked_easy] = true
+        end
+        @__curb_idle_easy_references = retained_references
+      end
+
+      self
+    end
+    
+    def __clear_idle_easy_references
+      return unless instance_variable_defined?(:@__curb_idle_easy_references)
+    
+      @__curb_idle_easy_references.keys.each do |easy|
+        easy.multi = nil if easy.multi.equal?(self)
+      end
+      @__curb_idle_easy_references = ObjectSpace::WeakMap.new
+    end
+
+    private :__idle_easy_references, :__register_idle_easy_reference,
+            :__unregister_idle_easy_reference, :__clear_idle_easy_references
+
     def add(easy)
       return self if requests[easy.object_id]
-      requests[easy.object_id] = easy
+      # Once a deferred callback exception is pending, Multi#perform is
+      # draining existing transfers only and must not start replacement work.
+      return self if instance_variable_defined?(:@__curb_deferred_exception)
       _add(easy)
+      __unregister_idle_easy_reference(easy)
+      requests[easy.object_id] = easy
       self
     end
 
@@ -281,14 +328,27 @@ module Curl
     end
 
     def close
+      __close(true)
+    end
+
+    def _autoclose
+      __close(false)
+    end
+
+    private :_autoclose
+
+    private
+
+    def __close(permanent)
       requests.values.each {|easy|
         _remove(easy)
       }
+      __clear_idle_easy_references if permanent
       @requests = {}
       _close
+      _mark_closed if permanent
       self
     end
-
 
   end
 end

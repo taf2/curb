@@ -1,7 +1,106 @@
 # frozen_string_literal: true
 module Curl
   class Easy
+    class << self
+      def deferred_multi_close_mutex
+        @deferred_multi_close_mutex ||= Mutex.new
+      end
 
+      def deferred_multi_closes
+        deferred_multi_close_mutex.synchronize do
+          (@deferred_multi_closes ||= []).dup
+        end
+      end
+
+      def release_deferred_multi_close(multi, easy)
+        if easy && multi.requests[easy.object_id]
+          begin
+            multi.remove(easy)
+          rescue StandardError
+            # Deferred cleanup only applies to implicit single-easy multis, so
+            # clear any stale Ruby bookkeeping and continue closing the handle.
+            multi.instance_variable_set(:@requests, {})
+          end
+        else
+          multi.instance_variable_set(:@requests, {})
+        end
+
+        multi.instance_variable_set(:@deferred_close, false)
+        multi._close
+        true
+      rescue StandardError
+        false
+      end
+
+      def defer_multi_close(multi, easy, owner: Thread.current)
+        deferred_multi_close_mutex.synchronize do
+          @deferred_multi_closes ||= []
+          return if @deferred_multi_closes.any? { |entry| entry[:multi].equal?(multi) }
+
+          multi.instance_variable_set(:@deferred_close, true)
+          @deferred_multi_closes << { multi: multi, easy: easy, owner: owner }
+        end
+      end
+
+      def flush_deferred_multi_closes(all_threads: false)
+        pending = deferred_multi_close_mutex.synchronize do
+          @deferred_multi_closes ||= []
+
+          if all_threads
+            @deferred_multi_closes.shift(@deferred_multi_closes.length)
+          else
+            owner = Thread.current
+            remaining = []
+            current = []
+
+            @deferred_multi_closes.each do |entry|
+              if entry[:owner].equal?(owner)
+                current << entry
+              else
+                remaining << entry
+              end
+            end
+
+            @deferred_multi_closes = remaining
+            current
+          end
+        end
+
+        pending.each do |entry|
+          multi = entry[:multi]
+          easy = entry[:easy]
+
+          unless release_deferred_multi_close(multi, easy)
+            defer_multi_close(multi, easy, owner: entry[:owner])
+          end
+        end
+      end
+    end
+
+    at_exit do
+      flush_deferred_multi_closes(all_threads: true)
+    end
+    
+    alias_method :_curb_native_close, :close
+    alias_method :_curb_native_multi_set, :multi=
+    
+    def close
+      previous_multi = self.multi
+      result = _curb_native_close
+      previous_multi.__send__(:__unregister_idle_easy_reference, self) if previous_multi
+      result
+    end
+    
+    def multi=(multi)
+      previous_multi = self.multi
+      return multi if previous_multi.equal?(multi)
+    
+      result = _curb_native_multi_set(multi)
+      previous_multi.__send__(:__unregister_idle_easy_reference, self) if previous_multi
+      multi.__send__(:__register_idle_easy_reference, self) if multi
+      result
+    end
+    
     alias post http_post
     alias put http_put
     alias body body_str
@@ -64,22 +163,55 @@ module Curl
     # the configured HTTP Verb.
     #
     def perform
+      self.class.flush_deferred_multi_closes
+
       if Curl.scheduler_active? && self.multi.nil?
         ret = Curl.perform_with_scheduler(self)
       else
-        self.multi = Curl::Multi.new if self.multi.nil?
-        self.multi.add self
-        ret = self.multi.perform
-        self.multi.remove self
+        multi = self.multi
+        created_multi = multi.nil?
+        raised = false
 
-        if Curl::Multi.autoclose
-          self.multi.close
-          self.multi = nil
+        if created_multi
+          multi = Curl::Multi.new
+          self.multi = multi
+        end
+
+        begin
+          multi.add(self)
+          ret = multi.perform
+          multi.remove(self) if self.multi == multi
+        rescue Exception
+          raised = true
+          raise
+        ensure
+          if created_multi
+            if raised
+              unless self.class.release_deferred_multi_close(multi, self)
+                self.class.defer_multi_close(multi, self)
+              end
+              self.multi = nil if self.multi == multi
+            elsif Curl::Multi.autoclose
+              multi.__send__(:_autoclose)
+              self.multi = nil if self.multi == multi
+            else
+              self.multi = multi
+            end
+          elsif Curl::Multi.autoclose
+            multi.__send__(:_autoclose)
+            self.multi = nil if self.multi == multi
+          else
+            self.multi = multi
+          end
         end
       end
 
+      if (callback_error = _take_callback_error)
+        raise callback_error
+      end
+
       if self.last_result != 0 && self.on_failure.nil?
-        (err_class, err_summary) = Curl::Easy.error(self.last_result)
+        err_class, err_summary = Curl::Easy.error(self.last_result)
         err_detail = self.last_error
         raise err_class.new([err_summary, err_detail].compact.join(": "))
       end
@@ -89,6 +221,7 @@ module Curl
 
     #
     # call-seq:
+
     #
     # easy = Curl::Easy.new
     # easy.nosignal = true

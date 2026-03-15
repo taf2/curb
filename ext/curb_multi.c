@@ -27,6 +27,7 @@
 #include "curb_multi.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 
 /*
@@ -38,6 +39,12 @@
 #endif
 #if !CURB_SOCKET_DEBUG
 #define curb_debugf(...) ((void)0)
+#endif
+
+#ifdef RBIMPL_ATTR_MAYBE_UNUSED
+#define CURB_MAYBE_UNUSED_DECL RBIMPL_ATTR_MAYBE_UNUSED()
+#else
+#define CURB_MAYBE_UNUSED_DECL
 #endif
 
 #ifdef _WIN32
@@ -62,6 +69,8 @@ static void *curl_multi_wait_wrapper(void *p) {
 
 extern VALUE mCurl;
 static VALUE idCall;
+static ID id_deferred_exception_ivar;
+static ID id_deferred_exception_source_id_ivar;
 
 #ifdef RDOC_NEVER_DEFINED
   mCurl = rb_define_module("Curl");
@@ -72,6 +81,7 @@ VALUE cCurlMulti;
 static long cCurlMutiDefaulttimeout = 100; /* milliseconds */
 static char cCurlMutiAutoClose = 0;
 
+static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result);
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
 static void rb_curl_multi_read_info(VALUE self, CURLM *mptr);
 static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_running);
@@ -79,6 +89,12 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
 static int detach_easy_entry(st_data_t key, st_data_t val, st_data_t arg);
 static void rb_curl_multi_detach_all(ruby_curl_multi *rbcm);
 static void curl_multi_mark(void *ptr);
+static void ruby_curl_multi_ensure_handle(ruby_curl_multi *rbcm);
+static int rb_curl_multi_has_easy(ruby_curl_multi *rbcm, ruby_curl_easy *rbce);
+static void rb_curl_multi_remove_request_reference(VALUE self, VALUE easy);
+static VALUE ruby_curl_multi_mark_closed(VALUE self);
+static VALUE ruby_curl_multi_alloc(VALUE klass);
+static VALUE ruby_curl_multi_initialize(VALUE self);
 
 static VALUE callback_exception(VALUE did_raise, VALUE exception) {
   // TODO: we could have an option to enable exception reporting
@@ -99,6 +115,110 @@ static VALUE callback_exception(VALUE did_raise, VALUE exception) {
   */
   rb_hash_aset(did_raise, rb_easy_hkey("error"), exception);
   return exception;
+}
+
+static VALUE take_easy_callback_error_if_any(VALUE easy) {
+  ruby_curl_easy *rbce = NULL;
+
+  if (NIL_P(easy) || !RB_TYPE_P(easy, T_DATA)) {
+    return Qnil;
+  }
+
+  TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+  return rb_curl_easy_take_callback_error(rbce);
+}
+
+static VALUE build_aborted_by_callback_exception(VALUE exception) {
+  VALUE message = rb_funcall(exception, rb_intern("message"), 0);
+  VALUE aborted_exception = rb_exc_new_str(eCurlErrAbortedByCallback, message);
+  VALUE backtrace = rb_funcall(exception, rb_intern("backtrace"), 0);
+  rb_funcall(aborted_exception, rb_intern("set_backtrace"), 1, backtrace);
+  return aborted_exception;
+}
+
+static void stash_multi_exception_if_unset(VALUE self, VALUE exception, VALUE source_easy) {
+  if (rb_ivar_defined(self, id_deferred_exception_ivar)) {
+    return;
+  }
+
+  rb_ivar_set(self, id_deferred_exception_ivar, exception);
+  if (!NIL_P(source_easy)) {
+    rb_ivar_set(self, id_deferred_exception_source_id_ivar, rb_obj_id(source_easy));
+  }
+}
+
+static void clear_multi_deferred_exception_source_id_if_any(VALUE self) {
+  if (rb_ivar_defined(self, id_deferred_exception_source_id_ivar)) {
+    rb_funcall(self, rb_intern("remove_instance_variable"), 1, ID2SYM(id_deferred_exception_source_id_ivar));
+  }
+}
+
+static VALUE clear_multi_deferred_exception_if_any(VALUE self) {
+  VALUE exception = Qnil;
+
+  if (rb_ivar_defined(self, id_deferred_exception_ivar)) {
+    exception = rb_funcall(self, rb_intern("remove_instance_variable"), 1, ID2SYM(id_deferred_exception_ivar));
+  }
+
+  return exception;
+}
+
+static void rb_curl_multi_yield_if_given(VALUE self, VALUE block) {
+  if (block == Qnil) {
+    return;
+  }
+
+  rb_funcall(block, idCall, 1, self);
+}
+
+static void raise_multi_deferred_exception_if_idle(VALUE self) {
+  ruby_curl_multi *rbcm = NULL;
+
+  if (!rb_ivar_defined(self, id_deferred_exception_ivar)) {
+    return;
+  }
+
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  if (rbcm && rbcm->active > 0) {
+    return;
+  }
+
+  VALUE exception = clear_multi_deferred_exception_if_any(self);
+  rb_exc_raise(exception);
+}
+
+static VALUE take_status_callback_exception_if_any(VALUE did_raise) {
+  VALUE exception = rb_hash_aref(did_raise, rb_easy_hkey("error"));
+
+  if (FIX2INT(rb_hash_size(did_raise)) > 0 && exception != Qnil) {
+    rb_hash_clear(did_raise);
+    return build_aborted_by_callback_exception(exception);
+  }
+
+  return Qnil;
+}
+
+static void raise_completion_callback_error_if_any(VALUE did_raise, VALUE easy_callback_error) {
+  if (!NIL_P(easy_callback_error)) {
+    rb_exc_raise(easy_callback_error);
+  }
+
+  VALUE exception = take_status_callback_exception_if_any(did_raise);
+  if (!NIL_P(exception)) {
+    rb_exc_raise(exception);
+  }
+}
+
+struct multi_handle_complete_args {
+  VALUE self;
+  CURL *easy_handle;
+  int result;
+};
+
+static VALUE rb_curl_mutli_handle_complete_protected(VALUE argp) {
+  struct multi_handle_complete_args *args = (struct multi_handle_complete_args *)argp;
+  rb_curl_mutli_handle_complete(args->self, args->easy_handle, args->result);
+  return Qnil;
 }
 
 static int detach_easy_entry(st_data_t key, st_data_t val, st_data_t arg) {
@@ -150,6 +270,31 @@ static void rb_curl_multi_detach_all(ruby_curl_multi *rbcm) {
   rbcm->running = 0;
 }
 
+static int rb_curl_multi_has_easy(ruby_curl_multi *rbcm, ruby_curl_easy *rbce) {
+  st_data_t value = 0;
+
+  if (!rbcm || !rbce || !rbcm->attached) {
+    return 0;
+  }
+
+  return st_lookup(rbcm->attached, (st_data_t)rbce, &value);
+}
+
+static void rb_curl_multi_remove_request_reference(VALUE self, VALUE easy) {
+  VALUE requests;
+
+  if (NIL_P(self) || NIL_P(easy)) {
+    return;
+  }
+
+  requests = rb_funcall(self, rb_intern("requests"), 0);
+  if (!RB_TYPE_P(requests, T_HASH)) {
+    return;
+  }
+
+  rb_hash_delete(requests, rb_obj_id(easy));
+}
+
 /* TypedData-compatible free function */
 static void curl_multi_free(void *ptr) {
   ruby_curl_multi *rbcm = (ruby_curl_multi *)ptr;
@@ -196,6 +341,7 @@ static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
 
   rbcm->active = 0;
   rbcm->running = 0;
+  rbcm->closed = 0;
 
   if (rbcm->attached) {
     st_free_table(rbcm->attached);
@@ -210,19 +356,35 @@ static void ruby_curl_multi_init(ruby_curl_multi *rbcm) {
   }
 }
 
+static void ruby_curl_multi_ensure_handle(ruby_curl_multi *rbcm) {
+  if (!rbcm->handle) {
+    if (rbcm->closed) {
+      raise_curl_multi_error_exception(CURLM_BAD_HANDLE);
+    }
+    ruby_curl_multi_init(rbcm);
+  }
+}
+
 /*
  * call-seq:
  *   Curl::Multi.new                                   => #<Curl::Easy...>
  *
  * Create a new Curl::Multi instance
  */
-VALUE ruby_curl_multi_new(VALUE klass) {
-  ruby_curl_multi *rbcm = ALLOC(ruby_curl_multi);
-  if (!rbcm) {
-    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Multi");
-  }
+static VALUE ruby_curl_multi_alloc(VALUE klass) {
+  VALUE self;
+  ruby_curl_multi *rbcm;
 
+  self = TypedData_Make_Struct(klass, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
   MEMZERO(rbcm, ruby_curl_multi, 1);
+
+  return self;
+}
+
+static VALUE ruby_curl_multi_initialize(VALUE self) {
+  ruby_curl_multi *rbcm;
+
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   ruby_curl_multi_init(rbcm);
 
@@ -232,7 +394,7 @@ VALUE ruby_curl_multi_new(VALUE klass) {
    * identify these objects using rb_gc_mark(value). If the structure doesn't reference
    * other Ruby objects, you can simply pass 0 as a function pointer.
    */
-  return TypedData_Wrap_Struct(klass, &ruby_curl_multi_data_type, rbcm);
+  return self;
 }
 
 /*
@@ -301,6 +463,7 @@ static VALUE ruby_curl_multi_max_connects(VALUE self, VALUE count) {
   ruby_curl_multi *rbcm;
 
   TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  ruby_curl_multi_ensure_handle(rbcm);
 
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAXCONNECTS, NUM2LONG(count));
 #endif
@@ -320,6 +483,7 @@ static VALUE ruby_curl_multi_max_host_connections(VALUE self, VALUE count) {
   ruby_curl_multi *rbcm;
 
   TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  ruby_curl_multi_ensure_handle(rbcm);
 
   curl_multi_setopt(rbcm->handle, CURLMOPT_MAX_HOST_CONNECTIONS, NUM2LONG(count));
 #endif
@@ -354,6 +518,7 @@ static VALUE ruby_curl_multi_pipeline(VALUE self, VALUE method) {
   } 
 
   TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  ruby_curl_multi_ensure_handle(rbcm);
   curl_multi_setopt(rbcm->handle, CURLMOPT_PIPELINING, value);
 #endif
   return method == Qtrue ? 1 : 0;
@@ -375,6 +540,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
 
   TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
   TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+  ruby_curl_multi_ensure_handle(rbcm);
 
   /* setup the easy handle */
   ruby_curl_easy_setup( rbce );
@@ -401,6 +567,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
     }
   }
 
+  rbce->multi_attachment_generation++;
   st_insert(rbcm->attached, (st_data_t)rbce, (st_data_t)easy);
 
   /* track a reference to associated multi handle */
@@ -447,6 +614,7 @@ static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy) {
     rbcm->active--;
   }
 
+  rbce->multi = Qnil;
   ruby_curl_easy_cleanup( easy, rbce );
 
   rb_curl_multi_forget_easy(rbcm, rbce);
@@ -497,27 +665,241 @@ static VALUE find_easy_by_handle(ruby_curl_multi *rbcm, CURL *easy_handle) {
   return ctx.easy;
 }
 
-static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result) {
-  long response_code = -1;
+static VALUE find_easy_value_for_handle(ruby_curl_multi *rbcm, CURL *easy_handle) {
   VALUE easy = Qnil;
   ruby_curl_easy *rbce = NULL;
-  VALUE callargs;
-  ruby_curl_multi *rbcm = NULL;
 
-  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
-
-  /* Try to recover the ruby_curl_easy pointer stored via CURLOPT_PRIVATE. */
-  CURLcode private_rc = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char**)&rbce);
+  CURLcode private_rc = curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, (char **)&rbce);
   if (private_rc == CURLE_OK && rbce) {
     easy = rbce->self;
   }
 
-  /* If PRIVATE is unavailable or invalid, fall back to scanning attachments. */
   if (NIL_P(easy) || !RB_TYPE_P(easy, T_DATA)) {
     easy = find_easy_by_handle(rbcm, easy_handle);
-    if (!NIL_P(easy) && RB_TYPE_P(easy, T_DATA)) {
-      TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+  }
+
+  return easy;
+}
+
+struct multi_complete_callback_args {
+  VALUE self;
+  VALUE easy;
+  ruby_curl_multi *rbcm;
+  ruby_curl_easy *rbce;
+  int result;
+  st_table *attached_snapshot;
+};
+
+static int snapshot_attached_easy_i(st_data_t key, st_data_t val, st_data_t arg) {
+  st_table *snapshot = (st_table *)arg;
+  ruby_curl_easy *rbce = (ruby_curl_easy *)key;
+
+  if (!rbce) {
+    return ST_CONTINUE;
+  }
+
+  st_insert(snapshot, key, (st_data_t)rbce->multi_attachment_generation);
+  return ST_CONTINUE;
+}
+
+static st_table *capture_attached_easy_snapshot(ruby_curl_multi *rbcm) {
+  st_table *snapshot = st_init_numtable();
+
+  if (!snapshot) {
+    rb_raise(rb_eNoMemError, "Failed to allocate multi callback snapshot table");
+  }
+
+  if (rbcm && rbcm->attached) {
+    st_foreach(rbcm->attached, snapshot_attached_easy_i, (st_data_t)snapshot);
+  }
+
+  return snapshot;
+}
+
+struct collect_new_attached_easies_ctx {
+  st_table *snapshot;
+  VALUE easies;
+};
+
+static int collect_new_attached_easies_i(st_data_t key, st_data_t val, st_data_t arg) {
+  st_data_t existing = 0;
+  ruby_curl_easy *rbce = (ruby_curl_easy *)key;
+  struct collect_new_attached_easies_ctx *ctx = (struct collect_new_attached_easies_ctx *)arg;
+
+  if (!rbce) {
+    return ST_CONTINUE;
+  }
+
+  if (!ctx->snapshot || !st_lookup(ctx->snapshot, key, &existing) ||
+      existing != (st_data_t)rbce->multi_attachment_generation) {
+    rb_ary_push(ctx->easies, (VALUE)val);
+  }
+
+  return ST_CONTINUE;
+}
+
+static void rb_curl_multi_remove_added_easies_since_snapshot(VALUE self, ruby_curl_multi *rbcm, st_table *snapshot) {
+  struct collect_new_attached_easies_ctx ctx;
+  VALUE easies = rb_ary_new();
+  long index;
+
+  if (!rbcm || !snapshot || !rbcm->attached) {
+    return;
+  }
+
+  ctx.snapshot = snapshot;
+  ctx.easies = easies;
+  st_foreach(rbcm->attached, collect_new_attached_easies_i, (st_data_t)&ctx);
+
+  for (index = 0; index < RARRAY_LEN(easies); index++) {
+    VALUE easy = rb_ary_entry(easies, index);
+    ruby_curl_easy *rbce = NULL;
+
+    if (NIL_P(easy) || !RB_TYPE_P(easy, T_DATA)) {
+      continue;
     }
+
+    TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+    if (!rbce || rbce->multi != self || !rb_curl_multi_has_easy(rbcm, rbce)) {
+      continue;
+    }
+
+    rb_curl_multi_remove_request_reference(self, easy);
+    rb_curl_multi_remove(rbcm, easy);
+  }
+
+  RB_GC_GUARD(easies);
+}
+
+static void stash_and_raise_status_callback_error_if_unmasked(struct multi_complete_callback_args *args, VALUE did_raise, VALUE easy_callback_error) {
+  VALUE exception;
+
+  if (!NIL_P(easy_callback_error)) {
+    return;
+  }
+
+  exception = take_status_callback_exception_if_any(did_raise);
+  if (NIL_P(exception)) {
+    return;
+  }
+
+  stash_multi_exception_if_unset(args->self, exception, args->easy);
+  rb_curl_multi_remove_added_easies_since_snapshot(args->self, args->rbcm, args->attached_snapshot);
+  rb_exc_raise(exception);
+}
+
+static VALUE rb_curl_multi_run_completion_callbacks(VALUE argp) {
+  struct multi_complete_callback_args *args = (struct multi_complete_callback_args *)argp;
+  ruby_curl_easy *rbce = args->rbce;
+  long response_code = -1;
+  VALUE easy_callback_error = Qnil;
+  VALUE callargs;
+  VALUE did_raise = rb_hash_new();
+  long redirect_count;
+
+  easy_callback_error = take_easy_callback_error_if_any(args->easy);
+  if (!NIL_P(easy_callback_error)) {
+    stash_multi_exception_if_unset(args->self, easy_callback_error, args->easy);
+  }
+
+  if (!rb_easy_nil("complete_proc")) {
+    callargs = rb_ary_new3(2, rb_easy_get("complete_proc"), args->easy);
+    args->rbce->callback_active = 1;
+    rb_rescue(call_status_handler1, callargs, callback_exception, did_raise);
+    args->rbce->callback_active = 0;
+    stash_and_raise_status_callback_error_if_unmasked(args, did_raise, easy_callback_error);
+  }
+
+#ifdef HAVE_CURLINFO_RESPONSE_CODE
+  curl_easy_getinfo(args->rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
+#else /* use fdsets path for waiting */
+  // old libcurl
+  curl_easy_getinfo(args->rbce->curl, CURLINFO_HTTP_CODE, &response_code);
+#endif
+  curl_easy_getinfo(args->rbce->curl, CURLINFO_REDIRECT_COUNT, &redirect_count);
+
+  if (args->result != 0) {
+    if (!rb_easy_nil("failure_proc")) {
+      callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), args->easy, rb_curl_easy_error(args->result));
+      args->rbce->callback_active = 1;
+      rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
+      args->rbce->callback_active = 0;
+      stash_and_raise_status_callback_error_if_unmasked(args, did_raise, easy_callback_error);
+    }
+  } else if (!rb_easy_nil("success_proc") &&
+          ((response_code >= 200 && response_code < 300) || response_code == 0)) {
+    /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
+    callargs = rb_ary_new3(2, rb_easy_get("success_proc"), args->easy);
+    args->rbce->callback_active = 1;
+    rb_rescue(call_status_handler1, callargs, callback_exception, did_raise);
+    args->rbce->callback_active = 0;
+    stash_and_raise_status_callback_error_if_unmasked(args, did_raise, easy_callback_error);
+
+  } else if (!rb_easy_nil("redirect_proc") && ((response_code >= 300 && response_code < 400) || redirect_count > 0) ) {
+    /* Skip on_redirect callback if follow_location is false AND max_redirects is 0 */
+    if (!args->rbce->follow_location && args->rbce->max_redirs == 0) {
+      // Do nothing - skip the callback
+    } else {
+      args->rbce->callback_active = 1;
+      callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), args->easy, rb_curl_easy_error(args->result));
+      rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
+      args->rbce->callback_active = 0;
+      stash_and_raise_status_callback_error_if_unmasked(args, did_raise, easy_callback_error);
+    }
+  } else if (!rb_easy_nil("missing_proc") &&
+          (response_code >= 400 && response_code < 500)) {
+    args->rbce->callback_active = 1;
+    callargs = rb_ary_new3(3, rb_easy_get("missing_proc"), args->easy, rb_curl_easy_error(args->result));
+    rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
+    args->rbce->callback_active = 0;
+    stash_and_raise_status_callback_error_if_unmasked(args, did_raise, easy_callback_error);
+  } else if (!rb_easy_nil("failure_proc") &&
+          (response_code >= 500 && response_code <= 999)) {
+    callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), args->easy, rb_curl_easy_error(args->result));
+    args->rbce->callback_active = 1;
+    rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
+    args->rbce->callback_active = 0;
+    stash_and_raise_status_callback_error_if_unmasked(args, did_raise, easy_callback_error);
+  }
+
+  raise_completion_callback_error_if_any(did_raise, easy_callback_error);
+  return Qnil;
+}
+
+static VALUE rb_curl_multi_finish_completion_callbacks(VALUE argp) {
+  struct multi_complete_callback_args *args = (struct multi_complete_callback_args *)argp;
+
+  if (!args->rbce) {
+    return Qnil;
+  }
+
+  if (args->rbce->callback_active) {
+    args->rbce->callback_active = 0;
+  }
+
+  if (args->rbce->multi == args->self && !rb_curl_multi_has_easy(args->rbcm, args->rbce)) {
+    args->rbce->multi = Qnil;
+  }
+
+  if (args->attached_snapshot) {
+    st_free_table(args->attached_snapshot);
+    args->attached_snapshot = NULL;
+  }
+
+  return Qnil;
+}
+
+static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result) {
+  VALUE easy = Qnil;
+  ruby_curl_easy *rbce = NULL;
+  ruby_curl_multi *rbcm = NULL;
+  CURLMcode mcode;
+
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+
+  easy = find_easy_value_for_handle(rbcm, easy_handle);
+  if (!NIL_P(easy) && RB_TYPE_P(easy, T_DATA)) {
+    TypedData_Get_Struct(easy, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
   }
 
   /* If we still cannot identify the easy handle, remove it and bail. */
@@ -534,8 +916,20 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
    * before we tear down handler state. */
   flush_stderr_if_any(rbce);
 
-  // remove the easy handle from multi on completion so it can be reused again
-  rb_funcall(self, rb_intern("remove"), 1, easy);
+  /* Detach the easy from libcurl and the Ruby requests table before running
+   * status callbacks, but preserve easy.multi until the callbacks finish. */
+  mcode = curl_multi_remove_handle(rbcm->handle, rbce->curl);
+  if (mcode != CURLM_OK) {
+    raise_curl_multi_error_exception(mcode);
+  }
+
+  if (rbcm->active > 0) {
+    rbcm->active--;
+  }
+
+  rb_curl_multi_remove_request_reference(self, easy);
+  rb_curl_multi_forget_easy(rbcm, rbce);
+  ruby_curl_easy_cleanup(easy, rbce);
 
   /* after running a request cleanup the headers, these are set before each request */
   if (rbce->curl_headers) {
@@ -546,69 +940,16 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
   /* Flush again after removal to cover any last buffered data. */
   flush_stderr_if_any(rbce);
 
-  VALUE did_raise = rb_hash_new();
-
-  if (!rb_easy_nil("complete_proc")) {
-    callargs = rb_ary_new3(2, rb_easy_get("complete_proc"), easy);
-    rbce->callback_active = 1;
-    rb_rescue(call_status_handler1, callargs, callback_exception, did_raise);
-    rbce->callback_active = 0;
-    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
-  }
-
-#ifdef HAVE_CURLINFO_RESPONSE_CODE
-  curl_easy_getinfo(rbce->curl, CURLINFO_RESPONSE_CODE, &response_code);
-#else /* use fdsets path for waiting */
-  // old libcurl
-  curl_easy_getinfo(rbce->curl, CURLINFO_HTTP_CODE, &response_code);
-#endif
-  long redirect_count;
-  curl_easy_getinfo(rbce->curl, CURLINFO_REDIRECT_COUNT, &redirect_count);
-
-  if (result != 0) {
-    if (!rb_easy_nil("failure_proc")) {
-      callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
-      rbce->callback_active = 1;
-      rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-      rbce->callback_active = 0;
-      CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
-    }
-  } else if (!rb_easy_nil("success_proc") &&
-          ((response_code >= 200 && response_code < 300) || response_code == 0)) {
-    /* NOTE: we allow response_code == 0, in the case of non http requests e.g. reading from disk */
-    callargs = rb_ary_new3(2, rb_easy_get("success_proc"), easy);
-    rbce->callback_active = 1;
-    rb_rescue(call_status_handler1, callargs, callback_exception, did_raise);
-    rbce->callback_active = 0;
-    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
-
-  } else if (!rb_easy_nil("redirect_proc") && ((response_code >= 300 && response_code < 400) || redirect_count > 0) ) {
-    /* Skip on_redirect callback if follow_location is false AND max_redirects is 0 */
-    if (!rbce->follow_location && rbce->max_redirs == 0) {
-      // Do nothing - skip the callback
-    } else {
-      rbce->callback_active = 1;
-      callargs = rb_ary_new3(3, rb_easy_get("redirect_proc"), easy, rb_curl_easy_error(result));
-      rbce->callback_active = 0;
-      rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-      CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
-    }
-  } else if (!rb_easy_nil("missing_proc") &&
-          (response_code >= 400 && response_code < 500)) {
-    rbce->callback_active = 1;
-    callargs = rb_ary_new3(3, rb_easy_get("missing_proc"), easy, rb_curl_easy_error(result));
-    rbce->callback_active = 0;
-    rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
-  } else if (!rb_easy_nil("failure_proc") &&
-          (response_code >= 500 && response_code <= 999)) {
-    callargs = rb_ary_new3(3, rb_easy_get("failure_proc"), easy, rb_curl_easy_error(result));
-    rbce->callback_active = 1;
-    rb_rescue(call_status_handler2, callargs, callback_exception, did_raise);
-    rbce->callback_active = 0;
-    CURB_CHECK_RB_CALLBACK_RAISE(did_raise);
-  }
-
+  struct multi_complete_callback_args args = {
+    self,
+    easy,
+    rbcm,
+    rbce,
+    result,
+    capture_attached_easy_snapshot(rbcm)
+  };
+  rb_ensure(rb_curl_multi_run_completion_callbacks, (VALUE)&args,
+            rb_curl_multi_finish_completion_callbacks, (VALUE)&args);
 }
 
 static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
@@ -617,6 +958,9 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
   CURLcode c_easy_result;
   CURLMsg *c_multi_result; // for picking up messages with the transfer status
   CURL *c_easy_handle;
+  ruby_curl_multi *rbcm = NULL;
+
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
 
   /* Check for finished easy handles and remove from the multi handle.
    * curl_multi_info_read will query for messages from individual handles.
@@ -632,8 +976,16 @@ static void rb_curl_multi_read_info(VALUE self, CURLM *multi_handle) {
     c_easy_handle = c_multi_result->easy_handle;
     c_easy_result = c_multi_result->data.result; /* return code for transfer */
 
-    rb_curl_mutli_handle_complete(self, c_easy_handle, c_easy_result);
+    struct multi_handle_complete_args args = { self, c_easy_handle, c_easy_result };
+    int state = 0;
+    rb_protect(rb_curl_mutli_handle_complete_protected, (VALUE)&args, &state);
+    if (state) {
+      stash_multi_exception_if_unset(self, rb_errinfo(), find_easy_value_for_handle(rbcm, c_easy_handle));
+      rb_set_errinfo(Qnil);
+    }
   }
+
+  raise_multi_deferred_exception_if_idle(self);
 }
 
 /* called within ruby_curl_multi_perform */
@@ -673,6 +1025,7 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
 typedef struct {
   st_table *sock_map;     /* key: int fd, value: int 'what' (CURL_POLL_*) */
   long timeout_ms;        /* last timeout set by libcurl timer callback */
+  VALUE io_cache;         /* fd -> IO wrapper for fiber-scheduler waits */
 } multi_socket_ctx;
 
 #if CURB_SOCKET_DEBUG
@@ -719,17 +1072,32 @@ static VALUE fiber_io_wait_protected(VALUE argp) {
 }
 #endif
 
+static void multi_socket_forget_fd(multi_socket_ctx *ctx, int fd) {
+  st_data_t key = (st_data_t)fd;
+  st_data_t rec;
+
+  if (!ctx) return;
+  if (ctx->sock_map) st_delete(ctx->sock_map, &key, &rec);
+  if (!NIL_P(ctx->io_cache)) rb_hash_delete(ctx->io_cache, INT2NUM(fd));
+}
+
+static int multi_socket_fd_valid_p(int fd) {
+  if (fd < 0) return 0;
+
+  errno = 0;
+  return fcntl(fd, F_GETFD) != -1 || errno != EBADF;
+}
+
 static int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp, void *socketp) {
   multi_socket_ctx *ctx = (multi_socket_ctx *)userp;
   (void)easy; (void)socketp;
   int fd = (int)s;
 
   if (!ctx || !ctx->sock_map) return 0;
+  if (fd < 0) return 0;
 
   if (what == CURL_POLL_REMOVE) {
-    st_data_t k = (st_data_t)fd;
-    st_data_t rec;
-    st_delete(ctx->sock_map, &k, &rec);
+    multi_socket_forget_fd(ctx, fd);
 #if CURB_SOCKET_DEBUG
     {
       char b[16];
@@ -768,6 +1136,7 @@ static int rb_fdset_from_sockmap_i(st_data_t key, st_data_t val, st_data_t argp)
   if (fd > a->maxfd) a->maxfd = fd;
   return ST_CONTINUE;
 }
+CURB_MAYBE_UNUSED_DECL
 static void rb_fdset_from_sockmap(st_table *map, rb_fdset_t *rfds, rb_fdset_t *wfds, rb_fdset_t *efds, int *maxfd_out) {
   if (!map) { *maxfd_out = -1; return; }
   struct build_fdset_args a; a.r = rfds; a.w = wfds; a.e = efds; a.maxfd = -1;
@@ -808,13 +1177,30 @@ static int st_count_i(st_data_t k, st_data_t v, st_data_t argp) {
   return ST_CONTINUE;
 }
 
+static VALUE multi_socket_io_for_fd(multi_socket_ctx *ctx, int fd) {
+  VALUE key = INT2NUM(fd);
+  VALUE io = rb_hash_aref(ctx->io_cache, key);
+  if (NIL_P(io)) {
+    io = rb_funcall(rb_cIO, rb_intern("for_fd"), 2, key, rb_str_new_cstr("r+"));
+    rb_funcall(io, rb_intern("autoclose="), 1, Qfalse);
+    rb_hash_aset(ctx->io_cache, key, io);
+  }
+  return io;
+}
+
+struct io_for_fd_args { multi_socket_ctx *ctx; int fd; };
+static VALUE multi_socket_io_for_fd_protected(VALUE argp) {
+  struct io_for_fd_args *a = (struct io_for_fd_args *)argp;
+  return multi_socket_io_for_fd(a->ctx, a->fd);
+}
+
 static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_socket_ctx *ctx, VALUE block) {
   /* prime the state: let libcurl act on timeouts to setup sockets */
   CURLMcode mrc = curl_multi_socket_action(rbcm->handle, CURL_SOCKET_TIMEOUT, 0, &rbcm->running);
   if (mrc != CURLM_OK) raise_curl_multi_error_exception(mrc);
   curb_debugf("[curb.socket] drive: initial socket_action timeout -> mrc=%d running=%d", mrc, rbcm->running);
   rb_curl_multi_read_info(self, rbcm->handle);
-  if (block != Qnil) rb_funcall(block, rb_intern("call"), 1, self);
+  rb_curl_multi_yield_if_given(self, block);
 
   while (rbcm->running) {
     struct timeval tv = {0, 0};
@@ -898,19 +1284,30 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
             rb_thread_wait_for(tv);
 #endif
             did_timeout = 1;
+          } else if (!multi_socket_fd_valid_p(wait_fd)) {
+            multi_socket_forget_fd(ctx, wait_fd);
+            did_timeout = 1;
           } else {
-            const char *mode = (wait_what == CURL_POLL_IN) ? "r" : (wait_what == CURL_POLL_OUT) ? "w" : "r+";
-            VALUE io = rb_funcall(rb_cIO, rb_intern("for_fd"), 2, INT2NUM(wait_fd), rb_str_new_cstr(mode));
-            rb_funcall(io, rb_intern("autoclose="), 1, Qfalse);
-            struct fiber_io_wait_args args = { scheduler, io, INT2NUM(events), timeout };
-            int state = 0;
-            VALUE ready = rb_protect(fiber_io_wait_protected, (VALUE)&args, &state);
-            if (state) {
+            struct io_for_fd_args io_args = { ctx, wait_fd };
+            int io_state = 0;
+            VALUE io = rb_protect(multi_socket_io_for_fd_protected, (VALUE)&io_args, &io_state);
+            if (io_state || NIL_P(io)) {
+              if (io_state) rb_set_errinfo(Qnil);
+              multi_socket_forget_fd(ctx, wait_fd);
               did_timeout = 1;
               any_ready = 0;
             } else {
-              any_ready = (ready != Qfalse);
-              did_timeout = !any_ready;
+              struct fiber_io_wait_args args = { scheduler, io, INT2NUM(events), timeout };
+              int state = 0;
+              VALUE ready = rb_protect(fiber_io_wait_protected, (VALUE)&args, &state);
+              if (state) {
+                rb_set_errinfo(Qnil);
+                did_timeout = 1;
+                any_ready = 0;
+              } else {
+                any_ready = (ready != Qfalse);
+                did_timeout = !any_ready;
+              }
             }
           }
           handled_wait = 1;
@@ -989,7 +1386,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 
     rb_curl_multi_read_info(self, rbcm->handle);
     curb_debugf("[curb.socket] processed completions; running=%d", rbcm->running);
-    if (block != Qnil) rb_funcall(block, rb_intern("call"), 1, self);
+    rb_curl_multi_yield_if_given(self, block);
   }
 }
 
@@ -1012,6 +1409,9 @@ static VALUE ruby_curl_multi_socket_drive_ensure(VALUE argp) {
     st_free_table(c->ctx->sock_map);
     c->ctx->sock_map = NULL;
   }
+  if (c->ctx) {
+    c->ctx->io_cache = Qnil;
+  }
   return Qnil;
 }
 
@@ -1021,10 +1421,15 @@ VALUE ruby_curl_multi_socket_perform(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "0&", &block);
 
   TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  ruby_curl_multi_ensure_handle(rbcm);
+  if (!rb_ivar_defined(self, id_deferred_exception_ivar)) {
+    clear_multi_deferred_exception_source_id_if_any(self);
+  }
 
   multi_socket_ctx ctx;
   ctx.sock_map = st_init_numtable();
   ctx.timeout_ms = -1;
+  ctx.io_cache = rb_hash_new();
 
   /* install socket/timer callbacks */
   curl_multi_setopt(rbcm->handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
@@ -1039,8 +1444,8 @@ VALUE ruby_curl_multi_socket_perform(int argc, VALUE *argv, VALUE self) {
 
   /* finalize */
   rb_curl_multi_read_info(self, rbcm->handle);
-  if (block != Qnil) rb_funcall(block, rb_intern("call"), 1, self);
-  if (cCurlMutiAutoClose == 1) rb_funcall(self, rb_intern("close"), 0);
+  rb_curl_multi_yield_if_given(self, block);
+  if (cCurlMutiAutoClose == 1) rb_funcall(self, rb_intern("_autoclose"), 0);
 
   return Qtrue;
 }
@@ -1124,6 +1529,10 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   rb_scan_args(argc, argv, "0&", &block);
 
   TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  ruby_curl_multi_ensure_handle(rbcm);
+  if (!rb_ivar_defined(self, id_deferred_exception_ivar)) {
+    clear_multi_deferred_exception_source_id_if_any(self);
+  }
 
   timeout_milliseconds = cCurlMutiDefaulttimeout;
 
@@ -1140,9 +1549,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   // There are no more messages to handle by curl and we can run the ruby block
   // passed to perform method.
   // When the block completes curl will resume.
-  if (block != Qnil) {
-    rb_funcall(block, rb_intern("call"), 1, self);
-  }
+  rb_curl_multi_yield_if_given(self, block);
 
   do {
     while (rbcm->running) {
@@ -1160,7 +1567,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       if (timeout_milliseconds == 0) { /* no delay */
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
-        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        rb_curl_multi_yield_if_given(self, block);
 #if defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
         if (rb_fiber_scheduler_current() != Qnil) {
           rb_thread_schedule();
@@ -1210,7 +1617,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         /* Process pending transfers after waiting */
         rb_curl_multi_run(self, rbcm->handle, &(rbcm->running));
         rb_curl_multi_read_info(self, rbcm->handle);
-        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self); }
+        rb_curl_multi_yield_if_given(self, block);
       }
 #else
 
@@ -1237,7 +1644,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
 #endif
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
-        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        rb_curl_multi_yield_if_given(self, block);
         continue;
       }
 
@@ -1307,7 +1714,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
       default: /* action */
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
-        if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+        rb_curl_multi_yield_if_given(self, block);
         break;
       }
 #endif /* disabled curl_multi_wait: use fdsets */
@@ -1316,9 +1723,9 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
   } while( rbcm->running );
 
   rb_curl_multi_read_info( self, rbcm->handle );
-  if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+  rb_curl_multi_yield_if_given(self, block);
   if (cCurlMutiAutoClose  == 1) {
-    rb_funcall(self, rb_intern("close"), 0);
+    rb_funcall(self, rb_intern("_autoclose"), 0);
   }
   return Qtrue;
 }
@@ -1340,7 +1747,19 @@ VALUE ruby_curl_multi_close(VALUE self) {
     rbcm->handle = NULL;
   }
 
-  ruby_curl_multi_init(rbcm);
+  rbcm->active = 0;
+  rbcm->running = 0;
+  clear_multi_deferred_exception_if_any(self);
+  clear_multi_deferred_exception_source_id_if_any(self);
+  return self;
+}
+
+static VALUE ruby_curl_multi_mark_closed(VALUE self) {
+  ruby_curl_multi *rbcm;
+
+  TypedData_Get_Struct(self, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
+  rbcm->closed = 1;
+
   return self;
 }
 
@@ -1363,17 +1782,19 @@ static void curl_multi_mark(void *ptr) {
 /* =================== INIT LIB =====================*/
 void init_curb_multi() {
   idCall = rb_intern("call");
+  id_deferred_exception_ivar = rb_intern("@__curb_deferred_exception");
+  id_deferred_exception_source_id_ivar = rb_intern("@__curb_deferred_exception_source_id");
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 
-  rb_undef_alloc_func(cCurlMulti);
+  rb_define_alloc_func(cCurlMulti, ruby_curl_multi_alloc);
 
   /* Class methods */
-  rb_define_singleton_method(cCurlMulti, "new", ruby_curl_multi_new, 0);
   rb_define_singleton_method(cCurlMulti, "default_timeout=", ruby_curl_multi_set_default_timeout, 1);
   rb_define_singleton_method(cCurlMulti, "default_timeout", ruby_curl_multi_get_default_timeout, 0);
   rb_define_singleton_method(cCurlMulti, "autoclose=", ruby_curl_multi_set_autoclose, 1);
   rb_define_singleton_method(cCurlMulti, "autoclose", ruby_curl_multi_get_autoclose, 0);
   /* Instance methods */
+  rb_define_method(cCurlMulti, "initialize", ruby_curl_multi_initialize, 0);
   rb_define_method(cCurlMulti, "max_connects=", ruby_curl_multi_max_connects, 1);
   rb_define_method(cCurlMulti, "max_host_connections=", ruby_curl_multi_max_host_connections, 1);
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
@@ -1385,5 +1806,9 @@ void init_curb_multi() {
    * multi usage (for example Curl::Easy#perform under Async).
    */
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, -1);
+#if defined(HAVE_CURL_MULTI_SOCKET_ACTION) && defined(HAVE_CURLMOPT_SOCKETFUNCTION) && defined(HAVE_CURLMOPT_TIMERFUNCTION) && defined(HAVE_RB_THREAD_FD_SELECT) && !defined(_WIN32)
+  rb_define_private_method(cCurlMulti, "_socket_perform", ruby_curl_multi_socket_perform, -1);
+#endif
   rb_define_method(cCurlMulti, "_close", ruby_curl_multi_close, 0);
+  rb_define_private_method(cCurlMulti, "_mark_closed", ruby_curl_multi_mark_closed, 0);
 }

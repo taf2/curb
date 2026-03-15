@@ -4,6 +4,8 @@ $CURB_TESTING = true
 require 'uri'
 require 'stringio'
 require 'digest/md5'
+require 'rbconfig'
+require File.join(RbConfig::CONFIG['rubylibdir'], 'timeout')
 
 $TOPDIR = File.expand_path(File.join(File.dirname(__FILE__), '..'))
 $EXTDIR = File.join($TOPDIR, 'ext')
@@ -57,6 +59,7 @@ $TEST_URL = "file://#{'/' if RUBY_DESCRIPTION =~ /mswin|msys|mingw|cygwin|bccwin
 
 require 'thread'
 require 'webrick'
+require 'socket'
 
 # set this to true to avoid testing with multiple threads
 # or to test with multiple threads set it to false
@@ -64,20 +67,37 @@ require 'webrick'
 # on the presence of multiple threads
 TEST_SINGLE_THREADED=false
 
-# keep webrick quiet
-::WEBrick::HTTPServer.send(:remove_method,:access_log) if ::WEBrick::HTTPServer.instance_methods.include?(:access_log)
-::WEBrick::BasicLog.send(:remove_method,:log) if ::WEBrick::BasicLog.instance_methods.include?(:log)
+WEBRICK_TEST_LOG = WEBrick::Log.new(File.open(File::NULL, 'w'), WEBrick::BasicLog::ERROR)
 
-::WEBrick::HTTPServer.class_eval do
-  def access_log(config, req, res)
-    # nop
+module CurbTestResourceCleanup
+  def teardown
+    super
+  ensure
+    begin
+      ObjectSpace.each_object(Curl::Multi).to_a.each do |multi|
+        begin
+          next if multi.instance_variable_defined?(:@deferred_close) && multi.instance_variable_get(:@deferred_close)
+          multi.instance_variable_set(:@requests, {})
+          multi._close
+        rescue StandardError
+          nil
+        end
+      end
+    rescue StandardError
+      nil
+    end
+
+    begin
+      if Curl::Easy.respond_to?(:flush_deferred_multi_closes)
+        Curl::Easy.flush_deferred_multi_closes(all_threads: true)
+      end
+    rescue StandardError
+      nil
+    end
   end
 end
-::WEBrick::BasicLog.class_eval do
-  def log(level, data)
-    # nop
-  end
-end
+
+Test::Unit::TestCase.prepend(CurbTestResourceCleanup)
 
 #
 # Simple test server to record number of times a request is sent/recieved of a specific
@@ -187,7 +207,7 @@ end
 module BugTestServerSetupTeardown
   def setup
     @port ||= 9992
-    @server = WEBrick::HTTPServer.new( :Port => @port )
+    @server = WEBrick::HTTPServer.new(:Port => @port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
     @server.mount_proc("/test") do|req,res|
       if @response_proc
         @response_proc.call(res)
@@ -211,14 +231,170 @@ module BugTestServerSetupTeardown
 end
 
 module TestServerMethods
+  def server_responding?(port)
+    socket = TCPSocket.new('127.0.0.1', port)
+    socket.close
+    true
+  rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ECONNABORTED, Errno::EHOSTUNREACH, Errno::ETIMEDOUT, IOError
+    false
+  end
+
+  def server_startup_timeout
+    ENV['RUBY_MEMCHECK_RUNNING'] ? 30 : 5
+  end
+
+  def wait_for_server_ready(port, thread: nil)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + server_startup_timeout
+
+    loop do
+      if thread && !thread.alive?
+        return false
+      end
+
+      return true if server_responding?(port)
+
+      raise "Failed to startup test server on port #{port}" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+      sleep 0.01
+    end
+  end
+
+  def server_shutdown_timeout
+    [server_startup_timeout, 0.25].max
+  end
+
+  def wait_for_server_stopped(port, thread: nil)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + server_shutdown_timeout
+
+    loop do
+      return true unless server_responding?(port)
+
+      if thread && !thread.alive?
+        return !server_responding?(port)
+      end
+
+      return false if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+      sleep 0.01
+    end
+  end
+
   def locked_file
     File.join(File.dirname(__FILE__),"server_lock-#{@__port}")
   end
 
+  def read_server_lock_pid
+    Integer(File.read(locked_file).strip, 10)
+  rescue Errno::ENOENT, ArgumentError, TypeError
+    nil
+  end
+
+  def write_server_lock(pid = Process.pid)
+    File.open(locked_file, 'w') { |f| f << "#{pid}\n" }
+  end
+
+  def process_alive?(pid)
+    return false unless pid && pid.positive?
+
+    Process.kill(0, pid)
+    true
+  rescue Errno::ESRCH
+    false
+  rescue Errno::EPERM
+    true
+  end
+
+  def server_lock_fresh?
+    (Time.now - File.mtime(locked_file)) < server_startup_timeout
+  rescue Errno::ENOENT
+    false
+  end
+
+  def stale_server_lock?(port)
+    return false unless File.exist?(locked_file)
+
+    pid = read_server_lock_pid
+    return false if pid && process_alive?(pid) && server_lock_fresh?
+    return false if server_responding?(port)
+
+    true
+  end
+
+  def clear_stale_server_lock(port)
+    return unless stale_server_lock?(port)
+
+    File.unlink(locked_file)
+  rescue Errno::ENOENT
+    nil
+  end
+
+  def stop_test_server
+    server = instance_variable_defined?(:@server) ? @server : nil
+    pid = instance_variable_defined?(:@__pid) ? @__pid : nil
+    return unless server || pid
+
+    if TEST_SINGLE_THREADED
+      @__pid = nil
+
+      if pid
+        begin
+          Process.kill('INT', pid)
+        rescue Errno::ESRCH
+          nil
+        end
+
+        begin
+          Process.wait(pid)
+        rescue Errno::ECHILD, Errno::ESRCH
+          nil
+        end
+      end
+    else
+      thread = instance_variable_defined?(:@test_thread) ? @test_thread : nil
+      port = instance_variable_defined?(:@__port) ? @__port : nil
+      @server = nil
+      @test_thread = nil
+
+      server.shutdown if server
+      wait_for_server_stopped(port, thread: thread) if port
+      thread.join(server_shutdown_timeout) if thread
+
+      if thread&.alive?
+        thread.kill
+        thread.join(server_shutdown_timeout)
+        wait_for_server_stopped(port) if port
+      end
+    end
+
+    File.unlink(locked_file) if File.exist?(locked_file)
+  rescue Errno::ENOENT
+    nil
+  end
+
+  def teardown
+    super
+  ensure
+    stop_test_server
+  end
+
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
-    if (@server ||= nil).nil? and !File.exist?(locked_file)
-      File.open(locked_file,'w') {|f| f << 'locked' }
+    @server = nil unless instance_variable_defined?(:@server)
+    @__pid = nil unless instance_variable_defined?(:@__pid)
+    @test_thread = nil unless instance_variable_defined?(:@test_thread)
+    clear_stale_server_lock(port)
+
+    if @server.nil? && File.exist?(locked_file)
+      begin
+        wait_for_server_ready(port)
+        return
+      rescue RuntimeError
+        clear_stale_server_lock(port)
+      end
+    end
+
+    if @server.nil? and !File.exist?(locked_file)
+      write_server_lock
       if TEST_SINGLE_THREADED
         rd, wr = IO.pipe
         @__pid = fork do
@@ -226,33 +402,50 @@ module TestServerMethods
           rd = nil
 
           # start up a webrick server for testing delete
-          server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
+          server = WEBrick::HTTPServer.new(:Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__)), :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
 
           server.mount(servlet.path, servlet)
           server.mount("/ext", WEBrick::HTTPServlet::FileHandler, File.join(File.dirname(__FILE__),'..','ext'))
 
           trap("INT") { server.shutdown }
           GC.start
-          wr.flush
-          wr.close
-          server.start
+          server_thread = Thread.new { server.start }
+
+          begin
+            if wait_for_server_ready(port, thread: server_thread)
+              wr.write('1')
+            else
+              wr.write('0')
+            end
+          rescue StandardError
+            wr.write('0')
+          ensure
+            wr.flush
+            wr.close
+          end
+
+          server_thread.join
         end
         wr.close
-        rd.read
+        ready = rd.read
         rd.close
+        if ready != '1'
+          STDERR.puts "Failed to startup test server!"
+          exit(1)
+        end
       else
         # start up a webrick server for testing delete
-        @server = WEBrick::HTTPServer.new :Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__))
+        server = WEBrick::HTTPServer.new(:Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__)), :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
 
-        @server.mount(servlet.path, servlet)
-        @server.mount("/ext", WEBrick::HTTPServlet::FileHandler, File.join(File.dirname(__FILE__),'..','ext'))
-        queue = Queue.new # synchronize the thread startup to the main thread
+        server.mount(servlet.path, servlet)
+        server.mount("/ext", WEBrick::HTTPServlet::FileHandler, File.join(File.dirname(__FILE__),'..','ext'))
 
-        @test_thread = Thread.new { queue << 1; @server.start }
+        @server = server
+        # Keep a stable reference inside the thread so helper shutdown can clear
+        # @server without racing the server startup path.
+        @test_thread = Thread.new(server) { |srv| srv.start }
 
-        # wait for the queue
-        value = queue.pop
-        if !value
+        if !wait_for_server_ready(port, thread: @test_thread)
           STDERR.puts "Failed to startup test server!"
           exit(1)
         end
@@ -261,15 +454,7 @@ module TestServerMethods
 
       exit_code = lambda do
         begin
-          if File.exist?(locked_file)
-            File.unlink locked_file
-            if TEST_SINGLE_THREADED
-              Process.kill 'INT', @__pid
-            else
-              @server.shutdown unless @server.nil?
-            end
-          end
-          #@server.shutdown unless @server.nil?
+          stop_test_server
         rescue Object => e
           puts "Error #{__FILE__}:#{__LINE__}\n#{e.message}"
         end

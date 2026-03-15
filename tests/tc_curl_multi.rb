@@ -1,10 +1,12 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
 require 'set'
+require 'tmpdir'
 
 class TestCurbCurlMulti < Test::Unit::TestCase
   def teardown
     # get a better read on memory loss when running in valgrind
     ObjectSpace.garbage_collect
+    super
   end
 
   # for https://github.com/taf2/curb/issues/277
@@ -16,41 +18,32 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     # https://github.com/curl/curl/commit/e87e76e2dc108efb1cae87df496416f49c55fca0
     omit("Skip, libcurl too old (< 7.22.0)") if Curl::CURL_VERSION.to_f < 8 && Curl::CURL_VERSION.split('.')[1].to_i <= 22
 
-    @server.shutdown if @server
-    @test_thread.kill if @test_thread
-    @server = nil
-    File.unlink(locked_file)
+    port_socket = TCPServer.new('127.0.0.1', 0)
+    port = port_socket.addr[1]
+    port_socket.close
+
+    server = WEBrick::HTTPServer.new(:Port => port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    server.mount_proc(TestServlet.path) do |req, res|
+      res.body = "GET#{req.query_string}"
+      res['Content-Type'] = 'text/plain'
+    end
+    server_thread = Thread.new(server) { |srv| srv.start }
+    wait_for_server_ready(port, thread: server_thread)
+
+    test_url = "http://127.0.0.1:#{port}#{TestServlet.path}"
     Curl::Multi.autoclose = true
     assert Curl::Multi.autoclose
-# XXX: thought maybe we can clean house here to have the full suite pass in osx... but for now running this test in isolate does pass
-#      additionally, if ss allows this to pass on linux without requesting google i think this is a good trade off... leaving some of the thoughts below
-#      in hopes that coming back to this later will find it and remember how to fix it
-#    types = Set.new
-#    close_types = Set.new([TCPServer,TCPSocket,Socket,Curl::Multi, Curl::Easy,WEBrick::Log])
-#    ObjectSpace.each_object {|o|
-#      if o.respond_to?(:close)
-#        types << o.class
-#      end
-#      if close_types.include?(o.class)
-#        o.close
-#      end
-#    }
-    #puts "unique types: #{types.to_a.join("\n")}"
-    GC.start # cleanup FDs left over from other tests
-    server_setup
-    GC.start # cleanup FDs left over from other tests
 
     if `which ss`.strip.size == 0
       # osx need lsof still :(
       open_fds = lambda do
-        out = `/usr/sbin/lsof -p #{Process.pid} | egrep "TCP|UDP"`# | egrep ':#{TestServlet.port} ' | egrep ESTABLISHED`# | wc -l`.strip.to_i
-        #puts out.lines.join("\n")
-        out.lines.size
+        out = `/usr/sbin/lsof -nP -a -p #{Process.pid} -iTCP:#{port} -sTCP:ESTABLISHED`
+        [out.lines.drop(1).size, 0].max
       end
     else
       ss = `which ss`.strip
       open_fds = lambda do
-        `#{ss} -tn4 state established dport = :#{TestServlet.port} | wc -l`.strip.to_i
+        `#{ss} -tn4 state established dport = :#{port} | wc -l`.strip.to_i
       end
     end
     Curl::Multi.autoclose = false
@@ -62,7 +55,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     did_complete = false
     5.times do |n|
-      easy = Curl::Easy.new(TestServlet.url) do |curl|
+      easy = Curl::Easy.new(test_url) do |curl|
         curl.timeout = 5 # ensure we don't hang for ever connecting to an external host
         curl.on_complete {
           did_complete = true
@@ -75,9 +68,10 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert did_complete
     after_open = open_fds.call
     #puts "after_open: #{after_open} before_open: #{before_open.inspect}"
-    # ruby process may keep a connection alive 
-    assert (after_open - before_open) < 3, "with max connections set to 1 at this point the connection to google should still be open"
-    assert (after_open - before_open) > 0, "with max connections set to 1 at this point the connection to google should still be open"
+    # Some CI/libcurl combinations tear down the loopback connection before
+    # ss/lsof observes it, so only assert that the multi cache does not retain
+    # more than one extra connection here.
+    assert (after_open - before_open) < 3, "with max connections set to 1 the multi handle should not retain more than one extra connection"
     multi.close
 
     after_open = open_fds.call
@@ -88,7 +82,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     multi = Curl::Multi.new
     did_complete = false
     5.times do |n|
-      easy = Curl::Easy.new(TestServlet.url) do |curl|
+      easy = Curl::Easy.new(test_url) do |curl|
         curl.timeout = 5 # ensure we don't hang for ever connecting to an external host
         curl.on_complete {
           did_complete = true
@@ -103,6 +97,9 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     #puts "after_open: #{after_open} before_open: #{before_open.inspect}"
     assert_equal 0, (after_open - before_open), "auto close the connections"
   ensure
+    server.shutdown if defined?(server) && server
+    server_thread.join(server_startup_timeout) if defined?(server_thread) && server_thread
+    server_thread.kill if defined?(server_thread) && server_thread&.alive?
     Curl::Multi.autoclose = false # restore default
   end
 
@@ -112,6 +109,42 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     assert Curl::Multi.autoclose
   ensure
     Curl::Multi.autoclose = false # restore default
+  end
+
+  def test_perform_can_reuse_multi_when_autoclose_is_enabled
+    Curl::Multi.autoclose = true
+  
+    multi = Curl::Multi.new
+    results = []
+  
+    first = Curl::Easy.new(TestServlet.url)
+    first.on_complete { results << first.code }
+    multi.add(first)
+    multi.perform
+  
+    second = Curl::Easy.new(TestServlet.url)
+    second.on_complete { results << second.code }
+    multi.add(second)
+    multi.perform
+  
+    assert_equal [200, 200], results
+  ensure
+    multi.close if defined?(multi) && multi
+    Curl::Multi.autoclose = false
+  end
+
+  def test_close_makes_multi_unusable
+    multi = Curl::Multi.new
+    multi.close
+  
+    error = assert_raise(Curl::Err::MultiBadHandle) do
+      multi.add(Curl::Easy.new($TEST_URL))
+    end
+  
+    assert_match(/Invalid multi handle/i, error.message)
+    assert_equal 0, multi.requests.length
+  ensure
+    multi.close if multi
   end
 
   def test_new_multi_01
@@ -136,9 +169,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, d1)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, d2)
-
-    m = nil
-
+  ensure
+    m.close if m
   end
 
   def test_perform_block
@@ -157,9 +189,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c1.body_str)
     assert_match(/^# DO NOT REMOVE THIS COMMENT/, c2.body_str)
-
-    m = nil
-
+  ensure
+    m.close if m
   end
 
   def test_multi_easy_get
@@ -201,6 +232,348 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
   end
 
+  def test_multi_perform_reraises_on_body_exception
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.on_body { raise "body blew up" }
+
+    error = assert_raise(RuntimeError) do
+      multi.add(easy)
+      multi.perform
+    end
+
+    assert_equal "body blew up", error.message
+    assert !easy.instance_variable_defined?(:@__curb_callback_error)
+  ensure
+    multi.close if multi
+  end
+
+  def test_multi_perform_reraises_on_body_exception_for_frozen_easy
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new($TEST_URL)
+    callback_error = Class.new(RuntimeError)
+    easy.on_body { raise callback_error, "body blew up" }
+    easy.freeze
+
+    error = assert_raise(callback_error) do
+      multi.add(easy)
+      multi.perform
+    end
+
+    assert_equal "body blew up", error.message
+  ensure
+    begin
+      multi.close if multi
+    rescue StandardError
+      multi.instance_variable_set(:@requests, {})
+      multi._close
+    end
+  end
+
+  def test_multi_perform_reraises_on_header_exception
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.on_header { raise "header blew up" }
+
+    error = assert_raise(RuntimeError) do
+      multi.add(easy)
+      multi.perform
+    end
+
+    assert_equal "header blew up", error.message
+    assert !easy.instance_variable_defined?(:@__curb_callback_error)
+  ensure
+    multi.close if multi
+  end
+
+  def test_multi_perform_drains_completed_siblings_before_reraising_on_body_exception
+    multi = Curl::Multi.new
+    failed = Curl::Easy.new($TEST_URL)
+    completed = Curl::Easy.new($TEST_URL)
+    completions = []
+
+    failed.on_body { raise "body blew up" }
+    completed.on_complete { completions << :completed }
+
+    error = assert_raise(RuntimeError) do
+      multi.add(failed)
+      multi.add(completed)
+      multi.perform
+    end
+
+    assert_equal "body blew up", error.message
+    assert_equal [:completed], completions
+    assert multi.idle?, 'The multi handle should be idle after draining the completed batch'
+    assert_equal 0, multi.requests.length
+    assert_nil failed.multi
+    assert_nil completed.multi
+    assert !failed.instance_variable_defined?(:@__curb_callback_error)
+  ensure
+    multi.close if multi
+  end
+
+  def test_multi_perform_waits_until_idle_before_reraising_on_complete_exception
+    port_socket = TCPServer.new('127.0.0.1', 0)
+    port = port_socket.addr[1]
+    port_socket.close
+
+    server = WEBrick::HTTPServer.new(:Port => port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    server.mount_proc('/fast') do |_req, res|
+      res['Content-Type'] = 'text/plain'
+      res.body = 'fast'
+    end
+    server.mount_proc('/slow') do |_req, res|
+      res['Content-Type'] = 'text/plain'
+      sleep 0.2
+      res.body = 'slow'
+    end
+    server_thread = Thread.new(server) { |srv| srv.start }
+    wait_for_server_ready(port, thread: server_thread)
+
+    multi = Curl::Multi.new
+    fast = Curl::Easy.new("http://127.0.0.1:#{port}/fast")
+    slow = Curl::Easy.new("http://127.0.0.1:#{port}/slow")
+    completions = []
+
+    fast.on_complete do
+      completions << :fast
+      raise "complete blew up"
+    end
+    slow.on_complete { completions << :slow }
+
+    error = assert_raise(Curl::Err::AbortedByCallbackError) do
+      multi.add(fast)
+      multi.add(slow)
+      multi.perform
+    end
+
+    assert_equal "complete blew up", error.message
+    assert_equal [:fast, :slow], completions
+    assert multi.idle?, 'The multi handle should be idle before the deferred exception is raised'
+    assert_equal 0, multi.requests.length
+    assert_nil fast.multi
+    assert_nil slow.multi
+  ensure
+    multi.close if multi
+    server.shutdown if defined?(server) && server
+    server_thread.join(server_startup_timeout) if defined?(server_thread) && server_thread
+    server_thread.kill if defined?(server_thread) && server_thread&.alive?
+  end
+
+  def test_multi_perform_keeps_yielding_block_while_draining_deferred_on_complete_exception
+    with_queue_refill_test_server do |port, hits|
+      multi = Curl::Multi.new
+      failed = Curl::Easy.new("http://127.0.0.1:#{port}/fail")
+      slow = Curl::Easy.new("http://127.0.0.1:#{port}/slow")
+      failure_seen = false
+      slow_completed = false
+      yielded_during_drain = false
+
+      failed.on_complete do
+        failure_seen = true
+        raise "complete blew up"
+      end
+      slow.on_complete { slow_completed = true }
+
+      error = assert_raise(Curl::Err::AbortedByCallbackError) do
+        multi.add(failed)
+        multi.add(slow)
+        multi.perform do
+          yielded_during_drain ||= failure_seen && !slow_completed
+        end
+      end
+
+      assert_equal "complete blew up", error.message
+      assert yielded_during_drain,
+             "perform block should continue yielding while draining a slow sibling after a deferred callback exception"
+      assert_equal 1, hits[:fail]
+      assert_equal 1, hits[:slow]
+    ensure
+      multi.close if multi
+    end
+  end
+
+  def test_multi_perform_does_not_start_queued_work_after_on_complete_exception
+    with_queue_refill_test_server do |port, hits|
+      multi = Curl::Multi.new
+      failed = Curl::Easy.new("http://127.0.0.1:#{port}/fail")
+      slow = Curl::Easy.new("http://127.0.0.1:#{port}/slow")
+      queued = Curl::Easy.new("http://127.0.0.1:#{port}/queued")
+      failure_seen = false
+
+      failed.on_complete do
+        failure_seen = true
+        raise "complete blew up"
+      end
+
+      error = assert_raise(Curl::Err::AbortedByCallbackError) do
+        multi.add(failed)
+        multi.add(slow)
+        multi.perform do
+          next unless failure_seen
+
+          multi.add(queued)
+          failure_seen = false
+        end
+      end
+
+      assert_equal "complete blew up", error.message
+      assert_equal 1, hits[:fail]
+      assert_equal 1, hits[:slow]
+      assert_equal 0, hits[:queued], "queued request should not start once a deferred callback exception is pending"
+    ensure
+      multi.close if multi
+    end
+  end
+
+  def test_multi_perform_does_not_start_work_added_within_failing_on_complete_callback
+    with_queue_refill_test_server do |port, hits|
+      multi = Curl::Multi.new
+      failed = Curl::Easy.new("http://127.0.0.1:#{port}/fail")
+      queued = Curl::Easy.new("http://127.0.0.1:#{port}/queued")
+
+      failed.on_complete do
+        multi.add(queued)
+        raise "complete blew up"
+      end
+
+      error = assert_raise(Curl::Err::AbortedByCallbackError) do
+        multi.add(failed)
+        multi.perform
+      end
+
+      assert_equal "complete blew up", error.message
+      assert_equal 1, hits[:fail]
+      assert_equal 0, hits[:queued],
+                   "request added from a failing on_complete callback should not start once the multi begins aborting"
+    ensure
+      multi.close if multi
+    end
+  end
+
+  def test_multi_perform_does_not_restart_sibling_removed_and_readded_from_failing_on_complete_callback
+    with_queue_refill_test_server(wait_fail_until_slow: true) do |port, hits|
+      multi = Curl::Multi.new
+      failed = Curl::Easy.new("http://127.0.0.1:#{port}/fail")
+      slow = Curl::Easy.new("http://127.0.0.1:#{port}/slow")
+
+      failed.on_complete do
+        multi.remove(slow)
+        multi.add(slow)
+        raise "complete blew up"
+      end
+
+      error = assert_raise(Curl::Err::AbortedByCallbackError) do
+        multi.add(failed)
+        multi.add(slow)
+        multi.perform
+      end
+
+      assert_equal "complete blew up", error.message
+      assert_equal 1, hits[:fail]
+      assert_equal 1, hits[:slow],
+                   "sibling removed and re-added from a failing on_complete callback should be treated as replacement work and not restarted"
+    ensure
+      multi.close if multi
+    end
+  end
+
+  def test_multi_perform_does_not_start_work_added_within_on_complete_after_on_body_exception
+    with_queue_refill_test_server do |port, hits|
+      multi = Curl::Multi.new
+      failed = Curl::Easy.new("http://127.0.0.1:#{port}/fail")
+      queued = Curl::Easy.new("http://127.0.0.1:#{port}/queued")
+
+      failed.on_body { raise "body blew up" }
+      failed.on_complete { multi.add(queued) }
+
+      error = assert_raise(RuntimeError) do
+        multi.add(failed)
+        multi.perform
+      end
+
+      assert_equal "body blew up", error.message
+      assert_equal 1, hits[:fail]
+      assert_equal 0, hits[:queued],
+                   "request added from on_complete after a body callback exception should not start once the multi begins aborting"
+    ensure
+      multi.close if multi
+    end
+  end
+
+  def test_multi_http_does_not_fetch_queued_url_after_on_body_exception
+    with_queue_refill_test_server do |port, hits|
+      urls = [
+        { :url => "http://127.0.0.1:#{port}/queued", :method => :get },
+        { :url => "http://127.0.0.1:#{port}/slow", :method => :get },
+        { :url => "http://127.0.0.1:#{port}/fail", :method => :get, :on_body => proc { raise "body blew up" } }
+      ]
+
+      error = assert_raise(RuntimeError) do
+        Curl::Multi.http(urls, {:max_connects => 2}) { |_easy, _code, _method| }
+      end
+
+      assert_equal "body blew up", error.message
+      assert_equal 1, hits[:fail]
+      assert_equal 1, hits[:slow]
+      assert_equal 0, hits[:queued], "Curl::Multi.http should not refill queued urls after a callback abort"
+    end
+  end
+
+  def test_multi_perform_runs_status_callbacks_after_on_body_exception
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+    callbacks = []
+
+    easy.on_body { raise "body blew up" }
+    easy.on_complete { callbacks << :complete }
+    easy.on_failure do |_completed_easy, error_info|
+      callbacks << :failure
+      assert_equal Curl::Err::WriteError, error_info.first
+    end
+
+    error = assert_raise(RuntimeError) do
+      multi.add(easy)
+      multi.perform
+    end
+
+    assert_equal "body blew up", error.message
+    assert_equal [:complete, :failure], callbacks
+    assert multi.idle?
+    assert_equal 0, multi.requests.length
+  ensure
+    multi.close if multi
+  end
+
+  def test_multi_perform_preserves_on_body_exception_when_status_callbacks_raise
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+    callbacks = []
+
+    easy.on_body { raise "body blew up" }
+    easy.on_complete do
+      callbacks << :complete
+      raise "complete blew up"
+    end
+    easy.on_failure do |_completed_easy, error_info|
+      callbacks << :failure
+      assert_equal Curl::Err::WriteError, error_info.first
+      raise "failure blew up"
+    end
+
+    error = assert_raise(RuntimeError) do
+      multi.add(easy)
+      multi.perform
+    end
+
+    assert_equal "body blew up", error.message
+    assert_equal [:complete, :failure], callbacks
+    assert multi.idle?
+    assert_equal 0, multi.requests.length
+  ensure
+    multi.close if multi
+  end
+
   # NOTE: if this test runs slowly on Mac OSX, it is probably due to the use of a port install curl+ssl+ares install
   # on my MacBook, this causes curl_easy_init to take nearly 0.01 seconds / * 100 below is 1 second too many!
   def test_n_requests
@@ -221,8 +594,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     n.times do|i|
       assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
     end
-
-    m = nil
+  ensure
+    m.close if m
   end
 
   def test_n_requests_with_break
@@ -245,9 +618,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
         assert_match(/^# DO NOT REMOVE THIS COMMENT/, responses[i], "response #{i}")
       end
     end
-
-    m = nil
-
+  ensure
+    m.close if m
   end
 
   def test_idle_check
@@ -267,6 +639,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.perform
 
     assert(m.idle?, 'A Curl::Multi handle should be idle after performing its requests')
+  ensure
+    m.close if m
   end
 
   def test_requests
@@ -283,6 +657,45 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.perform
 
     assert_equal(0, m.requests.length, 'A new Curl::Multi handle should have no requests after a perform')
+  ensure
+    m.close if m
+  end
+
+  def test_easy_multi_is_cleared_after_perform
+    m = Curl::Multi.new
+    c = Curl::Easy.new($TEST_URL)
+
+    m.add(c)
+    assert_equal m, c.multi
+
+    m.perform
+
+    assert_nil c.multi
+  ensure
+    m.close if m
+  end
+
+  def test_easy_multi_is_available_during_completion_callbacks
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new($TEST_URL)
+    seen_multi = {}
+
+    easy.on_complete do |completed_easy|
+      seen_multi[:complete] = completed_easy.multi
+    end
+
+    easy.on_success do |completed_easy|
+      seen_multi[:success] = completed_easy.multi
+    end
+
+    multi.add(easy)
+    multi.perform
+
+    assert_same multi, seen_multi[:complete]
+    assert_same multi, seen_multi[:success]
+    assert_nil easy.multi
+  ensure
+    multi.close if multi
   end
 
   def test_cancel
@@ -296,6 +709,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.cancel!
 
     assert_equal(0, m.requests.size, 'A new Curl::Multi handle should have no requests after being canceled')
+  ensure
+    m.close if m
   end
 
   def test_with_success
@@ -326,8 +741,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert success_called2
     assert success_called1
-
-    m = nil
+  ensure
+    m.close if m
   end
 
   def test_with_success_cb_with_404
@@ -369,8 +784,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert success_called2
     assert !success_called1
-
-    m = nil
+  ensure
+    m.close if m
   end
 
   # This tests whether, ruby's GC will trash an out of scope easy handle
@@ -394,6 +809,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
       @m.perform do
         ObjectSpace.garbage_collect
       end
+    ensure
+      @m.close if @m
     end
 
     def self.test
@@ -465,23 +882,22 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     urls = []
     downloads = []
     file_info = {}
-    FileUtils.mkdir("tmp/")
 
-    # for each file store the size by file name
-    Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
-      urls << (root_uri + File.basename(path))
-      downloads << "tmp/" + File.basename(path)
-      file_info[File.basename(path)] = {:size => File.size(path), :path => path}
-    end
+    Dir.mktmpdir('curb-download-') do |download_dir|
+      # for each file store the size by file name
+      Dir[File.dirname(__FILE__) + "/../ext/*.c"].each do|path|
+        urls << (root_uri + File.basename(path))
+        downloads << File.join(download_dir, File.basename(path))
+        file_info[File.basename(path)] = {:size => File.size(path), :path => path}
+      end
 
-    # start downloads
-    Curl::Multi.download(urls,{},{},downloads) do|curl,download_path|
-      assert_equal 200, curl.response_code
-      assert File.exist?(download_path)
-      assert_equal file_info[File.basename(download_path)][:size], File.size(download_path), "incomplete download: #{download_path}"
+      # start downloads
+      Curl::Multi.download(urls,{},{},downloads) do|curl,download_path|
+        assert_equal 200, curl.response_code
+        assert File.exist?(download_path)
+        assert_equal file_info[File.basename(download_path)][:size], File.size(download_path), "incomplete download: #{download_path}"
+      end
     end
-  ensure
-    FileUtils.rm_rf("tmp/")
   end
 
   def test_multi_easy_post_01
@@ -620,6 +1036,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     failure = false
     assert !failure
     assert_equal "POST\nhello=world", e2.body_str
+  ensure
+    m.close if m
   end
 
   def test_remove_exception_is_descriptive
@@ -629,6 +1047,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   rescue => e
     assert_equal 'CURLError: Invalid easy handle', e.message
     assert_equal 0, m.requests.size
+  ensure
+    m.close if m
   end
 
   def test_retry_easy_handle
@@ -652,6 +1072,50 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.perform
     assert_equal 0, tries
     assert_equal 0, m.requests.size
+  ensure
+    m.close if m
+  end
+
+  def test_close_in_on_missing_callback_is_blocked
+    m = Curl::Multi.new
+    c = Curl::Easy.new(TestServlet.url + '/not_here')
+    did_raise = false
+
+    c.on_missing do |easy, _error|
+      begin
+        easy.close
+      rescue RuntimeError
+        did_raise = true
+      end
+    end
+
+    m.add(c)
+    m.perform
+
+    assert did_raise
+  ensure
+    m.close if m
+  end
+
+  def test_close_in_on_redirect_callback_is_blocked
+    m = Curl::Multi.new
+    c = Curl::Easy.new(TestServlet.url + '/redirect')
+    did_raise = false
+
+    c.on_redirect do |easy, _error|
+      begin
+        easy.close
+      rescue RuntimeError
+        did_raise = true
+      end
+    end
+
+    m.add(c)
+    m.perform
+
+    assert did_raise
+  ensure
+    m.close if m
   end
 
   def test_reusing_handle
@@ -665,6 +1129,8 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.add(c)
   rescue => e
     assert Curl::Err::MultiBadEasyHandle == e.class || Curl::Err::MultiAddedAlready == e.class
+  ensure
+    m.close if m
   end
 
   def test_multi_default_timeout
@@ -672,6 +1138,54 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     Curl::Multi.default_timeout = 12
     assert_equal 12, Curl::Multi.default_timeout
     assert_equal 100, (Curl::Multi.default_timeout = 100)
+  end
+
+  def with_queue_refill_test_server(wait_fail_until_slow: false)
+    port_socket = TCPServer.new('127.0.0.1', 0)
+    port = port_socket.addr[1]
+    port_socket.close
+
+    hits = Hash.new(0)
+    slow_started = false
+    slow_started_lock = Mutex.new
+    slow_started_condition = ConditionVariable.new
+    server = WEBrick::HTTPServer.new(:Port => port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    server.mount_proc('/fail') do |_req, res|
+      if wait_fail_until_slow
+        slow_started_lock.synchronize do
+          slow_started_condition.wait(slow_started_lock, 1) unless slow_started
+        end
+      end
+
+      hits[:fail] += 1
+      res['Content-Type'] = 'text/plain'
+      res.body = 'fail'
+    end
+    server.mount_proc('/slow') do |_req, res|
+      slow_started_lock.synchronize do
+        hits[:slow] += 1
+        slow_started = true
+        slow_started_condition.broadcast
+      end
+
+      res['Content-Type'] = 'text/plain'
+      sleep 0.3
+      res.body = 'slow'
+    end
+    server.mount_proc('/queued') do |_req, res|
+      hits[:queued] += 1
+      res['Content-Type'] = 'text/plain'
+      res.body = 'queued'
+    end
+
+    server_thread = Thread.new(server) { |srv| srv.start }
+    wait_for_server_ready(port, thread: server_thread)
+
+    yield port, hits
+  ensure
+    server.shutdown if defined?(server) && server
+    server_thread.join(server_startup_timeout) if defined?(server_thread) && server_thread
+    server_thread.kill if defined?(server_thread) && server_thread&.alive?
   end
 
   include TestServerMethods

@@ -32,6 +32,23 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match(/GET/, http.body)
   end
 
+  def test_resolve_clear_keeps_handle_usable
+    host = "curb.invalid"
+    url = "http://#{host}:#{TestServlet.port}#{TestServlet.path}"
+    mapping = "#{host}:#{TestServlet.port}:127.0.0.1"
+
+    http = Curl::Easy.new(url)
+    http.dns_cache_timeout = 0
+    http.resolve = [mapping]
+    http.get
+    assert_match(/GET/, http.body)
+
+    http.resolve = nil
+    http.url = TestServlet.url
+    http.get
+    assert_match(/GET/, http.body)
+  end
+
   def test_curlopt_stderr_with_file
     # does not work with Tempfile directly
     path = Tempfile.new('curb_test_curlopt_stderr').path
@@ -104,6 +121,216 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match(/HTTP\/1\.1\s\d+\s/, easy.header_str.to_s)
     # Body should be empty for HEAD requests (libcurl won't call the write callback).
     assert_equal "", easy.body_str.to_s
+  end
+
+  def test_perform_releases_failed_implicit_multi_without_follow_up_easy_perform
+    Curl::Easy.flush_deferred_multi_closes
+    assert_equal 0, Curl::Easy.deferred_multi_closes.length
+
+    easy, implicit_multi = capture_failed_implicit_multi_cleanup_state
+
+    assert_nil easy.multi
+    assert_equal({}, implicit_multi.requests)
+    assert_equal false, implicit_multi.instance_variable_get(:@deferred_close)
+    assert_equal 0, Curl::Easy.deferred_multi_closes.length
+  ensure
+    easy.multi = nil if defined?(easy) && easy
+    implicit_multi.close if defined?(implicit_multi) && implicit_multi
+    Curl::Easy.flush_deferred_multi_closes
+  end
+
+  def test_deferred_multi_closes_stay_with_their_owner_thread_across_retry
+    Curl::Easy.flush_deferred_multi_closes(all_threads: true)
+    multi = deferred_close_stub_multi(failures: 1)
+
+    Curl::Easy.defer_multi_close(multi, nil)
+
+    Curl::Easy.flush_deferred_multi_closes
+    assert_equal 1, multi.close_attempts
+    assert_equal true, multi.instance_variable_get(:@deferred_close)
+    assert_equal 1, Curl::Easy.deferred_multi_closes.length
+
+    Thread.new { Curl::Easy.flush_deferred_multi_closes }.join
+    assert_equal 1, multi.close_attempts
+    assert_equal true, multi.instance_variable_get(:@deferred_close)
+    assert_equal 1, Curl::Easy.deferred_multi_closes.length
+
+    Curl::Easy.flush_deferred_multi_closes
+    assert_equal 2, multi.close_attempts
+    assert_equal true, multi.closed?
+    assert_equal false, multi.instance_variable_get(:@deferred_close)
+    assert_equal 0, Curl::Easy.deferred_multi_closes.length
+  ensure
+    Curl::Easy.flush_deferred_multi_closes(all_threads: true)
+  end
+
+  def capture_failed_implicit_multi_cleanup_state
+    before_multi_ids = ObjectSpace.each_object(Curl::Multi).map(&:object_id)
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.on_complete { raise "complete blew up" }
+
+    error = assert_raise(Curl::Err::AbortedByCallbackError) { easy.perform }
+    assert_equal "complete blew up", error.message
+
+    created_multis = ObjectSpace.each_object(Curl::Multi).reject do |multi|
+      before_multi_ids.include?(multi.object_id)
+    end
+    assert_equal 1, created_multis.length, "test should observe one implicit multi created by Easy#perform"
+
+    [easy, created_multis.first]
+  end
+
+  def deferred_close_stub_multi(failures:)
+    Object.new.tap do |multi|
+      requests = {}
+      remaining_failures = failures
+      close_attempts = 0
+      closed = false
+
+      multi.define_singleton_method(:requests) { requests }
+      multi.define_singleton_method(:_close) do
+        close_attempts += 1
+        if remaining_failures.positive?
+          remaining_failures -= 1
+          raise "close failed"
+        end
+
+        closed = true
+      end
+      multi.define_singleton_method(:close_attempts) { close_attempts }
+      multi.define_singleton_method(:closed?) { closed }
+    end
+  end
+
+  def test_perform_restores_explicit_multi_after_callback_error
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.multi = multi
+    easy.on_complete { raise "complete blew up" }
+
+    error = assert_raise(Curl::Err::AbortedByCallbackError) { easy.perform }
+    assert_equal "complete blew up", error.message
+    assert_same multi, easy.multi
+    assert_equal({}, multi.requests)
+
+    easy.on_complete { |_curl| }
+    easy.perform
+
+    assert_same multi, easy.multi
+    assert_equal "GET", easy.body_str
+  ensure
+    easy.multi = nil if defined?(easy) && easy && easy.multi.equal?(multi)
+    multi.close if defined?(multi) && multi
+  end
+
+  def test_perform_restores_cached_implicit_multi_after_callback_error
+    Curl::Multi.autoclose = false
+
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.perform
+
+    cached_multi = easy.multi
+    easy.on_complete { raise "complete blew up" }
+
+    error = assert_raise(Curl::Err::AbortedByCallbackError) { easy.perform }
+    assert_equal "complete blew up", error.message
+    assert_same cached_multi, easy.multi
+    assert_equal({}, cached_multi.requests)
+
+    easy.on_complete { |_curl| }
+    easy.perform
+
+    assert_same cached_multi, easy.multi
+    assert_equal "GET", easy.body_str
+  ensure
+    easy.multi = nil if defined?(easy) && easy
+    cached_multi.close if defined?(cached_multi) && cached_multi
+    Curl::Multi.autoclose = false
+  end
+
+  def test_close_clears_explicit_idle_easy_multi_reference
+    easy = Curl::Easy.new($TEST_URL)
+    multi = Curl::Multi.new
+    easy.multi = multi
+
+    assert_same multi, easy.multi
+    assert_equal({}, multi.requests)
+
+    multi.close
+
+    assert_nil easy.multi
+  end
+
+  def test_close_clears_cached_idle_easy_multi_reference
+    Curl::Multi.autoclose = false
+
+    easy = Curl::Easy.new($TEST_URL)
+    easy.perform
+
+    cached_multi = easy.multi
+    assert_not_nil cached_multi
+    assert_equal({}, cached_multi.requests)
+
+    cached_multi.close
+
+    assert_nil easy.multi
+  ensure
+    easy.multi = nil if defined?(easy) && easy
+    Curl::Multi.autoclose = false
+  end
+  def test_perform_can_reuse_explicit_multi_when_autoclose_is_enabled
+    Curl::Multi.autoclose = true
+  
+    easy = Curl::Easy.new(TestServlet.url)
+    multi = Curl::Multi.new
+  
+    easy.multi = multi
+    easy.perform
+  
+    assert_nil easy.multi
+    assert_equal({}, multi.requests)
+  
+    easy.multi = multi
+    easy.perform
+  
+    assert_nil easy.multi
+    assert_equal({}, multi.requests)
+    assert_equal "GET", easy.body_str
+  ensure
+    easy.multi = nil if defined?(easy) && easy
+    multi.close if defined?(multi) && multi
+    Curl::Multi.autoclose = false
+  end
+
+  def test_perform_reraises_on_body_exception_for_frozen_easy
+    easy = Curl::Easy.new($TEST_URL)
+    callback_error = Class.new(RuntimeError)
+    easy.on_body { raise callback_error, "body blew up" }
+    easy.freeze
+  
+    error = assert_raise(callback_error) { easy.perform }
+  
+    assert_equal "body blew up", error.message
+  end
+
+  def test_perform_preserves_implicit_multi_when_autoclose_is_disabled
+    Curl::Multi.autoclose = false
+
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.perform
+
+    first_multi = easy.multi
+    assert_not_nil first_multi
+    assert_equal({}, first_multi.requests)
+
+    easy.perform
+
+    assert_same first_multi, easy.multi
+    assert_equal "GET", easy.body_str
+  ensure
+    easy.multi = nil if defined?(easy) && easy
+    first_multi.close if defined?(first_multi) && first_multi
+    Curl::Multi.autoclose = false
   end
 
   def test_curlopt_stderr_fails_with_tempdir
@@ -921,7 +1148,85 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     
     assert_equal "PUT\nfoo=bar&encoded%20string=val", curl.body_str
   end
-  
+
+  def test_post_body_from_to_s_keeps_string_buffer_alive
+    post_body = Object.new
+    def post_body.to_s
+      'foo=bar&encoded%20string=val'
+    end
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.post_body = post_body
+
+    assert_equal 'foo=bar&encoded%20string=val', curl.post_body
+
+    GC.start
+    GC.compact if GC.respond_to?(:compact)
+
+    curl.perform
+    assert_equal "POST\nfoo=bar&encoded%20string=val", curl.body_str
+  end
+
+  def test_post_body_preserves_assigned_snapshot_when_original_string_is_mutated
+    omit('CURLOPT_COPYPOSTFIELDS is not available in this build') unless Curl.const_defined?(:CURLOPT_COPYPOSTFIELDS)
+
+    curl = Curl::Easy.new(TestServlet.url)
+    post_body = String.new('alpha=1')
+    curl.post_body = post_body
+
+    post_body.replace('beta=2')
+
+    assert_equal 'beta=2', post_body
+    assert_equal 'alpha=1', curl.post_body
+
+    curl.perform
+
+    assert_equal "POST\nalpha=1", curl.body_str
+    assert_equal 'alpha=1', curl.post_body
+  end
+
+  def test_setopt_postfields_keeps_string_buffer_alive
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.set(Curl::CURLOPT_POSTFIELDS, 'foo=bar&encoded%20string=val')
+
+    assert_equal 'foo=bar&encoded%20string=val', curl.post_body
+
+    GC.start
+    GC.compact if GC.respond_to?(:compact)
+
+    curl.perform
+    assert_equal "POST\nfoo=bar&encoded%20string=val", curl.body_str
+  end
+
+  def test_setopt_postfields_preserves_assigned_snapshot_when_original_string_is_mutated
+    omit('CURLOPT_COPYPOSTFIELDS is not available in this build') unless Curl.const_defined?(:CURLOPT_COPYPOSTFIELDS)
+
+    curl = Curl::Easy.new(TestServlet.url)
+    post_body = String.new('alpha=1')
+    curl.set(Curl::CURLOPT_POSTFIELDS, post_body)
+
+    post_body.replace('beta=2')
+
+    assert_equal 'beta=2', post_body
+    assert_equal 'alpha=1', curl.post_body
+
+    curl.perform
+
+    assert_equal "POST\nalpha=1", curl.body_str
+    assert_equal 'alpha=1', curl.post_body
+  end
+
+  def test_setopt_postfields_nil_preserves_post_request
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.set(Curl::CURLOPT_POST, true)
+    curl.set(Curl::CURLOPT_POSTFIELDS, nil)
+
+    curl.perform
+
+    assert_nil curl.post_body
+    assert_equal "POST\n", curl.body_str
+  end
+
   def test_form_body_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_post('foo=bar', 'encoded%20string=val')
@@ -949,6 +1254,19 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       assert_match(/HTTP POST file upload/, curl.body_str)
       assert_match(/Content-Disposition: form-data/, curl.body_str)
     }
+  end
+
+  def test_multipart_form_reuse_clears_previous_form
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = true
+    curl.http_post(Curl::PostField.content('document_id', '5'))
+    assert_match(/document_id/, curl.body_str)
+
+    curl.multipart_form_post = false
+    curl.post_body = 'foo=bar'
+    curl.http_post
+
+    assert_equal "POST\nfoo=bar", curl.body_str
   end
 
   def test_delete_remote
@@ -1312,6 +1630,84 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_raises RuntimeError do
       curl.perform
     end
+  end
+
+  def test_close_in_on_progress_is_blocked
+    curl = Curl::Easy.new(TestServlet.url)
+    did_raise = false
+
+    curl.on_progress do |_dltotal, _dlnow, _ultotal, _ulnow|
+      unless did_raise
+        begin
+          curl.close
+        rescue RuntimeError
+          did_raise = true
+        end
+      end
+      true
+    end
+
+    curl.perform
+    assert did_raise
+  end
+
+  def test_close_in_on_debug_is_blocked
+    curl = Curl::Easy.new(TestServlet.url)
+    did_raise = false
+
+    curl.on_debug do |_type, _data|
+      unless did_raise
+        begin
+          curl.close
+        rescue RuntimeError
+          did_raise = true
+        end
+      end
+    end
+
+    curl.perform
+    assert did_raise
+  end
+
+  def test_close_in_upload_read_is_blocked
+    curl = Curl::Easy.new(TestServlet.url)
+
+    reader_class = Class.new do
+      attr_reader :close_blocked
+
+      def initialize(curl)
+        @curl = curl
+        @done = false
+        @close_blocked = false
+      end
+
+      def read(_len)
+        return nil if @done
+
+        @done = true
+        begin
+          @curl.close
+        rescue RuntimeError
+          @close_blocked = true
+        end
+
+        'hello'
+      end
+
+      def seek(_offset, _whence = SEEK_SET)
+        0
+      end
+
+      def stat
+        Struct.new(:size).new(5)
+      end
+    end
+
+    reader = reader_class.new(curl)
+    curl.http_put(reader)
+
+    assert reader.close_blocked
+    assert_equal "PUT\nhello", curl.body_str
   end
 
   def test_set_unsupported_options

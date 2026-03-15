@@ -12,35 +12,35 @@ class TestGcCompact < Test::Unit::TestCase
 
   def test_multi_perform_with_gc_compact
     ITERATIONS.times do
-      multi = Curl::Multi.new
-      add_easy_handles(multi)
-
-      compact
-      assert_nothing_raised { multi.perform }
-      compact
+      run_multi_perform_compact_iteration
+      collect_after_iteration
     end
   end
 
   def test_gc_compact_during_multi_cleanup
-    ITERATIONS.times do
-      multi = Curl::Multi.new
-      add_easy_handles(multi)
+    omit('GC cleanup isolation requires fork') if NO_FORK || WINDOWS
 
-      compact
-      multi = nil
-      compact
+    pid = fork do
+      begin
+        ITERATIONS.times do
+          run_multi_cleanup_compact_iteration
+          collect_after_iteration
+        end
+        exit! 0
+      rescue StandardError => e
+        warn("#{e.class}: #{e.message}")
+        warn(e.backtrace.join("\n")) if e.backtrace
+        exit! 1
+      end
     end
+
+    _child_pid, status = Process.wait2(pid)
+    assert_predicate status, :success?
   end
 
   def test_gc_compact_after_detach
-    multi = Curl::Multi.new
-    handles = add_easy_handles(multi)
-
-    compact
-    assert_nothing_raised { multi.perform }
-
-    handles.each { |easy| multi.remove(easy) }
-    compact
+    run_multi_detach_compact_iteration
+    collect_after_iteration
   end
 
   def test_gc_compact_easy
@@ -60,6 +60,46 @@ class TestGcCompact < Test::Unit::TestCase
 
   private
 
+  def run_multi_perform_compact_iteration
+    multi = Curl::Multi.new
+    handles = add_easy_handles(multi)
+
+    compact
+    multi.perform
+    compact
+  ensure
+    handles&.each do |easy|
+      begin
+        easy.close
+      rescue StandardError
+        nil
+      end
+    end
+    multi&.close
+  end
+
+  def run_multi_cleanup_compact_iteration
+    multi = Curl::Multi.new
+    add_easy_handles(multi)
+
+    compact
+    multi = nil
+    compact
+  end
+
+  def run_multi_detach_compact_iteration
+    multi = Curl::Multi.new
+    handles = add_easy_handles(multi)
+
+    compact
+    multi.perform
+
+    handles.each { |easy| multi.remove(easy) }
+    compact
+  ensure
+    multi&.close
+  end
+
   def add_easy_handles(multi)
     Array.new(EASY_PER_MULTI) do
       Curl::Easy.new($TEST_URL) do |easy|
@@ -72,5 +112,10 @@ class TestGcCompact < Test::Unit::TestCase
 
   def compact
     GC.compact
+  end
+
+  def collect_after_iteration
+    ObjectSpace.garbage_collect
+    ObjectSpace.garbage_collect
   end
 end

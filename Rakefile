@@ -3,6 +3,7 @@
 require 'rake/clean'
 require 'rake/testtask'
 require "ruby_memcheck"
+require 'shellwords'
 begin
 require 'mixlib/shellout'
 rescue LoadError
@@ -88,6 +89,16 @@ task :rmpid do
   FileUtils.rm_rf Dir.glob("tests/server_lock-*")
 end
 
+at_exit do
+  next unless defined?(Rake.application)
+
+  top_level_tasks = Rake.application.top_level_tasks
+  test_tasks = %w[default test ta tu alltests unittests bugtests test:valgrind]
+  should_cleanup = top_level_tasks.empty? || top_level_tasks.any? { |task| test_tasks.include?(task) }
+
+  FileUtils.rm_rf Dir.glob("tests/server_lock-*") if should_cleanup
+end
+
 if ENV['RELTEST']
   announce "Release task testing - not running regression tests on alltests"
   task :alltests => [:unittests]
@@ -101,6 +112,17 @@ namespace :test do
     t.test_files = FileList['tests/tc_*.rb']
     t.verbose = false
   end
+
+  desc 'Run the standalone leak trace helper'
+  task :leak_trace => :compile do
+    ruby_opts = Shellwords.split(ENV['LEAK_TRACE_OPTS'].to_s)
+    sh RbConfig.ruby, '-Ilib', '-Iext', 'tests/leak_trace.rb', *ruby_opts
+  end
+end
+
+Rake::Task['test:valgrind'].enhance([:rmpid]) do
+  Rake::Task[:rmpid].reenable
+  Rake::Task[:rmpid].invoke
 end
 
 Rake::TestTask.new(:unittests) do |t|

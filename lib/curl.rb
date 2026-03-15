@@ -10,24 +10,111 @@ module Curl
     Fiber.respond_to?(:scheduler) && !Fiber.scheduler.nil?
   end
 
+  def self.deferred_exception_source_id(state)
+    return unless state[:multi].instance_variable_defined?(:@__curb_deferred_exception_source_id)
+
+    state[:multi].instance_variable_get(:@__curb_deferred_exception_source_id)
+  end
+
+  def self.scheduler_waiter_blocking_supported?
+    scheduler = Fiber.scheduler
+    scheduler && scheduler.respond_to?(:block) && scheduler.respond_to?(:unblock)
+  end
+
+  def self.wake_scheduler_waiter(waiter)
+    fiber = waiter[:fiber]
+    scheduler = waiter[:scheduler]
+    return unless fiber&.alive? && scheduler&.respond_to?(:unblock)
+
+    scheduler.unblock(waiter, fiber)
+  end
+
+  def self.complete_scheduler_waiter(waiter)
+    return if waiter[:done]
+
+    waiter[:done] = true
+    wake_scheduler_waiter(waiter)
+  end
+
+  def self.fail_scheduler_waiter(waiter, error)
+    return if waiter[:error]
+
+    waiter[:error] = error
+    wake_scheduler_waiter(waiter)
+  end
+
+  def self.release_scheduler_error(state, error)
+    source_waiter = state[:waiters][deferred_exception_source_id(state)]
+
+    if source_waiter
+      fail_scheduler_waiter(source_waiter, error)
+    else
+      state[:error] = error
+      state[:waiters].each_value { |waiter| wake_scheduler_waiter(waiter) }
+    end
+  end
+
+  def self.block_scheduler_waiter(waiter)
+    unless scheduler_waiter_blocking_supported?
+      sleep 0
+      return
+    end
+
+    waiter[:fiber] = Fiber.current
+    waiter[:scheduler] ||= Fiber.scheduler
+    return if waiter[:done] || waiter[:error]
+
+    waiter[:scheduler].block(waiter, nil)
+  ensure
+    waiter[:fiber] = nil if waiter[:fiber].equal?(Fiber.current)
+  end
+
+  def self.scheduler_yield
+    scheduler = Fiber.scheduler
+
+    if scheduler&.respond_to?(:kernel_sleep)
+      scheduler.kernel_sleep(0)
+    else
+      sleep 0
+    end
+  end
+
+  def self.release_scheduler_waiters(state)
+    source_id = deferred_exception_source_id(state)
+
+    state[:waiters].each do |easy_id, waiter|
+      next if source_id == easy_id
+
+      complete_scheduler_waiter(waiter) if waiter[:completed]
+    end
+  end
+
   def self.perform_with_scheduler(easy)
     state = scheduler_state
-    waiter = {done: false}
+    waiter = {completed: false, done: false, error: nil, fiber: nil, scheduler: Fiber.scheduler}
+    state[:waiters][easy.object_id] = waiter
     previous_complete = easy.on_complete do |completed_easy|
-      waiter[:done] = true
       previous_complete.call(completed_easy) if previous_complete
+      waiter[:completed] = true
     end
 
     state[:pending] << easy
     ensure_scheduler_driver(state)
 
     until waiter[:done]
+      raise waiter[:error] if waiter[:error]
       raise state[:error] if state[:error]
-      sleep 0
+      block_scheduler_waiter(waiter)
+    end
+
+    while state[:driver_running] && state[:pending].empty? &&
+          state[:waiters].length == 1 && state[:waiters].key?(easy.object_id)
+      scheduler_yield
     end
 
     true
   ensure
+    state[:waiters].delete(easy.object_id) if defined?(state) && state[:waiters]
     if defined?(previous_complete)
       if previous_complete
         easy.on_complete(&previous_complete)
@@ -44,6 +131,7 @@ module Curl
         pending: [],
         driver_running: false,
         error: nil,
+        waiters: {},
       }
       Thread.current.thread_variable_set(:curb_scheduler_state, state)
       state
@@ -63,19 +151,28 @@ module Curl
         pending_count = -1
         until pending_count == state[:pending].size
           pending_count = state[:pending].size
-          sleep 0
+          scheduler_yield
         end
 
         loop do
           drain_scheduler_pending(state)
           break if state[:multi].idle?
 
-          state[:multi].perform do
-            drain_scheduler_pending(state)
+          begin
+            state[:multi].perform do
+              drain_scheduler_pending(state)
+              release_scheduler_waiters(state)
+              scheduler_yield
+            end
+          ensure
+            # Release any siblings that completed just before a deferred
+            # callback exception is re-raised.
+            release_scheduler_waiters(state)
           end
         end
       rescue => e
-        state[:error] = e
+        release_scheduler_waiters(state)
+        release_scheduler_error(state, e)
       ensure
         state[:driver_running] = false
         ensure_scheduler_driver(state) if state[:error].nil? && !state[:pending].empty?
@@ -92,7 +189,14 @@ module Curl
   def self.drain_scheduler_pending(state)
     pending = state[:pending]
     until pending.empty?
-      state[:multi].add(pending.shift)
+      easy = pending.first
+
+      break if state[:multi].instance_variable_defined?(:@__curb_deferred_exception)
+
+      state[:multi].add(easy)
+      break unless state[:multi].requests.key?(easy.object_id)
+
+      pending.shift
     end
   end
 
