@@ -6,6 +6,95 @@ require 'uri'
 
 # expose shortcut methods
 module Curl
+  def self.scheduler_active?
+    Fiber.respond_to?(:scheduler) && !Fiber.scheduler.nil?
+  end
+
+  def self.perform_with_scheduler(easy)
+    state = scheduler_state
+    waiter = {done: false}
+    previous_complete = easy.on_complete do |completed_easy|
+      waiter[:done] = true
+      previous_complete.call(completed_easy) if previous_complete
+    end
+
+    state[:pending] << easy
+    ensure_scheduler_driver(state)
+
+    until waiter[:done]
+      raise state[:error] if state[:error]
+      sleep 0
+    end
+
+    true
+  ensure
+    if defined?(previous_complete)
+      if previous_complete
+        easy.on_complete(&previous_complete)
+      else
+        easy.on_complete
+      end
+    end
+  end
+
+  def self.scheduler_state
+    Thread.current.thread_variable_get(:curb_scheduler_state) || begin
+      state = {
+        multi: Curl::Multi.new,
+        pending: [],
+        driver_running: false,
+        error: nil,
+      }
+      Thread.current.thread_variable_set(:curb_scheduler_state, state)
+      state
+    end
+  end
+
+  def self.ensure_scheduler_driver(state)
+    return if state[:driver_running]
+
+    state[:driver_running] = true
+    state[:error] = nil
+
+    runner = proc do
+      begin
+        # Give sibling fibers a chance to enqueue work so the shared multi can
+        # batch scheduler-driven Easy#perform calls together.
+        pending_count = -1
+        until pending_count == state[:pending].size
+          pending_count = state[:pending].size
+          sleep 0
+        end
+
+        loop do
+          drain_scheduler_pending(state)
+          break if state[:multi].idle?
+
+          state[:multi].perform do
+            drain_scheduler_pending(state)
+          end
+        end
+      rescue => e
+        state[:error] = e
+      ensure
+        state[:driver_running] = false
+        ensure_scheduler_driver(state) if state[:error].nil? && !state[:pending].empty?
+      end
+    end
+
+    if Fiber.respond_to?(:schedule)
+      Fiber.schedule(&runner)
+    else
+      Fiber.new(blocking: false, &runner).resume
+    end
+  end
+
+  def self.drain_scheduler_pending(state)
+    pending = state[:pending]
+    until pending.empty?
+      state[:multi].add(pending.shift)
+    end
+  end
 
   def self.http(verb, url, post_body=nil, put_data=nil, &block)
     if Thread.current[:curb_curl_yielding]

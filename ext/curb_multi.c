@@ -712,7 +712,7 @@ static const char *cselect_flags_str(int flags, char *buf, size_t n) {
 
 #if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
 /* Protected call to rb_fiber_scheduler_io_wait to avoid unwinding into C on TypeError. */
-struct fiber_io_wait_args { VALUE scheduler; VALUE io; int events; VALUE timeout; };
+struct fiber_io_wait_args { VALUE scheduler; VALUE io; VALUE events; VALUE timeout; };
 static VALUE fiber_io_wait_protected(VALUE argp) {
   struct fiber_io_wait_args *a = (struct fiber_io_wait_args *)argp;
   return rb_fiber_scheduler_io_wait(a->scheduler, a->io, a->events, a->timeout);
@@ -881,8 +881,47 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
       rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
       handled_wait = 1;
     } else if (count_tracked == 1) {
+#if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
+      {
+        VALUE scheduler = rb_fiber_scheduler_current();
+        if (scheduler != Qnil) {
+          int events = 0;
+          if (wait_fd >= 0) {
+            if (wait_what == CURL_POLL_IN) events = RB_WAITFD_IN;
+            else if (wait_what == CURL_POLL_OUT) events = RB_WAITFD_OUT;
+            else if (wait_what == CURL_POLL_INOUT) events = RB_WAITFD_IN|RB_WAITFD_OUT;
+            else events = RB_WAITFD_IN|RB_WAITFD_OUT;
+          }
+          double timeout_s = (double)tv.tv_sec + ((double)tv.tv_usec / 1e6);
+          VALUE timeout = rb_float_new(timeout_s);
+          if (wait_fd < 0) {
+#ifdef HAVE_RB_THREAD_FD_SELECT
+            rb_thread_fd_select(0, NULL, NULL, NULL, &tv);
+#else
+            rb_thread_wait_for(tv);
+#endif
+            did_timeout = 1;
+          } else {
+            const char *mode = (wait_what == CURL_POLL_IN) ? "r" : (wait_what == CURL_POLL_OUT) ? "w" : "r+";
+            VALUE io = rb_funcall(rb_cIO, rb_intern("for_fd"), 2, INT2NUM(wait_fd), rb_str_new_cstr(mode));
+            rb_funcall(io, rb_intern("autoclose="), 1, Qfalse);
+            struct fiber_io_wait_args args = { scheduler, io, INT2NUM(events), timeout };
+            int state = 0;
+            VALUE ready = rb_protect(fiber_io_wait_protected, (VALUE)&args, &state);
+            if (state) {
+              did_timeout = 1;
+              any_ready = 0;
+            } else {
+              any_ready = (ready != Qfalse);
+              did_timeout = !any_ready;
+            }
+          }
+          handled_wait = 1;
+        }
+      }
+#endif
 #if defined(HAVE_RB_WAIT_FOR_SINGLE_FD)
-      if (wait_fd >= 0) {
+      if (!handled_wait && wait_fd >= 0) {
         int ev = 0;
         if (wait_what == CURL_POLL_IN) ev = RB_WAITFD_IN;
         else if (wait_what == CURL_POLL_OUT) ev = RB_WAITFD_OUT;
@@ -896,40 +935,6 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
         any_ready = (rc != 0);
         did_timeout = (rc == 0);
         handled_wait = 1;
-      }
-#endif
-#if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
-      if (!handled_wait) {
-        VALUE scheduler = rb_fiber_scheduler_current();
-        if (scheduler != Qnil) {
-          int events = 0;
-          if (wait_fd >= 0) {
-            if (wait_what == CURL_POLL_IN) events = RB_WAITFD_IN;
-            else if (wait_what == CURL_POLL_OUT) events = RB_WAITFD_OUT;
-            else if (wait_what == CURL_POLL_INOUT) events = RB_WAITFD_IN|RB_WAITFD_OUT;
-            else events = RB_WAITFD_IN|RB_WAITFD_OUT;
-          }
-          double timeout_s = (double)tv.tv_sec + ((double)tv.tv_usec / 1e6);
-          VALUE timeout = rb_float_new(timeout_s);
-          if (wait_fd < 0) {
-            rb_thread_wait_for(tv);
-            did_timeout = 1;
-          } else {
-            const char *mode = (wait_what == CURL_POLL_IN) ? "r" : (wait_what == CURL_POLL_OUT) ? "w" : "r+";
-            VALUE io = rb_funcall(rb_cIO, rb_intern("for_fd"), 2, INT2NUM(wait_fd), rb_str_new_cstr(mode));
-            rb_funcall(io, rb_intern("autoclose="), 1, Qfalse);
-            struct fiber_io_wait_args args = { scheduler, io, events, timeout };
-            int state = 0;
-            VALUE ready = rb_protect(fiber_io_wait_protected, (VALUE)&args, &state);
-            if (state) {
-              did_timeout = 1; any_ready = 0;
-            } else {
-              any_ready = (ready != Qfalse);
-              did_timeout = !any_ready;
-            }
-          }
-          handled_wait = 1;
-        }
       }
 #endif
       if (!handled_wait) {
@@ -955,7 +960,11 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
         rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
       }
     } else { /* count_tracked == 0 */
+#ifdef HAVE_RB_THREAD_FD_SELECT
+      rb_thread_fd_select(0, NULL, NULL, NULL, &tv);
+#else
       rb_thread_wait_for(tv);
+#endif
       did_timeout = 1;
     }
 
@@ -1155,6 +1164,11 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
         rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
         rb_curl_multi_read_info( self, rbcm->handle );
         if (block != Qnil) { rb_funcall(block, rb_intern("call"), 1, self);  }
+#if defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
+        if (rb_fiber_scheduler_current() != Qnil) {
+          rb_thread_schedule();
+        }
+#endif
         continue;
       }
 
@@ -1368,12 +1382,11 @@ void init_curb_multi() {
   rb_define_method(cCurlMulti, "pipeline=", ruby_curl_multi_pipeline, 1);
   rb_define_method(cCurlMulti, "_add", ruby_curl_multi_add, 1);
   rb_define_method(cCurlMulti, "_remove", ruby_curl_multi_remove, 1);
-  /* Prefer a socket-action based perform when supported and scheduler-aware. */
-#if defined(HAVE_CURL_MULTI_SOCKET_ACTION) && defined(HAVE_CURLMOPT_SOCKETFUNCTION) && defined(HAVE_RB_THREAD_FD_SELECT) && !defined(_WIN32)
-  extern VALUE ruby_curl_multi_socket_perform(int argc, VALUE *argv, VALUE self);
-  rb_define_method(cCurlMulti, "perform", ruby_curl_multi_socket_perform, -1);
-#else
+  /*
+   * The legacy fdset loop is the stable default. The newer socket-action path
+   * is kept in-tree, but it has shown scheduler regressions for one-handle
+   * multi usage (for example Curl::Easy#perform under Async).
+   */
   rb_define_method(cCurlMulti, "perform", ruby_curl_multi_perform, -1);
-#endif
   rb_define_method(cCurlMulti, "_close", ruby_curl_multi_close, 0);
 }

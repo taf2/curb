@@ -2179,7 +2179,7 @@ static VALUE ruby_curl_easy_http_version_set(VALUE self, VALUE version) {
   ruby_curl_easy *rbce;
   long http_version;
 
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
 
   if (NIL_P(version)) {
     http_version = CURL_HTTP_VERSION_NONE;
@@ -2201,7 +2201,7 @@ static VALUE ruby_curl_easy_http_version_set(VALUE self, VALUE version) {
 static VALUE ruby_curl_easy_http_version_get(VALUE self) {
   ruby_curl_easy *rbce;
 
-  Data_Get_Struct(self, ruby_curl_easy, rbce);
+  TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
 
   return LONG2NUM(rbce->http_version);
 }

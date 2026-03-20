@@ -64,14 +64,18 @@ module Curl
     # the configured HTTP Verb.
     #
     def perform
-      self.multi = Curl::Multi.new if self.multi.nil?
-      self.multi.add self
-      ret = self.multi.perform
-      self.multi.remove self
+      if Curl.scheduler_active? && self.multi.nil?
+        ret = Curl.perform_with_scheduler(self)
+      else
+        self.multi = Curl::Multi.new if self.multi.nil?
+        self.multi.add self
+        ret = self.multi.perform
+        self.multi.remove self
 
-      if Curl::Multi.autoclose
-        self.multi.close
-        self.multi = nil
+        if Curl::Multi.autoclose
+          self.multi.close
+          self.multi = nil
+        end
       end
 
       if self.last_result != 0 && self.on_failure.nil?
