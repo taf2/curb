@@ -768,7 +768,6 @@ static int rb_fdset_from_sockmap_i(st_data_t key, st_data_t val, st_data_t argp)
   if (fd > a->maxfd) a->maxfd = fd;
   return ST_CONTINUE;
 }
-RBIMPL_ATTR_MAYBE_UNUSED()
 static void rb_fdset_from_sockmap(st_table *map, rb_fdset_t *rfds, rb_fdset_t *wfds, rb_fdset_t *efds, int *maxfd_out) {
   if (!map) { *maxfd_out = -1; return; }
   struct build_fdset_args a; a.r = rfds; a.w = wfds; a.e = efds; a.maxfd = -1;
@@ -858,9 +857,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
       rb_fdset_t rfds, wfds, efds;
       rb_fd_init(&rfds); rb_fd_init(&wfds); rb_fd_init(&efds);
       int maxfd = -1;
-      struct build_fdset_args a2; a2.r = &rfds; a2.w = &wfds; a2.e = &efds; a2.maxfd = -1;
-      st_foreach(ctx->sock_map, rb_fdset_from_sockmap_i, (st_data_t)&a2);
-      maxfd = a2.maxfd;
+      rb_fdset_from_sockmap(ctx->sock_map, &rfds, &wfds, &efds, &maxfd);
       int rc = rb_thread_fd_select(maxfd + 1, &rfds, &wfds, &efds, &tv);
       curb_debugf("[curb.socket] rb_thread_fd_select(multi) rc=%d maxfd=%d", rc, maxfd);
       if (rc < 0) {
