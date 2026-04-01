@@ -475,6 +475,30 @@ void ruby_curl_easy_mark(ruby_curl_easy *rbce) {
   curl_easy_mark((void *)rbce);
 }
 
+static ruby_curl_multi *ruby_curl_multi_pointer_if_compatible(VALUE multi_val) {
+  if (NIL_P(multi_val) || !RB_TYPE_P(multi_val, T_DATA)) {
+    return NULL;
+  }
+
+#if defined(RTYPEDDATA_P) && defined(RTYPEDDATA_TYPE) && defined(RTYPEDDATA_DATA)
+  if (!RTYPEDDATA_P(multi_val)) {
+    return NULL;
+  }
+
+  if (RTYPEDDATA_TYPE(multi_val) != &ruby_curl_multi_data_type) {
+    return NULL;
+  }
+
+  return (ruby_curl_multi *)RTYPEDDATA_DATA(multi_val);
+#else
+  if (!rb_typeddata_is_kind_of(multi_val, &ruby_curl_multi_data_type)) {
+    return NULL;
+  }
+
+  return DATA_PTR(multi_val);
+#endif
+}
+
 static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
   if (!rbce) {
     return;
@@ -482,21 +506,19 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
 
   if (!NIL_P(rbce->multi)) {
     VALUE multi_val = rbce->multi;
-    ruby_curl_multi *rbcm = NULL;
+    ruby_curl_multi *rbcm = ruby_curl_multi_pointer_if_compatible(multi_val);
 
     rbce->multi = Qnil;
 
-    if (!NIL_P(multi_val) && RB_TYPE_P(multi_val, T_DATA)) {
-      TypedData_Get_Struct(multi_val, ruby_curl_multi, &ruby_curl_multi_data_type, rbcm);
-      if (rbcm) {
-        /* Best-effort: ensure the handle is detached from the multi to
-         * avoid libcurl retaining a dangling pointer to a soon-to-be
-         * cleaned-up easy handle. We cannot raise from GC, so ignore errors. */
-        if (rbcm->handle && rbce->curl) {
-          curl_multi_remove_handle(rbcm->handle, rbce->curl);
-        }
-        rb_curl_multi_forget_easy(rbcm, rbce);
+    if (rbcm) {
+      /* Best-effort: ensure the handle is detached from the multi to avoid
+       * libcurl retaining a dangling pointer to a soon-to-be cleaned-up easy
+       * handle. This path runs during GC, so it must not invoke Ruby APIs that
+       * can allocate or raise. */
+      if (rbcm->handle && rbce->curl) {
+        curl_multi_remove_handle(rbcm->handle, rbce->curl);
       }
+      rb_curl_multi_forget_easy(rbcm, rbce);
     }
   }
 
@@ -4144,6 +4166,11 @@ static VALUE ruby_curl_easy_multi_get(VALUE self) {
 static VALUE ruby_curl_easy_multi_set(VALUE self, VALUE multi) {
   ruby_curl_easy *rbce;
   TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+
+  if (!NIL_P(multi) && rb_obj_is_kind_of(multi, cCurlMulti) != Qtrue) {
+    rb_raise(rb_eTypeError, "expected Curl::Multi or nil");
+  }
+
   rbce->multi = multi;
   return rbce->multi;
 }

@@ -164,17 +164,39 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     Curl::Easy.flush_deferred_multi_closes(all_threads: true)
   end
 
-  def capture_failed_implicit_multi_cleanup_state
-    before_multi_ids = ObjectSpace.each_object(Curl::Multi).map(&:object_id)
-    easy = Curl::Easy.new(TestServlet.url)
-    easy.on_complete { raise "complete blew up" }
+  def capture_created_multis
+    created_multis = []
+    multi_singleton = class << Curl::Multi; self; end
 
-    error = assert_raise(Curl::Err::AbortedByCallbackError) { easy.perform }
-    assert_equal "complete blew up", error.message
-
-    created_multis = ObjectSpace.each_object(Curl::Multi).reject do |multi|
-      before_multi_ids.include?(multi.object_id)
+    multi_singleton.__send__(:alias_method, :__curb_test_original_new, :new)
+    multi_singleton.__send__(:define_method, :new) do |*args, &block|
+      multi = __curb_test_original_new(*args, &block)
+      created_multis << multi
+      multi
     end
+
+    yield created_multis
+  ensure
+    if defined?(multi_singleton) && multi_singleton.method_defined?(:__curb_test_original_new)
+      multi_singleton.__send__(:remove_method, :new)
+      multi_singleton.__send__(:alias_method, :new, :__curb_test_original_new)
+      multi_singleton.__send__(:remove_method, :__curb_test_original_new)
+    end
+  end
+
+  def capture_failed_implicit_multi_cleanup_state
+    created_multis = nil
+    easy = nil
+
+    capture_created_multis do |captured_multis|
+      created_multis = captured_multis
+      easy = Curl::Easy.new(TestServlet.url)
+      easy.on_complete { raise "complete blew up" }
+
+      error = assert_raise(Curl::Err::AbortedByCallbackError) { easy.perform }
+      assert_equal "complete blew up", error.message
+    end
+
     assert_equal 1, created_multis.length, "test should observe one implicit multi created by Easy#perform"
 
     [easy, created_multis.first]
@@ -278,6 +300,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.multi = nil if defined?(easy) && easy
     Curl::Multi.autoclose = false
   end
+
+  def test_multi_assignment_rejects_non_multi_objects
+    easy = Curl::Easy.new($TEST_URL)
+
+    error = assert_raise(TypeError) { easy.multi = Object.new }
+
+    assert_match(/Curl::Multi/, error.message)
+    assert_nil easy.multi
+  end
+
   def test_perform_can_reuse_explicit_multi_when_autoclose_is_enabled
     Curl::Multi.autoclose = true
   

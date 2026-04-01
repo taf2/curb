@@ -33,13 +33,30 @@ fi
 
 ruby_version="$1"
 
+run_with_nounset_disabled() {
+  local had_nounset=0
+  case $- in
+    *u*) had_nounset=1 ;;
+  esac
+
+  set +u
+  "$@"
+  local status=$?
+
+  if ((had_nounset)); then
+    set -u
+  fi
+
+  return "$status"
+}
+
 if ! command -v rvm >/dev/null 2>&1; then
   if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
     # shellcheck source=/dev/null
-    . "$HOME/.rvm/scripts/rvm"
+    run_with_nounset_disabled source "$HOME/.rvm/scripts/rvm"
   elif [[ -s "/etc/profile.d/rvm.sh" ]]; then
     # shellcheck source=/dev/null
-    . "/etc/profile.d/rvm.sh"
+    run_with_nounset_disabled source "/etc/profile.d/rvm.sh"
   else
     die "rvm not found; run inside an RVM shell or install RVM."
   fi
@@ -52,7 +69,7 @@ if [[ ! -f "Gemfile" ]]; then
   die "Gemfile not found in $root_dir."
 fi
 
-rvm use "$ruby_version" --install
+run_with_nounset_disabled rvm use "$ruby_version" --install
 
 bundler_version=""
 if [[ -f "Gemfile.lock" ]]; then

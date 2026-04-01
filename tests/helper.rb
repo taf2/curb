@@ -74,7 +74,15 @@ module CurbTestResourceCleanup
     super
   ensure
     begin
-      ObjectSpace.each_object(Curl::Multi).to_a.each do |multi|
+      if Curl::Easy.respond_to?(:flush_deferred_multi_closes)
+        Curl::Easy.flush_deferred_multi_closes(all_threads: true)
+      end
+    rescue StandardError
+      nil
+    end
+
+    begin
+      ObjectSpace.each_object(Curl::Multi) do |multi|
         begin
           next if multi.instance_variable_defined?(:@deferred_close) && multi.instance_variable_get(:@deferred_close)
           multi.instance_variable_set(:@requests, {})
@@ -87,13 +95,6 @@ module CurbTestResourceCleanup
       nil
     end
 
-    begin
-      if Curl::Easy.respond_to?(:flush_deferred_multi_closes)
-        Curl::Easy.flush_deferred_multi_closes(all_threads: true)
-      end
-    rescue StandardError
-      nil
-    end
   end
 end
 
