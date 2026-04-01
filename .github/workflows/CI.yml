@@ -67,6 +67,9 @@ jobs:
 
       - name: Run tests
         if: runner.os != 'Linux' || matrix.ruby != '4.0'
+        timeout-minutes: 20
+        env:
+          TESTOPTS: --verbose
         run: bundle exec rake
 
   coverage:

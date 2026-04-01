@@ -38,10 +38,13 @@ class TestCurbCurlDownload < Test::Unit::TestCase
     reader, writer = IO.pipe
 
     # Write to local file
-    fork do
+    child_pid = fork do
       begin
         writer.close
         File.open(dl_path, 'wb') { |file| file << reader.read }
+        exit! 0
+      rescue StandardError
+        exit! 1
       ensure
         reader.close rescue IOError # if the stream has already been closed
       end
@@ -51,7 +54,8 @@ class TestCurbCurlDownload < Test::Unit::TestCase
     begin
       reader.close
       Curl::Easy.download(dl_url, writer)
-      Process.wait
+      _pid, status = Process.wait2(child_pid)
+      assert_predicate status, :success?
     ensure
       writer.close rescue IOError # if the stream has already been closed, which occurs in Easy::download
     end
