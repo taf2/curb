@@ -685,7 +685,8 @@ test_for("curl_easy_escape", "CURL_EASY_ESCAPE", %{
 have_func('rb_thread_blocking_region')
 have_header('ruby/thread.h') && have_func('rb_thread_call_without_gvl', 'ruby/thread.h')
 have_header('ruby/io.h')
-have_func('rb_thread_fd_select', 'ruby/io.h')
+# Ruby 4.x exports rb_thread_fd_select without declaring it in ruby/io.h.
+have_func('rb_thread_fd_select')
 have_func('rb_wait_for_single_fd', 'ruby/io.h')
 have_header('ruby/fiber/scheduler.h')
 have_func('rb_fiber_scheduler_current', 'ruby/fiber/scheduler.h')

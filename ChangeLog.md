@@ -1,4 +1,7 @@
 # ChangeLog
+## 1.3.1
+* Fix Ruby 4.x compatibility in `Curl::Multi`
+
 ## 1.3.0
 ### Breaking Changes
 * `Curl::Multi#close` now permanently closes the multi handle. Code that previously called `close` and then reused the same `Curl::Multi` instance must now allocate a new multi handle instead. `Curl::Multi.autoclose` continues to use the internal reusable cleanup path for implicit autoclose and fiber-scheduler reuse.
