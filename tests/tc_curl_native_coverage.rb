@@ -90,6 +90,21 @@ class TestCurbCurlNativeCoverage < Test::Unit::TestCase
     easy.close if defined?(easy) && easy
   end
 
+  def test_clone_rebinds_upload_callbacks_to_clone_state
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.put_data = 'clone-data'
+
+    clone = easy.clone
+    easy.put_data = 'other-data'
+
+    clone.perform
+
+    assert_equal "PUT\nclone-data", clone.body_str
+  ensure
+    clone.close if defined?(clone) && clone
+    easy.close if defined?(easy) && easy
+  end
+
   def test_native_accessors_round_trip
     easy = Curl::Easy.new(TestServlet.url)
 

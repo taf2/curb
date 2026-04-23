@@ -1,4 +1,12 @@
 # ChangeLog
+## 1.3.2
+* Fix `Curl::PostField` GC marking so block-backed content fields remain valid across GC and compaction.
+* Fix upload read/seek callbacks to preserve Ruby exceptions, avoid unsafe unwinds through libcurl, and reject reads larger than libcurl's supplied buffer.
+* Fix multipart POST/PATCH/PUT cleanup so partially built native forms are freed when form construction raises.
+* Restore `Curl::Easy#last_error` after `Easy#close` by reattaching the libcurl error buffer to the reinitialized handle.
+* Fix `Curl::Easy#clone` with `put_data` so upload callbacks and upload state belong to the clone instead of the original handle.
+* Add regression coverage for native callback, multipart cleanup, clone upload, close/error-buffer, and `PostField` GC safety.
+
 ## 1.3.1
 * Fix Ruby 4.x compatibility in `Curl::Multi`
 

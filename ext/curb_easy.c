@@ -107,6 +107,11 @@ static VALUE call_stream_to_s(VALUE stream) {
   return rb_funcall(stream, rb_intern("to_s"), 0);
 }
 
+static VALUE call_string_value(VALUE str) {
+  StringValue(str);
+  return str;
+}
+
 struct stream_seek_call_args {
   VALUE stream;
   curl_off_t offset;
@@ -139,6 +144,30 @@ struct easy_callback_dispatch_args {
 static VALUE call_with_easy_callback_active(VALUE argp) {
   struct easy_callback_dispatch_args *args = (struct easy_callback_dispatch_args *)argp;
   return with_easy_callback_active(args->rbce, args->func, args->arg);
+}
+
+static VALUE rescue_easy_callback(ruby_curl_easy *rbce, VALUE (*func)(VALUE), VALUE arg) {
+  struct easy_callback_dispatch_args dispatch_args;
+  dispatch_args.rbce = rbce;
+  dispatch_args.func = func;
+  dispatch_args.arg = arg;
+  return rb_rescue(call_with_easy_callback_active, (VALUE)&dispatch_args, callback_exception_store_on_easy, (VALUE)rbce);
+}
+
+static size_t curl_read_abort_result(void) {
+#ifdef CURL_READFUNC_ABORT
+  return CURL_READFUNC_ABORT;
+#else
+  return 0;
+#endif
+}
+
+static int curl_seek_fail_result(void) {
+#ifdef CURL_SEEKFUNC_FAIL
+  return CURL_SEEKFUNC_FAIL;
+#else
+  return 1;
+#endif
 }
 
 /* Default body handler appends to easy.body_data buffer */
@@ -178,18 +207,36 @@ static size_t read_data_handler(void *ptr,
                                 ruby_curl_easy *rbce) {
   VALUE upload = rb_easy_get("upload");
   size_t read_bytes = (size*nmemb);
-  VALUE stream = ruby_curl_upload_stream_get(upload);
+  VALUE stream;
+
+  if (NIL_P(upload)) {
+    return curl_read_abort_result();
+  }
+
+  stream = ruby_curl_upload_stream_get(upload);
 
   if (rb_respond_to(stream, rb_intern("read"))) {//if (rb_respond_to(stream, rb_intern("to_s"))) {
     /* copy read_bytes from stream into ptr */
     struct stream_read_call_args args;
     args.stream = stream;
     args.read_bytes = read_bytes;
-    VALUE str = with_easy_callback_active(rbce, call_stream_read, (VALUE)&args);
+    VALUE str = rescue_easy_callback(rbce, call_stream_read, (VALUE)&args);
     if( str != Qnil ) {
-      StringValue(str);
-      memcpy(ptr, RSTRING_PTR(str), RSTRING_LEN(str));
-      return RSTRING_LEN(str);
+      size_t str_len;
+
+      str = rescue_easy_callback(rbce, call_string_value, str);
+      if (str == Qfalse || str == Qnil) {
+        return curl_read_abort_result();
+      }
+
+      str_len = (size_t)RSTRING_LEN(str);
+      if (str_len > read_bytes) {
+        snprintf(rbce->err_buf, CURL_ERROR_SIZE, "read callback returned more data than requested");
+        return curl_read_abort_result();
+      }
+
+      memcpy(ptr, RSTRING_PTR(str), str_len);
+      return str_len;
     }
     else {
       return 0;
@@ -202,9 +249,17 @@ static size_t read_data_handler(void *ptr,
     size_t remaining;
     char *str_ptr;
     TypedData_Get_Struct(upload, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
-    str = with_easy_callback_active(rbce, call_stream_to_s, stream);
-    StringValue(str);
+    str = rescue_easy_callback(rbce, call_stream_to_s, stream);
+    str = rescue_easy_callback(rbce, call_string_value, str);
+    if (str == Qfalse || str == Qnil) {
+      return curl_read_abort_result();
+    }
+
     len = RSTRING_LEN(str);
+    if (rbcu->offset >= len) {
+      return 0;
+    }
+
     remaining = len - rbcu->offset;
     str_ptr = RSTRING_PTR(str);
 
@@ -232,14 +287,23 @@ int seek_data_handler(ruby_curl_easy *rbce,
                       int origin) {
 
   VALUE upload = rb_easy_get("upload");
-  VALUE stream = ruby_curl_upload_stream_get(upload);
+  VALUE stream;
+
+  if (NIL_P(upload)) {
+    return curl_seek_fail_result();
+  }
+
+  stream = ruby_curl_upload_stream_get(upload);
 
   if (rb_respond_to(stream, rb_intern("seek"))) {
     struct stream_seek_call_args args;
     args.stream = stream;
     args.offset = offset;
-    args.origin = SEEK_SET;
-    with_easy_callback_active(rbce, call_stream_seek, (VALUE)&args);
+    args.origin = origin;
+    rescue_easy_callback(rbce, call_stream_seek, (VALUE)&args);
+    if (!NIL_P(rbce->callback_error)) {
+      return curl_seek_fail_result();
+    }
   } else {
     ruby_curl_upload *rbcu;
     TypedData_Get_Struct(upload, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
@@ -725,6 +789,24 @@ static struct curl_slist *duplicate_curl_slist(struct curl_slist *list) {
     return dup;
 }
 
+static VALUE duplicate_upload(VALUE upload) {
+  ruby_curl_upload *rbcu, *newrbcu;
+  VALUE new_upload;
+
+  if (NIL_P(upload)) {
+    return Qnil;
+  }
+
+  TypedData_Get_Struct(upload, ruby_curl_upload, &ruby_curl_upload_data_type, rbcu);
+
+  new_upload = ruby_curl_upload_new(cCurlUpload);
+  TypedData_Get_Struct(new_upload, ruby_curl_upload, &ruby_curl_upload_data_type, newrbcu);
+  newrbcu->stream = rbcu->stream;
+  newrbcu->offset = rbcu->offset;
+
+  return new_upload;
+}
+
 /*
  * call-seq:
  *   easy.clone                                       => <easy clone>
@@ -763,6 +845,21 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   /* Set the error buffer on the new curl handle using the new err_buf */
   curl_easy_setopt(newrbce->curl, CURLOPT_ERRORBUFFER, newrbce->err_buf);
 
+  if (newrbce->opts != Qnil) {
+    VALUE upload = rb_hash_aref(newrbce->opts, rb_easy_hkey("upload"));
+    if (!NIL_P(upload)) {
+      rb_hash_aset(newrbce->opts, rb_easy_hkey("upload"), duplicate_upload(upload));
+      curl_easy_setopt(newrbce->curl, CURLOPT_READFUNCTION, (curl_read_callback)read_data_handler);
+      curl_easy_setopt(newrbce->curl, CURLOPT_READDATA, newrbce);
+#ifdef HAVE_CURLOPT_SEEKFUNCTION
+      curl_easy_setopt(newrbce->curl, CURLOPT_SEEKFUNCTION, (curl_seek_callback)seek_data_handler);
+#endif
+#ifdef HAVE_CURLOPT_SEEKDATA
+      curl_easy_setopt(newrbce->curl, CURLOPT_SEEKDATA, newrbce);
+#endif
+    }
+  }
+
   VALUE clone = TypedData_Wrap_Struct(cCurlEasy, &ruby_curl_easy_data_type, newrbce);
   newrbce->self = clone;
   curl_easy_setopt(newrbce->curl, CURLOPT_PRIVATE, (void*)newrbce);
@@ -800,6 +897,8 @@ static VALUE ruby_curl_easy_close(VALUE self) {
 
   ruby_curl_easy_zero(rbce);
   rbce->self = self;
+
+  curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, rbce->err_buf);
 
   /* give the new curl handle a reference back to the ruby object */
   ecode = curl_easy_setopt(rbce->curl, CURLOPT_PRIVATE, (void*)rbce);
@@ -3095,6 +3194,12 @@ VALUE ruby_curl_easy_cleanup( VALUE self, ruby_curl_easy *rbce ) {
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
     curl_easy_setopt(curl, CURLOPT_READDATA, NULL);
+#ifdef HAVE_CURLOPT_SEEKFUNCTION
+    curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, NULL);
+#endif
+#ifdef HAVE_CURLOPT_SEEKDATA
+    curl_easy_setopt(curl, CURLOPT_SEEKDATA, NULL);
+#endif
     curl_easy_setopt(curl, CURLOPT_INFILESIZE, 0);
   }
 
@@ -3173,19 +3278,68 @@ static VALUE call_easy_perform(VALUE self) {
 }
 
 struct easy_form_perform_args {
+  VALUE self;
   CURL *curl;
+  int argc;
+  VALUE *argv;
   struct curl_httppost *first;
+  struct curl_httppost *last;
+  int clear_customrequest;
+  int form_set_on_curl;
 };
+
+static void append_multipart_form_argument(VALUE arg,
+                                           struct curl_httppost **first,
+                                           struct curl_httppost **last) {
+  if (rb_obj_is_instance_of(arg, cCurlPostField)) {
+    append_to_form(arg, first, last);
+  } else if (rb_type(arg) == T_ARRAY) {
+    long j, argv_len = RARRAY_LEN(arg);
+    for (j = 0; j < argv_len; ++j) {
+      VALUE field = rb_ary_entry(arg, j);
+      if (rb_obj_is_instance_of(field, cCurlPostField)) {
+        append_to_form(field, first, last);
+      } else {
+        rb_raise(eCurlErrInvalidPostField,
+                 "You must use PostFields only with multipart form posts");
+      }
+    }
+  } else {
+    rb_raise(eCurlErrInvalidPostField,
+             "You must use PostFields only with multipart form posts");
+  }
+}
+
+static VALUE build_and_perform_multipart_form(VALUE argp) {
+  struct easy_form_perform_args *args = (struct easy_form_perform_args *)argp;
+  int i;
+
+  for (i = 0; i < args->argc; i++) {
+    append_multipart_form_argument(args->argv[i], &args->first, &args->last);
+  }
+
+  curl_easy_setopt(args->curl, CURLOPT_POST, 0);
+  curl_easy_setopt(args->curl, CURLOPT_HTTPPOST, args->first);
+  args->form_set_on_curl = 1;
+
+  return call_easy_perform(args->self);
+}
 
 static VALUE ensure_free_form_post(VALUE argp) {
   struct easy_form_perform_args *args = (struct easy_form_perform_args *)argp;
   if (args->curl) {
-    curl_easy_setopt(args->curl, CURLOPT_HTTPPOST, NULL);
+    if (args->form_set_on_curl) {
+      curl_easy_setopt(args->curl, CURLOPT_HTTPPOST, NULL);
+    }
+    if (args->clear_customrequest) {
+      curl_easy_setopt(args->curl, CURLOPT_CUSTOMREQUEST, NULL);
+    }
   }
   if (args->first) {
     curl_formfree(args->first);
     args->first = NULL;
   }
+  args->last = NULL;
   return Qnil;
 }
 
@@ -3216,7 +3370,6 @@ static VALUE ensure_free_form_post(VALUE argp) {
 static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
   ruby_curl_easy *rbce;
   CURL *curl;
-  int i;
   VALUE args_ary;
 
   rb_scan_args(argc, argv, "*", &args_ary);
@@ -3230,33 +3383,8 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
   if (rbce->multipart_form_post) {
     VALUE ret;
-    struct curl_httppost *first = NULL, *last = NULL;
-
-    // Make the multipart form
-    for (i = 0; i < argc; i++) {
-      if (rb_obj_is_instance_of(argv[i], cCurlPostField)) {
-        append_to_form(argv[i], &first, &last);
-      } else if (rb_type(argv[i]) == T_ARRAY) {
-        // see: https://github.com/rvanlieshout/curb/commit/8bcdefddc0162484681ebd1a92d52a642666a445
-        long c = 0, argv_len = RARRAY_LEN(argv[i]);
-        for (; c < argv_len; ++c) {
-          if (rb_obj_is_instance_of(rb_ary_entry(argv[i],c), cCurlPostField)) {
-            append_to_form(rb_ary_entry(argv[i],c), &first, &last);
-          } else {
-            rb_raise(eCurlErrInvalidPostField, "You must use PostFields only with multipart form posts");
-            return Qnil;
-          }
-        }
-      } else {
-        rb_raise(eCurlErrInvalidPostField, "You must use PostFields only with multipart form posts");
-        return Qnil;
-      }
-    }
-
-    curl_easy_setopt(curl, CURLOPT_POST, 0);
-    curl_easy_setopt(curl, CURLOPT_HTTPPOST, first);
-    struct easy_form_perform_args perform_args = { curl, first };
-    ret = rb_ensure(call_easy_perform, self, ensure_free_form_post, (VALUE)&perform_args);
+    struct easy_form_perform_args perform_args = { self, curl, argc, argv, NULL, NULL, 0, 0 };
+    ret = rb_ensure(build_and_perform_multipart_form, (VALUE)&perform_args, ensure_free_form_post, (VALUE)&perform_args);
 
     return ret;
   } else {
@@ -3300,7 +3428,6 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 static VALUE ruby_curl_easy_perform_patch(int argc, VALUE *argv, VALUE self) {
   ruby_curl_easy *rbce;
   CURL *curl;
-  int i;
   VALUE args_ary;
 
   rb_scan_args(argc, argv, "*", &args_ary);
@@ -3315,35 +3442,8 @@ static VALUE ruby_curl_easy_perform_patch(int argc, VALUE *argv, VALUE self) {
 
   if (rbce->multipart_form_post) {
     VALUE ret;
-    struct curl_httppost *first = NULL, *last = NULL;
-
-    /* Build the multipart form (same logic as for POST) */
-    for (i = 0; i < argc; i++) {
-      if (rb_obj_is_instance_of(argv[i], cCurlPostField)) {
-        append_to_form(argv[i], &first, &last);
-      } else if (rb_type(argv[i]) == T_ARRAY) {
-        long j, argv_len = RARRAY_LEN(argv[i]);
-        for (j = 0; j < argv_len; ++j) {
-          if (rb_obj_is_instance_of(rb_ary_entry(argv[i], j), cCurlPostField)) {
-            append_to_form(rb_ary_entry(argv[i], j), &first, &last);
-          } else {
-            rb_raise(eCurlErrInvalidPostField,
-                     "You must use PostFields only with multipart form posts");
-            return Qnil;
-          }
-        }
-      } else {
-        rb_raise(eCurlErrInvalidPostField,
-                 "You must use PostFields only with multipart form posts");
-        return Qnil;
-      }
-    }
-    /* Disable the POST flag */
-    curl_easy_setopt(curl, CURLOPT_POST, 0);
-    /* Use the built multipart form as the request body */
-    curl_easy_setopt(curl, CURLOPT_HTTPPOST, first);
-    struct easy_form_perform_args perform_args = { curl, first };
-    ret = rb_ensure(call_easy_perform, self, ensure_free_form_post, (VALUE)&perform_args);
+    struct easy_form_perform_args perform_args = { self, curl, argc, argv, NULL, NULL, 1, 0 };
+    ret = rb_ensure(build_and_perform_multipart_form, (VALUE)&perform_args, ensure_free_form_post, (VALUE)&perform_args);
     return ret;
   } else {
     /* Join arguments into a raw PATCH body */
@@ -3376,7 +3476,6 @@ static VALUE ruby_curl_easy_perform_put(int argc, VALUE *argv, VALUE self) {
   ruby_curl_easy *rbce;
   CURL *curl;
   VALUE args_ary;
-  int i;
 
   rb_scan_args(argc, argv, "*", &args_ary);
   TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
@@ -3399,33 +3498,8 @@ static VALUE ruby_curl_easy_perform_put(int argc, VALUE *argv, VALUE self) {
   /* Otherwise, if multipart_form_post is true, use multipart logic */
   else if (rbce->multipart_form_post) {
     VALUE ret;
-    struct curl_httppost *first = NULL, *last = NULL;
-    for (i = 0; i < RARRAY_LEN(args_ary); i++) {
-      VALUE field = rb_ary_entry(args_ary, i);
-      if (rb_obj_is_instance_of(field, cCurlPostField)) {
-        append_to_form(field, &first, &last);
-      } else if (rb_type(field) == T_ARRAY) {
-        long j;
-        for (j = 0; j < RARRAY_LEN(field); j++) {
-          VALUE subfield = rb_ary_entry(field, j);
-          if (rb_obj_is_instance_of(subfield, cCurlPostField)) {
-            append_to_form(subfield, &first, &last);
-          } else {
-            rb_raise(eCurlErrInvalidPostField,
-                     "You must use PostFields only with multipart form posts");
-          }
-        }
-      } else {
-        rb_raise(eCurlErrInvalidPostField,
-                 "You must use PostFields only with multipart form posts");
-      }
-    }
-    curl_easy_setopt(curl, CURLOPT_POST, 0);
-    curl_easy_setopt(curl, CURLOPT_HTTPPOST, first);
-    /* Set the method explicitly to PUT */
-    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
-    struct easy_form_perform_args perform_args = { curl, first };
-    ret = rb_ensure(call_easy_perform, self, ensure_free_form_post, (VALUE)&perform_args);
+    struct easy_form_perform_args perform_args = { self, curl, argc, argv, NULL, NULL, 1, 0 };
+    ret = rb_ensure(build_and_perform_multipart_form, (VALUE)&perform_args, ensure_free_form_post, (VALUE)&perform_args);
     return ret;
   }
   /* Fallback: join all arguments */

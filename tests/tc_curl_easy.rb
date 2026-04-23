@@ -1301,6 +1301,24 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal "POST\nfoo=bar", curl.body_str
   end
 
+  def test_multipart_patch_build_failure_restores_easy_request_state
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.multipart_form_post = true
+    field = Curl::PostField.content('document_id', '5')
+
+    field.name = nil
+    error = assert_raise(Curl::Err::InvalidPostFieldError) do
+      # The first field allocates native multipart form state before the second field raises.
+      curl.http_patch(Curl::PostField.content('keep', 'allocated'), field)
+    end
+    assert_match(/Cannot post unnamed field/, error.message)
+
+    curl.multipart_form_post = false
+    curl.perform
+
+    assert_equal 'GET', curl.body_str
+  end
+
   def test_delete_remote
     curl = Curl::Easy.new(TestServlet.url)
     curl.http_delete
@@ -1356,6 +1374,35 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     
     assert_match(/^PUT/, curl.body_str)
     assert_match(/message$/, curl.body_str)
+  end
+
+  def test_put_data_read_exception_sets_result_and_releases_callback_state
+    error_class = Class.new(StandardError)
+    reader_class = Class.new do
+      define_method(:read) do |_len|
+        raise error_class, 'upload read failed'
+      end
+
+      def seek(_offset, _whence = SEEK_SET)
+        0
+      end
+
+      def stat
+        Struct.new(:size).new(1)
+      end
+    end
+
+    curl = Curl::Easy.new(TestServlet.url)
+    curl.put_data = reader_class.new
+
+    error = assert_raise(error_class) { curl.perform }
+    assert_equal 'upload read failed', error.message
+    assert_not_equal 0, curl.last_result
+
+    curl.url = TestServlet.url
+    curl.http_get
+
+    assert_equal 'GET', curl.body_str
   end
 
   # https://github.com/taf2/curb/issues/101
@@ -1499,6 +1546,18 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.close
     easy.url = TestServlet.url
     easy.http_get
+  end
+
+  def test_easy_close_restores_error_buffer
+    easy = Curl::Easy.new('http://127.0.0.1:1')
+    assert_raise(Curl::Err::ConnectionFailedError) { easy.perform }
+    assert_not_nil easy.last_error
+
+    easy.close
+    easy.url = 'http://127.0.0.1:1'
+    assert_raise(Curl::Err::ConnectionFailedError) { easy.perform }
+
+    assert_not_nil easy.last_error
   end
 
   def test_easy_reset

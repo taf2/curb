@@ -136,10 +136,25 @@ class TestCurbCurlPostfield < Test::Unit::TestCase
     assert_equal "foo=FOOBAR", pf.to_s
   end
 
+  def test_content_proc_survives_gc
+    pf = postfield_with_only_native_proc_reference
+
+    10.times do
+      GC.start(full_mark: true, immediate_sweep: true)
+      GC.compact if GC.respond_to?(:compact)
+    end
+
+    assert_equal "foo=FOOBAR", pf.to_s
+  end
+
   def test_to_s_04
     pf = Curl::PostField.file('foo.file', 'bar.file')
     assert_nothing_raised { pf.to_s }
     #assert_raise(Curl::Err::InvalidPostFieldError) { pf.to_s }
+  end
+
+  def postfield_with_only_native_proc_reference
+    Curl::PostField.content('foo') { |field| field.name.upcase + "BAR" }
   end
 end
 

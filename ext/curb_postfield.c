@@ -183,6 +183,7 @@ static void curl_postfield_mark(void *ptr) {
     rb_gc_mark(rbcpf->name);
     rb_gc_mark(rbcpf->content);
     rb_gc_mark(rbcpf->content_type);
+    rb_gc_mark(rbcpf->content_proc);
     rb_gc_mark(rbcpf->local_file);
     rb_gc_mark(rbcpf->remote_file);
     rb_gc_mark(rbcpf->buffer_str);
