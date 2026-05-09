@@ -1560,6 +1560,10 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       # header value and encoding; skip the NTLM-specific assertion.
       return
     end
+    # curl 8.20.0 disables NTLM by default and plans to remove it in
+    # September 2026; libcurl silently downgrades to Basic when NTLM is
+    # unavailable, so skip the NTLM-specific assertion in that case.
+    return unless Curl.ntlm?
     curl = Curl::Easy.new(TestServlet.url)
     curl.username = "foo"
     curl.password = "bar"
