@@ -1118,6 +1118,41 @@ static VALUE fiber_io_wait_protected(VALUE argp) {
 }
 #endif
 
+#if defined(RB_INTEGER_TYPE_P)
+#define CURB_INTEGER_P(value) RB_INTEGER_TYPE_P(value)
+#else
+#define CURB_INTEGER_P(value) (FIXNUM_P(value) || RB_TYPE_P((value), T_BIGNUM))
+#endif
+
+static int multi_socket_wait_events_for_curl_poll(int what) {
+  if (what == CURL_POLL_IN) return RB_WAITFD_IN;
+  if (what == CURL_POLL_OUT) return RB_WAITFD_OUT;
+  if (what == CURL_POLL_INOUT) return RB_WAITFD_IN | RB_WAITFD_OUT;
+  return RB_WAITFD_IN | RB_WAITFD_OUT;
+}
+
+static int multi_socket_cselect_flags_for_curl_poll(int what) {
+  int flags = 0;
+
+  if (what == CURL_POLL_IN || what == CURL_POLL_INOUT) flags |= CURL_CSELECT_IN;
+  if (what == CURL_POLL_OUT || what == CURL_POLL_INOUT) flags |= CURL_CSELECT_OUT;
+  if (flags == 0) flags = CURL_CSELECT_IN | CURL_CSELECT_OUT;
+
+  return flags;
+}
+
+static int multi_socket_cselect_flags_for_wait_events(int events) {
+  int flags = 0;
+
+  if (events & RB_WAITFD_IN) flags |= CURL_CSELECT_IN;
+  if (events & RB_WAITFD_OUT) flags |= CURL_CSELECT_OUT;
+#ifdef RB_WAITFD_PRI
+  if (events & RB_WAITFD_PRI) flags |= CURL_CSELECT_ERR;
+#endif
+
+  return flags;
+}
+
 static void multi_socket_forget_fd(multi_socket_ctx *ctx, int fd) {
   st_data_t key = (st_data_t)fd;
   st_data_t rec;
@@ -1282,6 +1317,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 
     int did_timeout = 0;
     int any_ready = 0;
+    int ready_flags = 0;
 
     int handled_wait = 0;
     if (count_tracked > 1) {
@@ -1316,10 +1352,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
         if (scheduler != Qnil) {
           int events = 0;
           if (wait_fd >= 0) {
-            if (wait_what == CURL_POLL_IN) events = RB_WAITFD_IN;
-            else if (wait_what == CURL_POLL_OUT) events = RB_WAITFD_OUT;
-            else if (wait_what == CURL_POLL_INOUT) events = RB_WAITFD_IN|RB_WAITFD_OUT;
-            else events = RB_WAITFD_IN|RB_WAITFD_OUT;
+            events = multi_socket_wait_events_for_curl_poll(wait_what);
           }
           double timeout_s = (double)tv.tv_sec + ((double)tv.tv_usec / 1e6);
           VALUE timeout = rb_float_new(timeout_s);
@@ -1351,8 +1384,21 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
                 did_timeout = 1;
                 any_ready = 0;
               } else {
-                any_ready = (ready != Qfalse);
+                any_ready = (ready != Qfalse && !NIL_P(ready));
                 did_timeout = !any_ready;
+                if (any_ready) {
+                  if (ready == Qtrue) {
+                    ready_flags = multi_socket_cselect_flags_for_curl_poll(wait_what);
+                  } else if (CURB_INTEGER_P(ready)) {
+                    ready_flags = multi_socket_cselect_flags_for_wait_events(NUM2INT(ready));
+                    if (ready_flags == 0) {
+                      any_ready = 0;
+                      did_timeout = 1;
+                    }
+                  } else {
+                    ready_flags = multi_socket_cselect_flags_for_curl_poll(wait_what);
+                  }
+                }
               }
             }
           }
@@ -1362,10 +1408,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 #endif
 #if defined(HAVE_RB_WAIT_FOR_SINGLE_FD)
       if (!handled_wait && wait_fd >= 0) {
-        int ev = 0;
-        if (wait_what == CURL_POLL_IN) ev = RB_WAITFD_IN;
-        else if (wait_what == CURL_POLL_OUT) ev = RB_WAITFD_OUT;
-        else if (wait_what == CURL_POLL_INOUT) ev = RB_WAITFD_IN|RB_WAITFD_OUT;
+        int ev = multi_socket_wait_events_for_curl_poll(wait_what);
         int rc = rb_wait_for_single_fd(wait_fd, ev, &tv);
         curb_debugf("[curb.socket] rb_wait_for_single_fd rc=%d fd=%d ev=%d", rc, wait_fd, ev);
         if (rc < 0) {
@@ -1374,6 +1417,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
         }
         any_ready = (rc != 0);
         did_timeout = (rc == 0);
+        if (any_ready) ready_flags = multi_socket_cselect_flags_for_wait_events(rc);
         handled_wait = 1;
       }
 #endif
@@ -1397,6 +1441,11 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
         }
         any_ready = (rc > 0);
         did_timeout = (rc == 0);
+        if (any_ready && wait_fd >= 0) {
+          if (rb_fd_isset(wait_fd, &rfds)) ready_flags |= CURL_CSELECT_IN;
+          if (rb_fd_isset(wait_fd, &wfds)) ready_flags |= CURL_CSELECT_OUT;
+          if (rb_fd_isset(wait_fd, &efds)) ready_flags |= CURL_CSELECT_ERR;
+        }
         rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
       }
     } else { /* count_tracked == 0 */
@@ -1414,10 +1463,8 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
       if (mrc != CURLM_OK) raise_curl_multi_error_exception(mrc);
     } else if (any_ready) {
       if (count_tracked == 1 && wait_fd >= 0) {
-        int flags = 0;
-        if (wait_what == CURL_POLL_IN || wait_what == CURL_POLL_INOUT) flags |= CURL_CSELECT_IN;
-        if (wait_what == CURL_POLL_OUT || wait_what == CURL_POLL_INOUT) flags |= CURL_CSELECT_OUT;
-        flags |= CURL_CSELECT_ERR;
+        int flags = ready_flags;
+        if (flags == 0) flags = multi_socket_cselect_flags_for_curl_poll(wait_what);
 #if CURB_SOCKET_DEBUG
         {
           char b[32];

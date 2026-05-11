@@ -4,7 +4,7 @@ class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
   def setup
-    @port = 9999
+    @port = unused_local_port
     @response_proc = lambda do|res|
       sleep 0.5
       res.body = "hi"
@@ -19,7 +19,7 @@ class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
 
     5.times do |i|
       t = Thread.new do
-        c = Curl::Easy.perform('http://127.0.0.1:9999/test')
+        c = Curl::Easy.perform("http://127.0.0.1:#{@port}/test")
         c.header_str
       end
       threads << t
@@ -35,7 +35,7 @@ class BugTestInstancePostDiffersFromClassPost < Test::Unit::TestCase
     timer = Time.now
     single_responses = []
     5.times do |i|
-      c = Curl::Easy.perform('http://127.0.0.1:9999/test')
+      c = Curl::Easy.perform("http://127.0.0.1:#{@port}/test")
       single_responses << c.header_str
     end
     

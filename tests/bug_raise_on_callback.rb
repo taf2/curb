@@ -4,16 +4,17 @@ class BugRaiseOnCallback < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
   def setup
-    @port = 9999
+    @port = unused_local_port
     super
   end
 
   def test_on_complte
-    c = Curl::Easy.new('http://127.0.0.1:9999/test')
+    url = "http://127.0.0.1:#{@port}/test"
+    c = Curl::Easy.new(url)
     did_raise = false
     begin
       c.on_complete do|x|
-        assert_equal 'http://127.0.0.1:9999/test', x.url
+        assert_equal url, x.url
         raise "error complete" # this will get swallowed
       end
       c.perform

@@ -206,6 +206,13 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
 end
 
 module BugTestServerSetupTeardown
+  def unused_local_port
+    socket = TCPServer.new('127.0.0.1', 0)
+    socket.addr[1]
+  ensure
+    socket.close if socket
+  end
+
   def setup
     @port ||= 9992
     @server = WEBrick::HTTPServer.new(:Port => @port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])

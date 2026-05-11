@@ -9,7 +9,9 @@
 * Validate `Curl::Easy#put_data=` before mutating libcurl upload options, preventing failed setup paths from leaving stale upload callbacks installed.
 * Preserve `CURLOPT_RESOLVE` values set through `Easy#set` across repeated performs, and allow resolve/FTP command entries that convert to strings.
 * Fix older build fallback paths for `curl_multi_wait` and no-GVL `select`.
-* Add regression coverage for multi lifecycle guards, active easy reuse, request state cleanup, upload setup rollback, resolve persistence, and string-convertible resolve/FTP command entries.
+* Fix the Fiber scheduler socket-action path so single-socket waits pass the actual ready events back to libcurl, avoiding incomplete HTTP responses on macOS CI.
+* Make legacy bug tests avoid hardcoded port `9999` so local SSH tunnels or other listeners do not break the release suite.
+* Add regression coverage for multi lifecycle guards, active easy reuse, request state cleanup, upload setup rollback, resolve persistence, string-convertible resolve/FTP command entries, and scheduler socket waits.
 
 ## 1.3.2
 * Fix `Curl::PostField` GC marking so block-backed content fields remain valid across GC and compaction.

@@ -4,7 +4,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
   def setup
-    @port = 9999
+    @port = unused_local_port
     super
     @server.mount_proc("/redirect_to_test") do|req,res|
       res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/test")
@@ -13,7 +13,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
 
   def test_follow_redirect_with_no_redirect
 
-    c = Curl::Easy.new('http://127.0.0.1:9999/test')
+    c = Curl::Easy.new("http://127.0.0.1:#{@port}/test")
     did_call_redirect = false
     c.on_redirect do|x|
       did_call_redirect = true
@@ -22,7 +22,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
 
     assert !did_call_redirect, "should reach this point redirect should not have been called"
 
-    c = Curl::Easy.new('http://127.0.0.1:9999/test')
+    c = Curl::Easy.new("http://127.0.0.1:#{@port}/test")
     did_call_redirect = false
     c.on_redirect do|x|
       did_call_redirect = true
@@ -33,7 +33,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
     assert_equal 0, c.redirect_count
     assert !did_call_redirect, "should reach this point redirect should not have been called"
 
-    c = Curl::Easy.new('http://127.0.0.1:9999/redirect_to_test')
+    c = Curl::Easy.new("http://127.0.0.1:#{@port}/redirect_to_test")
     did_call_redirect = false
     c.on_redirect do|x|
       did_call_redirect = true
@@ -43,7 +43,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
 
     assert did_call_redirect, "we should have called on_redirect"
 
-    c = Curl::Easy.new('http://127.0.0.1:9999/redirect_to_test')
+    c = Curl::Easy.new("http://127.0.0.1:#{@port}/redirect_to_test")
     did_call_redirect = false
     c.follow_location = true
     # NOTE: while this API is not supported by libcurl e.g. there is no redirect function callback in libcurl we could 
@@ -57,7 +57,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
 
     assert did_call_redirect, "we should have called on_redirect"
 
-    c.url = 'http://127.0.0.1:9999/test'
+    c.url = "http://127.0.0.1:#{@port}/test"
     c.perform
     assert_equal 0, c.redirect_count
     assert_equal 200, c.response_code
@@ -65,7 +65,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
     puts "checking for raise support"
     did_raise = false
     begin
-      c = Curl::Easy.new('http://127.0.0.1:9999/redirect_to_test')
+      c = Curl::Easy.new("http://127.0.0.1:#{@port}/redirect_to_test")
       did_call_redirect = false
       c.on_redirect do|x|
         raise "raise"
