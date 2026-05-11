@@ -1,5 +1,6 @@
 # ChangeLog
 ## 1.3.3
+* Skip the NTLM-specific username/password assertion when libcurl was built without NTLM support so newer libcurl builds do not fail by falling back to Basic auth.
 * Fix `Curl::Easy#put_data=` with non-String `to_s` payloads so upload length calculation does not read non-String objects as Ruby strings.
 * Guard `Curl::Easy#clone` against `curl_easy_duphandle` allocation failure so clone raises `NoMemError` instead of dereferencing a NULL handle.
 * Guard `Curl::Multi` lifecycle during active `perform` calls so closing a multi handle from callbacks or perform blocks raises instead of freeing an in-use libcurl multi handle.
