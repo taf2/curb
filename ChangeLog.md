@@ -1,4 +1,9 @@
 # ChangeLog
+## 1.3.4
+* Fix `Curl::Multi` socket-action dispatch so ready sockets are collected before calling back into libcurl, avoiding invalid access when socket interest changes during iteration.
+* Keep the Fiber scheduler socket-action IO cache registered with Ruby GC during `_socket_perform` and clear it during cleanup, avoiding stale Ruby object references under valgrind.
+* Make Fiber scheduler tests avoid hardcoded port `9993` so local listeners or concurrent valgrind runs do not break the release suite.
+
 ## 1.3.3
 * Skip the NTLM-specific username/password assertion when libcurl was built without NTLM support so newer libcurl builds do not fail by falling back to Basic auth.
 * Fix `Curl::Easy#put_data=` with non-String `to_s` payloads so upload length calculation does not read non-String objects as Ruby strings.

@@ -1225,18 +1225,32 @@ static void rb_fdset_from_sockmap(st_table *map, rb_fdset_t *rfds, rb_fdset_t *w
   *maxfd_out = a.maxfd;
 }
 
-struct dispatch_args { CURLM *mh; int *running; CURLMcode mrc; rb_fdset_t *r; rb_fdset_t *w; rb_fdset_t *e; };
-static int dispatch_ready_fd_i(st_data_t key, st_data_t val, st_data_t argp) {
+struct ready_fd {
+  int fd;
+  int flags;
+};
+
+struct collect_ready_fd_args {
+  rb_fdset_t *r;
+  rb_fdset_t *w;
+  rb_fdset_t *e;
+  struct ready_fd *fds;
+  int capacity;
+  int count;
+};
+
+static int collect_ready_fd_i(st_data_t key, st_data_t val, st_data_t argp) {
   (void)val;
-  struct dispatch_args *dp = (struct dispatch_args *)argp;
+  struct collect_ready_fd_args *a = (struct collect_ready_fd_args *)argp;
   int fd = (int)key;
   int flags = 0;
-  if (rb_fd_isset(fd, dp->r)) flags |= CURL_CSELECT_IN;
-  if (rb_fd_isset(fd, dp->w)) flags |= CURL_CSELECT_OUT;
-  if (rb_fd_isset(fd, dp->e)) flags |= CURL_CSELECT_ERR;
-  if (flags) {
-    dp->mrc = curl_multi_socket_action(dp->mh, (curl_socket_t)fd, flags, dp->running);
-    if (dp->mrc != CURLM_OK) return ST_STOP;
+  if (rb_fd_isset(fd, a->r)) flags |= CURL_CSELECT_IN;
+  if (rb_fd_isset(fd, a->w)) flags |= CURL_CSELECT_OUT;
+  if (rb_fd_isset(fd, a->e)) flags |= CURL_CSELECT_ERR;
+  if (flags && a->count < a->capacity) {
+    a->fds[a->count].fd = fd;
+    a->fds[a->count].flags = flags;
+    a->count++;
   }
   return ST_CONTINUE;
 }
@@ -1336,12 +1350,25 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
       any_ready = (rc > 0);
       did_timeout = (rc == 0);
       if (any_ready) {
-        struct dispatch_args d; d.mh = rbcm->handle; d.running = &rbcm->running; d.mrc = CURLM_OK; d.r = &rfds; d.w = &wfds; d.e = &efds;
-        st_foreach(ctx->sock_map, dispatch_ready_fd_i, (st_data_t)&d);
-        if (d.mrc != CURLM_OK) {
-          rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
-          raise_curl_multi_error_exception(d.mrc);
+        struct ready_fd *ready_fds = ALLOC_N(struct ready_fd, count_tracked);
+        struct collect_ready_fd_args d;
+        int i;
+        d.r = &rfds;
+        d.w = &wfds;
+        d.e = &efds;
+        d.fds = ready_fds;
+        d.capacity = count_tracked;
+        d.count = 0;
+        st_foreach(ctx->sock_map, collect_ready_fd_i, (st_data_t)&d);
+        for (i = 0; i < d.count; i++) {
+          mrc = curl_multi_socket_action(rbcm->handle, (curl_socket_t)d.fds[i].fd, d.fds[i].flags, &rbcm->running);
+          if (mrc != CURLM_OK) {
+            xfree(ready_fds);
+            rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
+            raise_curl_multi_error_exception(mrc);
+          }
         }
+        xfree(ready_fds);
       }
       rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
       handled_wait = 1;
@@ -1503,6 +1530,10 @@ static VALUE ruby_curl_multi_socket_drive_ensure(VALUE argp) {
     c->ctx->sock_map = NULL;
   }
   if (c->ctx) {
+    if (!NIL_P(c->ctx->io_cache)) {
+      rb_hash_clear(c->ctx->io_cache);
+      rb_gc_unregister_address(&c->ctx->io_cache);
+    }
     c->ctx->io_cache = Qnil;
   }
   return Qnil;
@@ -1523,6 +1554,7 @@ static VALUE ruby_curl_multi_socket_perform_impl(int argc, VALUE *argv, VALUE se
   ctx.sock_map = st_init_numtable();
   ctx.timeout_ms = -1;
   ctx.io_cache = rb_hash_new();
+  rb_gc_register_address(&ctx.io_cache);
 
   /* install socket/timer callbacks */
   curl_multi_setopt(rbcm->handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
