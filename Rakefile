@@ -106,7 +106,7 @@ else
   task :alltests => [:unittests, :bugtests]
 end
 
-RubyMemcheck.config(binary_name: 'curb_core')
+RubyMemcheck.config(binary_name: 'curb_core', filter_all_errors: true)
 namespace :test do
   RubyMemcheck::TestTask.new(valgrind: :compile) do|t|
     t.test_files = FileList['tests/tc_*.rb']
