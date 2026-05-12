@@ -70,6 +70,7 @@ extern VALUE mCurl;
 static VALUE idCall;
 static ID id_deferred_exception_ivar;
 static ID id_deferred_exception_source_id_ivar;
+static ID id_socket_io_cache_ivar;
 
 #ifdef RDOC_NEVER_DEFINED
   mCurl = rb_define_module("Curl");
@@ -1516,7 +1517,7 @@ static VALUE ruby_curl_multi_socket_drive_body(VALUE argp) {
   rb_curl_multi_socket_drive(a->self, a->rbcm, a->ctx, a->block);
   return Qtrue;
 }
-struct socket_cleanup_args { ruby_curl_multi *rbcm; multi_socket_ctx *ctx; };
+struct socket_cleanup_args { VALUE self; ruby_curl_multi *rbcm; multi_socket_ctx *ctx; };
 static VALUE ruby_curl_multi_socket_drive_ensure(VALUE argp) {
   struct socket_cleanup_args *c = (struct socket_cleanup_args *)argp;
   if (c->rbcm && c->rbcm->handle) {
@@ -1532,9 +1533,11 @@ static VALUE ruby_curl_multi_socket_drive_ensure(VALUE argp) {
   if (c->ctx) {
     if (!NIL_P(c->ctx->io_cache)) {
       rb_hash_clear(c->ctx->io_cache);
-      rb_gc_unregister_address(&c->ctx->io_cache);
     }
     c->ctx->io_cache = Qnil;
+  }
+  if (!NIL_P(c->self) && rb_ivar_defined(c->self, id_socket_io_cache_ivar)) {
+    rb_funcall(c->self, rb_intern("remove_instance_variable"), 1, ID2SYM(id_socket_io_cache_ivar));
   }
   return Qnil;
 }
@@ -1554,7 +1557,7 @@ static VALUE ruby_curl_multi_socket_perform_impl(int argc, VALUE *argv, VALUE se
   ctx.sock_map = st_init_numtable();
   ctx.timeout_ms = -1;
   ctx.io_cache = rb_hash_new();
-  rb_gc_register_address(&ctx.io_cache);
+  rb_ivar_set(self, id_socket_io_cache_ivar, ctx.io_cache);
 
   /* install socket/timer callbacks */
   curl_multi_setopt(rbcm->handle, CURLMOPT_SOCKETFUNCTION, multi_socket_cb);
@@ -1564,7 +1567,7 @@ static VALUE ruby_curl_multi_socket_perform_impl(int argc, VALUE *argv, VALUE se
 
   /* run using socket action loop with ensure-cleanup */
   struct socket_drive_args body_args = { self, rbcm, &ctx, block };
-  struct socket_cleanup_args ensure_args = { rbcm, &ctx };
+  struct socket_cleanup_args ensure_args = { self, rbcm, &ctx };
   rb_ensure(ruby_curl_multi_socket_drive_body, (VALUE)&body_args, ruby_curl_multi_socket_drive_ensure, (VALUE)&ensure_args);
 
   /* finalize */
@@ -1981,6 +1984,7 @@ void init_curb_multi() {
   idCall = rb_intern("call");
   id_deferred_exception_ivar = rb_intern("@__curb_deferred_exception");
   id_deferred_exception_source_id_ivar = rb_intern("@__curb_deferred_exception_source_id");
+  id_socket_io_cache_ivar = rb_intern("@__curb_socket_io_cache");
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 
   rb_define_alloc_func(cCurlMulti, ruby_curl_multi_alloc);
