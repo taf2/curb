@@ -14,6 +14,9 @@ group 'development', 'test' do
   end
   gem 'simplecov', require: false
   gem 'simplecov-lcov', require: false # For CI integration
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('4.0')
+    gem 'ostruct' # rake requires ostruct, but Ruby 4 does not provide it implicitly here.
+  end
 end
 
 platforms :rbx do
