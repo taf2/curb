@@ -106,7 +106,19 @@ else
   task :alltests => [:unittests, :bugtests]
 end
 
-RubyMemcheck.config(binary_name: 'curb_core', filter_all_errors: true)
+ruby_memcheck_config = { binary_name: 'curb_core' }
+
+if RUBY_ENGINE == 'ruby' && RUBY_VERSION == '4.0.4'
+  # Ruby 4.0.4 reports fiber/block-handler VM stack accesses under Valgrind.
+  # Keep reporting errors that originate in curb_core, but filter Ruby-side noise.
+  ruby_memcheck_config[:filter_all_errors] = true
+  ruby_memcheck_config[:skipped_ruby_functions] =
+    RubyMemcheck::Configuration::DEFAULT_SKIPPED_RUBY_FUNCTIONS + [
+      /\Arb_vm_frame_block_handler\z/
+    ]
+end
+
+RubyMemcheck.config(**ruby_memcheck_config)
 namespace :test do
   RubyMemcheck::TestTask.new(valgrind: :compile) do|t|
     t.test_files = FileList['tests/tc_*.rb']

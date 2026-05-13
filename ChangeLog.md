@@ -1,4 +1,7 @@
 # ChangeLog
+## 1.3.5
+* Improve Ruby 4.0.4 valgrind test handling by filtering Ruby VM Fiber/block-handler noise while preserving reports for errors originating in `curb_core`.
+
 ## 1.3.4
 * Fix `Curl::Multi` socket-action dispatch so ready sockets are collected before calling back into libcurl, avoiding invalid access when socket interest changes during iteration.
 * Keep the Fiber scheduler socket-action IO cache registered with Ruby GC during `_socket_perform` and clear it during cleanup, avoiding stale Ruby object references under valgrind.
