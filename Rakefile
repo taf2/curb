@@ -112,6 +112,11 @@ if RUBY_ENGINE == 'ruby' && RUBY_VERSION == '4.0.4'
   # Ruby 4.0.4 reports fiber/block-handler VM stack accesses under Valgrind.
   # Keep reporting errors that originate in curb_core, but filter Ruby-side noise.
   ruby_memcheck_config[:filter_all_errors] = true
+  if RubyMemcheck::Configuration.instance_method(:initialize).parameters.any? { |type, name|
+       type == :key && name == :use_only_ruby_free_at_exit
+     }
+    ruby_memcheck_config[:use_only_ruby_free_at_exit] = false
+  end
   ruby_memcheck_config[:skipped_ruby_functions] =
     RubyMemcheck::Configuration::DEFAULT_SKIPPED_RUBY_FUNCTIONS + [
       /\Arb_vm_frame_block_handler\z/
