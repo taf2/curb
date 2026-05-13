@@ -28,6 +28,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#ifndef _WIN32
+#include <sys/time.h>
+#include <time.h>
+#endif
 #include <stdint.h>
 #include <stdarg.h>
 
@@ -1071,9 +1075,27 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
 /* ---- socket-action implementation (scheduler-friendly) ---- */
 typedef struct {
   st_table *sock_map;     /* key: int fd, value: int 'what' (CURL_POLL_*) */
-  long timeout_ms;        /* last timeout set by libcurl timer callback */
+  long long timeout_deadline_ms; /* absolute deadline for CURL_SOCKET_TIMEOUT */
   VALUE io_cache;         /* fd -> IO wrapper for fiber-scheduler waits */
 } multi_socket_ctx;
+
+static long long multi_socket_current_time_ms(void) {
+#if defined(CLOCK_MONOTONIC)
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+    return ((long long)ts.tv_sec * 1000) + (ts.tv_nsec / 1000000);
+  }
+#endif
+
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return ((long long)tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+}
+
+static int multi_socket_timer_due(multi_socket_ctx *ctx) {
+  return ctx && ctx->timeout_deadline_ms >= 0 &&
+    multi_socket_current_time_ms() >= ctx->timeout_deadline_ms;
+}
 
 #if CURB_SOCKET_DEBUG
 static void curb_debugf(const char *fmt, ...) {
@@ -1116,6 +1138,21 @@ struct fiber_io_wait_args { VALUE scheduler; VALUE io; VALUE events; VALUE timeo
 static VALUE fiber_io_wait_protected(VALUE argp) {
   struct fiber_io_wait_args *a = (struct fiber_io_wait_args *)argp;
   return rb_fiber_scheduler_io_wait(a->scheduler, a->io, a->events, a->timeout);
+}
+#endif
+
+#if defined(HAVE_RB_FIBER_SCHEDULER_IO_SELECT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
+struct fiber_io_select_args {
+  VALUE scheduler;
+  VALUE readables;
+  VALUE writables;
+  VALUE exceptables;
+  VALUE timeout;
+};
+
+static VALUE fiber_io_select_protected(VALUE argp) {
+  struct fiber_io_select_args *a = (struct fiber_io_select_args *)argp;
+  return rb_fiber_scheduler_io_select(a->scheduler, a->readables, a->writables, a->exceptables, a->timeout);
 }
 #endif
 
@@ -1188,6 +1225,11 @@ static int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp, v
 #endif
   } else {
     /* store current interest mask for this fd */
+    st_data_t key = (st_data_t)fd;
+    st_data_t old_what;
+    if (st_lookup(ctx->sock_map, key, &old_what) && (int)old_what != what && !NIL_P(ctx->io_cache)) {
+      rb_hash_delete(ctx->io_cache, INT2NUM(fd));
+    }
     st_insert(ctx->sock_map, (st_data_t)fd, (st_data_t)what);
 #if CURB_SOCKET_DEBUG
     {
@@ -1202,7 +1244,9 @@ static int multi_socket_cb(CURL *easy, curl_socket_t s, int what, void *userp, v
 static int multi_timer_cb(CURLM *multi, long timeout_ms, void *userp) {
   (void)multi;
   multi_socket_ctx *ctx = (multi_socket_ctx *)userp;
-  if (ctx) ctx->timeout_ms = timeout_ms;
+  if (ctx) {
+    ctx->timeout_deadline_ms = timeout_ms < 0 ? -1 : multi_socket_current_time_ms() + timeout_ms;
+  }
   curb_debugf("[curb.socket] timer_cb timeout_ms=%ld", timeout_ms);
   return 0;
 }
@@ -1273,22 +1317,102 @@ static int st_count_i(st_data_t k, st_data_t v, st_data_t argp) {
   return ST_CONTINUE;
 }
 
-static VALUE multi_socket_io_for_fd(multi_socket_ctx *ctx, int fd) {
+static const char *multi_socket_io_mode_for_curl_poll(int what) {
+  if (what == CURL_POLL_IN) return "r";
+  if (what == CURL_POLL_OUT) return "w";
+  return "r+";
+}
+
+static VALUE multi_socket_io_for_fd(multi_socket_ctx *ctx, int fd, int what) {
   VALUE key = INT2NUM(fd);
   VALUE io = rb_hash_aref(ctx->io_cache, key);
   if (NIL_P(io)) {
-    io = rb_funcall(rb_cIO, rb_intern("for_fd"), 2, key, rb_str_new_cstr("r+"));
+    io = rb_funcall(rb_cIO, rb_intern("for_fd"), 2, key, rb_str_new_cstr(multi_socket_io_mode_for_curl_poll(what)));
     rb_funcall(io, rb_intern("autoclose="), 1, Qfalse);
     rb_hash_aset(ctx->io_cache, key, io);
   }
   return io;
 }
 
-struct io_for_fd_args { multi_socket_ctx *ctx; int fd; };
+struct io_for_fd_args { multi_socket_ctx *ctx; int fd; int what; };
 static VALUE multi_socket_io_for_fd_protected(VALUE argp) {
   struct io_for_fd_args *a = (struct io_for_fd_args *)argp;
-  return multi_socket_io_for_fd(a->ctx, a->fd);
+  return multi_socket_io_for_fd(a->ctx, a->fd, a->what);
 }
+
+#if defined(HAVE_RB_FIBER_SCHEDULER_IO_SELECT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
+struct build_io_select_arrays_args {
+  multi_socket_ctx *ctx;
+  VALUE readables;
+  VALUE writables;
+  VALUE exceptables;
+  int failed;
+};
+
+static int build_io_select_arrays_i(st_data_t key, st_data_t val, st_data_t argp) {
+  struct build_io_select_arrays_args *a = (struct build_io_select_arrays_args *)argp;
+  int fd = (int)key;
+  int what = (int)val;
+  struct io_for_fd_args io_args = { a->ctx, fd, what };
+  int io_state = 0;
+  VALUE io;
+
+  if (!multi_socket_fd_valid_p(fd)) {
+    a->failed = 1;
+    return ST_STOP;
+  }
+
+  io = rb_protect(multi_socket_io_for_fd_protected, (VALUE)&io_args, &io_state);
+  if (io_state || NIL_P(io)) {
+    if (io_state) {
+#if CURB_SOCKET_DEBUG
+      VALUE err = rb_errinfo();
+      VALUE msg = rb_obj_as_string(err);
+      curb_debugf("[curb.socket] IO.for_fd failed: %s: %s", rb_obj_classname(err), StringValueCStr(msg));
+#endif
+      rb_set_errinfo(Qnil);
+    }
+    a->failed = 1;
+    return ST_STOP;
+  }
+
+  if (what == CURL_POLL_IN || what == CURL_POLL_INOUT) rb_ary_push(a->readables, io);
+  if (what == CURL_POLL_OUT || what == CURL_POLL_INOUT) rb_ary_push(a->writables, io);
+  rb_ary_push(a->exceptables, io);
+
+  return ST_CONTINUE;
+}
+
+struct collect_io_select_ready_args {
+  multi_socket_ctx *ctx;
+  VALUE readables;
+  VALUE writables;
+  VALUE exceptables;
+  struct ready_fd *fds;
+  int capacity;
+  int count;
+};
+
+static int collect_io_select_ready_i(st_data_t key, st_data_t val, st_data_t argp) {
+  (void)val;
+  struct collect_io_select_ready_args *a = (struct collect_io_select_ready_args *)argp;
+  VALUE io = rb_hash_aref(a->ctx->io_cache, INT2NUM((int)key));
+  int flags = 0;
+
+  if (NIL_P(io)) return ST_CONTINUE;
+  if (RTEST(rb_ary_includes(a->readables, io))) flags |= CURL_CSELECT_IN;
+  if (RTEST(rb_ary_includes(a->writables, io))) flags |= CURL_CSELECT_OUT;
+  if (RTEST(rb_ary_includes(a->exceptables, io))) flags |= CURL_CSELECT_ERR;
+
+  if (flags && a->count < a->capacity) {
+    a->fds[a->count].fd = (int)key;
+    a->fds[a->count].flags = flags;
+    a->count++;
+  }
+
+  return ST_CONTINUE;
+}
+#endif
 
 static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_socket_ctx *ctx, VALUE block) {
   /* prime the state: let libcurl act on timeouts to setup sockets */
@@ -1300,16 +1424,23 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 
   while (rbcm->running) {
     struct timeval tv = {0, 0};
-    if (ctx->timeout_ms < 0) {
-      tv.tv_sec = cCurlMutiDefaulttimeout / 1000;
-      tv.tv_usec = (cCurlMutiDefaulttimeout % 1000) * 1000;
-    } else {
-      long t = ctx->timeout_ms;
-      if (t > cCurlMutiDefaulttimeout) t = cCurlMutiDefaulttimeout;
-      if (t < 0) t = 0;
-      tv.tv_sec = t / 1000;
-      tv.tv_usec = (t % 1000) * 1000;
+    long wait_ms = cCurlMutiDefaulttimeout;
+
+    if (multi_socket_timer_due(ctx)) {
+      mrc = curl_multi_socket_action(rbcm->handle, CURL_SOCKET_TIMEOUT, 0, &rbcm->running);
+      curb_debugf("[curb.socket] socket_action timeout(due) -> mrc=%d running=%d", mrc, rbcm->running);
+      if (mrc != CURLM_OK) raise_curl_multi_error_exception(mrc);
+      rb_curl_multi_read_info(self, rbcm->handle);
+      rb_curl_multi_yield_if_given(self, block);
+      continue;
     }
+
+    if (ctx->timeout_deadline_ms >= 0) {
+      long long remaining_ms = ctx->timeout_deadline_ms - multi_socket_current_time_ms();
+      if (remaining_ms < wait_ms) wait_ms = remaining_ms < 0 ? 0 : (long)remaining_ms;
+    }
+    tv.tv_sec = wait_ms / 1000;
+    tv.tv_usec = (wait_ms % 1000) * 1000;
 
     /* Find a representative fd to wait on (if any). */
     int wait_fd = -1;
@@ -1334,50 +1465,113 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
     int any_ready = 0;
     int ready_flags = 0;
 
-    int handled_wait = 0;
-    if (count_tracked > 1) {
-      /* Multi-fd wait using scheduler-aware rb_thread_fd_select. */
-      rb_fdset_t rfds, wfds, efds;
-      rb_fd_init(&rfds); rb_fd_init(&wfds); rb_fd_init(&efds);
-      int maxfd = -1;
-      rb_fdset_from_sockmap(ctx->sock_map, &rfds, &wfds, &efds, &maxfd);
-      int rc = rb_thread_fd_select(maxfd + 1, &rfds, &wfds, &efds, &tv);
-      curb_debugf("[curb.socket] rb_thread_fd_select(multi) rc=%d maxfd=%d", rc, maxfd);
-      if (rc < 0) {
-        rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
-        if (errno != EINTR) rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
-        continue;
-      }
-      any_ready = (rc > 0);
-      did_timeout = (rc == 0);
-      if (any_ready) {
-        struct ready_fd *ready_fds = ALLOC_N(struct ready_fd, count_tracked);
-        struct collect_ready_fd_args d;
-        int i;
-        d.r = &rfds;
-        d.w = &wfds;
-        d.e = &efds;
-        d.fds = ready_fds;
-        d.capacity = count_tracked;
-        d.count = 0;
-        st_foreach(ctx->sock_map, collect_ready_fd_i, (st_data_t)&d);
-        for (i = 0; i < d.count; i++) {
-          mrc = curl_multi_socket_action(rbcm->handle, (curl_socket_t)d.fds[i].fd, d.fds[i].flags, &rbcm->running);
-          if (mrc != CURLM_OK) {
-            xfree(ready_fds);
-            rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
-            raise_curl_multi_error_exception(mrc);
-          }
-        }
-        xfree(ready_fds);
-      }
-      rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
-      handled_wait = 1;
-    } else if (count_tracked == 1) {
+	    int handled_wait = 0;
+	    if (count_tracked > 1) {
+#if defined(HAVE_RB_FIBER_SCHEDULER_IO_SELECT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
+	      {
+	        VALUE scheduler = rb_fiber_scheduler_current();
+	        if (scheduler != Qnil) {
+	          VALUE readables = rb_ary_new();
+	          VALUE writables = rb_ary_new();
+	          VALUE exceptables = rb_ary_new();
+	          struct build_io_select_arrays_args build_args = { ctx, readables, writables, exceptables, 0 };
+	          st_foreach(ctx->sock_map, build_io_select_arrays_i, (st_data_t)&build_args);
+	          if (!build_args.failed) {
+	            double timeout_s = (double)tv.tv_sec + ((double)tv.tv_usec / 1e6);
+	            VALUE timeout = rb_float_new(timeout_s);
+	            struct fiber_io_select_args select_args = { scheduler, readables, writables, exceptables, timeout };
+	            int state = 0;
+	            VALUE ready = rb_protect(fiber_io_select_protected, (VALUE)&select_args, &state);
+	            if (state) {
+#if CURB_SOCKET_DEBUG
+	              VALUE err = rb_errinfo();
+	              VALUE msg = rb_obj_as_string(err);
+	              curb_debugf("[curb.socket] scheduler io_select failed: %s: %s", rb_obj_classname(err), StringValueCStr(msg));
+#endif
+	              rb_set_errinfo(Qnil);
+	            } else {
+	              handled_wait = 1;
+	              any_ready = RB_TYPE_P(ready, T_ARRAY);
+	              did_timeout = !any_ready && multi_socket_timer_due(ctx);
+	              if (any_ready) {
+	                VALUE ready_readables = rb_ary_entry(ready, 0);
+	                VALUE ready_writables = rb_ary_entry(ready, 1);
+	                VALUE ready_exceptables = rb_ary_entry(ready, 2);
+	                struct ready_fd *ready_fds = ALLOC_N(struct ready_fd, count_tracked);
+	                struct collect_io_select_ready_args d;
+	                int i;
+	                if (!RB_TYPE_P(ready_readables, T_ARRAY)) ready_readables = rb_ary_new();
+	                if (!RB_TYPE_P(ready_writables, T_ARRAY)) ready_writables = rb_ary_new();
+	                if (!RB_TYPE_P(ready_exceptables, T_ARRAY)) ready_exceptables = rb_ary_new();
+	                d.ctx = ctx;
+	                d.readables = ready_readables;
+	                d.writables = ready_writables;
+	                d.exceptables = ready_exceptables;
+	                d.fds = ready_fds;
+	                d.capacity = count_tracked;
+	                d.count = 0;
+	                st_foreach(ctx->sock_map, collect_io_select_ready_i, (st_data_t)&d);
+	                any_ready = (d.count > 0);
+	                did_timeout = !any_ready && multi_socket_timer_due(ctx);
+	                for (i = 0; i < d.count; i++) {
+	                  mrc = curl_multi_socket_action(rbcm->handle, (curl_socket_t)d.fds[i].fd, d.fds[i].flags, &rbcm->running);
+	                  if (mrc != CURLM_OK) {
+	                    xfree(ready_fds);
+	                    raise_curl_multi_error_exception(mrc);
+	                  }
+	                }
+	                xfree(ready_fds);
+	              }
+	            }
+	          }
+	        }
+	      }
+#endif
+	      if (!handled_wait) {
+	        /* Multi-fd wait using scheduler-aware rb_thread_fd_select. */
+	        rb_fdset_t rfds, wfds, efds;
+	        rb_fd_init(&rfds); rb_fd_init(&wfds); rb_fd_init(&efds);
+	        int maxfd = -1;
+	        rb_fdset_from_sockmap(ctx->sock_map, &rfds, &wfds, &efds, &maxfd);
+	        int rc = rb_thread_fd_select(maxfd + 1, &rfds, &wfds, &efds, &tv);
+	        curb_debugf("[curb.socket] rb_thread_fd_select(multi) rc=%d maxfd=%d", rc, maxfd);
+	        if (rc < 0) {
+	          rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
+	          if (errno != EINTR) rb_raise(rb_eRuntimeError, "select(): %s", strerror(errno));
+	          continue;
+	        }
+	        any_ready = (rc > 0);
+	        did_timeout = (rc == 0 && multi_socket_timer_due(ctx));
+	        if (any_ready) {
+	          struct ready_fd *ready_fds = ALLOC_N(struct ready_fd, count_tracked);
+	          struct collect_ready_fd_args d;
+	          int i;
+	          d.r = &rfds;
+	          d.w = &wfds;
+	          d.e = &efds;
+	          d.fds = ready_fds;
+	          d.capacity = count_tracked;
+	          d.count = 0;
+	          st_foreach(ctx->sock_map, collect_ready_fd_i, (st_data_t)&d);
+	          for (i = 0; i < d.count; i++) {
+	            mrc = curl_multi_socket_action(rbcm->handle, (curl_socket_t)d.fds[i].fd, d.fds[i].flags, &rbcm->running);
+	            if (mrc != CURLM_OK) {
+	              xfree(ready_fds);
+	              rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
+	              raise_curl_multi_error_exception(mrc);
+	            }
+	          }
+	          xfree(ready_fds);
+	        }
+	        rb_fd_term(&rfds); rb_fd_term(&wfds); rb_fd_term(&efds);
+	        handled_wait = 1;
+	      }
+	    } else if (count_tracked == 1) {
 #if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
       {
         VALUE scheduler = rb_fiber_scheduler_current();
         if (scheduler != Qnil) {
+          int scheduler_wait_handled = 0;
           int events = 0;
           if (wait_fd >= 0) {
             events = multi_socket_wait_events_for_curl_poll(wait_what);
@@ -1390,30 +1584,42 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 #else
             rb_thread_wait_for(tv);
 #endif
-            did_timeout = 1;
+            did_timeout = multi_socket_timer_due(ctx);
+            scheduler_wait_handled = 1;
           } else if (!multi_socket_fd_valid_p(wait_fd)) {
             multi_socket_forget_fd(ctx, wait_fd);
             did_timeout = 1;
+            scheduler_wait_handled = 1;
           } else {
-            struct io_for_fd_args io_args = { ctx, wait_fd };
+            struct io_for_fd_args io_args = { ctx, wait_fd, wait_what };
             int io_state = 0;
             VALUE io = rb_protect(multi_socket_io_for_fd_protected, (VALUE)&io_args, &io_state);
             if (io_state || NIL_P(io)) {
-              if (io_state) rb_set_errinfo(Qnil);
-              multi_socket_forget_fd(ctx, wait_fd);
-              did_timeout = 1;
+              if (io_state) {
+#if CURB_SOCKET_DEBUG
+                VALUE err = rb_errinfo();
+                VALUE msg = rb_obj_as_string(err);
+                curb_debugf("[curb.socket] IO.for_fd failed: %s: %s", rb_obj_classname(err), StringValueCStr(msg));
+#endif
+                rb_set_errinfo(Qnil);
+              }
               any_ready = 0;
             } else {
               struct fiber_io_wait_args args = { scheduler, io, INT2NUM(events), timeout };
               int state = 0;
               VALUE ready = rb_protect(fiber_io_wait_protected, (VALUE)&args, &state);
               if (state) {
+#if CURB_SOCKET_DEBUG
+                VALUE err = rb_errinfo();
+                VALUE msg = rb_obj_as_string(err);
+                curb_debugf("[curb.socket] scheduler io_wait failed: %s: %s", rb_obj_classname(err), StringValueCStr(msg));
+#endif
                 rb_set_errinfo(Qnil);
-                did_timeout = 1;
                 any_ready = 0;
               } else {
+                scheduler_wait_handled = 1;
                 any_ready = (ready != Qfalse && !NIL_P(ready));
-                did_timeout = !any_ready;
+                did_timeout = !any_ready && multi_socket_timer_due(ctx);
                 if (any_ready) {
                   if (ready == Qtrue) {
                     ready_flags = multi_socket_cselect_flags_for_curl_poll(wait_what);
@@ -1421,7 +1627,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
                     ready_flags = multi_socket_cselect_flags_for_wait_events(NUM2INT(ready));
                     if (ready_flags == 0) {
                       any_ready = 0;
-                      did_timeout = 1;
+                      did_timeout = multi_socket_timer_due(ctx);
                     }
                   } else {
                     ready_flags = multi_socket_cselect_flags_for_curl_poll(wait_what);
@@ -1430,7 +1636,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
               }
             }
           }
-          handled_wait = 1;
+          if (scheduler_wait_handled) handled_wait = 1;
         }
       }
 #endif
@@ -1444,7 +1650,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
           continue;
         }
         any_ready = (rc != 0);
-        did_timeout = (rc == 0);
+        did_timeout = (rc == 0 && multi_socket_timer_due(ctx));
         if (any_ready) ready_flags = multi_socket_cselect_flags_for_wait_events(rc);
         handled_wait = 1;
       }
@@ -1468,7 +1674,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
           continue;
         }
         any_ready = (rc > 0);
-        did_timeout = (rc == 0);
+        did_timeout = (rc == 0 && multi_socket_timer_due(ctx));
         if (any_ready && wait_fd >= 0) {
           if (rb_fd_isset(wait_fd, &rfds)) ready_flags |= CURL_CSELECT_IN;
           if (rb_fd_isset(wait_fd, &wfds)) ready_flags |= CURL_CSELECT_OUT;
@@ -1482,7 +1688,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 #else
       rb_thread_wait_for(tv);
 #endif
-      did_timeout = 1;
+      did_timeout = multi_socket_timer_due(ctx);
     }
 
     if (did_timeout) {
@@ -1555,7 +1761,7 @@ static VALUE ruby_curl_multi_socket_perform_impl(int argc, VALUE *argv, VALUE se
 
   multi_socket_ctx ctx;
   ctx.sock_map = st_init_numtable();
-  ctx.timeout_ms = -1;
+  ctx.timeout_deadline_ms = -1;
   ctx.io_cache = rb_hash_new();
   rb_ivar_set(self, id_socket_io_cache_ivar, ctx.io_cache);
 

@@ -15,10 +15,11 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
   include TestServerMethods
 
   class RecordingScheduler
-    attr_reader :io_wait_events
+    attr_reader :io_wait_events, :io_select_calls
 
     def initialize
       @io_wait_events = []
+      @io_select_calls = 0
     end
 
     def fiber(&block)
@@ -31,12 +32,17 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
       readers = (events & IO::READABLE) != 0 ? [io] : nil
       writers = (events & IO::WRITABLE) != 0 ? [io] : nil
-      readable, writable = IO.select(readers, writers, nil, timeout)
+      readable, writable = Fiber.blocking { IO.select(readers, writers, nil, timeout) }
 
       ready = 0
       ready |= IO::READABLE if readable && !readable.empty?
       ready |= IO::WRITABLE if writable && !writable.empty?
       ready.zero? ? false : ready
+    end
+
+    def io_select(readers, writers, excepts, timeout = nil)
+      @io_select_calls += 1
+      Fiber.blocking { IO.select(readers, writers, excepts, timeout) }
     end
 
     def kernel_sleep(duration = nil)
@@ -208,9 +214,11 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     end
 
     assert_equal 200, result
-    assert_operator scheduler.io_wait_events.length, :>=, 1
-    assert scheduler.io_wait_events.all? { |events| events.is_a?(Integer) }
-    assert scheduler.io_wait_events.any? { |events| (events & (IO::READABLE | IO::WRITABLE)) != 0 }
+    assert_operator scheduler.io_wait_events.length + scheduler.io_select_calls, :>=, 1
+    unless scheduler.io_wait_events.empty?
+      assert scheduler.io_wait_events.all? { |events| events.is_a?(Integer) }
+      assert scheduler.io_wait_events.any? { |events| (events & (IO::READABLE | IO::WRITABLE)) != 0 }
+    end
   end
 
   def test_multi_reuse_after_scheduler_perform
