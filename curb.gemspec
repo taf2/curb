@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name    = "curb"
   s.authors = ["Ross Bamford", "Todd A. Fisher"]
-  s.version = '1.3.4'
-  s.date    = '2026-05-12'
+  s.version = '1.3.5'
+  s.date    = '2026-05-14'
   s.description = %q{Curb (probably CUrl-RuBy or something) provides Ruby-language bindings for the libcurl(3), a fully-featured client-side URL transfer library. cURL and libcurl live at http://curl.haxx.se/}
   s.email   = 'todd.fisher@gmail.com'
   s.extra_rdoc_files = ['LICENSE', 'README.md']
