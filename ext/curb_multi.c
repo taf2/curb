@@ -2066,10 +2066,10 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
 #endif /* disabled curl_multi_wait: use fdsets */
     }
 
+    rb_curl_multi_read_info( self, rbcm->handle );
+    rb_curl_multi_yield_if_given(self, block);
   } while( rbcm->running );
 
-  rb_curl_multi_read_info( self, rbcm->handle );
-  rb_curl_multi_yield_if_given(self, block);
   if (cCurlMutiAutoClose  == 1) {
     rbcm->allow_close_during_perform = 1;
     rb_funcall(self, rb_intern("_autoclose"), 0);
