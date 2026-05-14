@@ -249,6 +249,41 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.close if m
   end
 
+  def test_multi_perform_runs_work_added_from_final_idle_yield
+    with_queue_refill_test_server do |port, hits|
+      previous_autoclose = Curl::Multi.autoclose
+      Curl::Multi.autoclose = true
+
+      multi = Curl::Multi.new
+      slow = Curl::Easy.new("http://127.0.0.1:#{port}/slow")
+      queued = Curl::Easy.new("http://127.0.0.1:#{port}/queued")
+      completions = []
+      empty_yields = 0
+      queued_added = false
+
+      slow.on_complete { completions << :slow }
+      queued.on_complete { completions << :queued }
+
+      multi.add(slow)
+      multi.perform do |performing_multi|
+        empty_yields += 1 if performing_multi.requests.empty?
+        if !queued_added && empty_yields >= 2
+          queued_added = true
+          performing_multi.add(queued)
+        end
+      end
+
+      assert queued_added, "test should add queued work from the final idle yield"
+      assert_equal [:slow, :queued], completions
+      assert_equal 1, hits[:slow]
+      assert_equal 1, hits[:queued]
+      assert_equal 0, multi.requests.length
+    ensure
+      Curl::Multi.autoclose = previous_autoclose if defined?(previous_autoclose)
+      multi.close if defined?(multi) && multi
+    end
+  end
+
   def test_multi_easy_get
     n = 1
     urls = []
