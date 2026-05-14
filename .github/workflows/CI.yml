@@ -34,13 +34,31 @@ jobs:
       # Linux deps
       - name: Install libcurl (Linux)
         if: runner.os == 'Linux'
+        timeout-minutes: 20
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4 libcurl3-gnutls libcurl4-openssl-dev
+          retry() {
+            local max_attempts=3
+            local attempt=1
+
+            until "$@"; do
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                return 1
+              fi
+
+              attempt=$((attempt + 1))
+              sleep 10
+            done
+          }
+
+          retry timeout 420s sudo apt-get -o Acquire::Retries=3 -o Dpkg::Lock::Timeout=120 update
+          retry timeout 420s sudo apt-get -o Dpkg::Lock::Timeout=120 install \
+            -y --no-install-recommends \
+            libcurl4 libcurl3-gnutls libcurl4-openssl-dev
 
       - name: Install valgrind
         if: runner.os == 'Linux' && matrix.ruby == '4.0'
-        run: sudo apt-get install -y valgrind
+        timeout-minutes: 10
+        run: sudo apt-get -o Dpkg::Lock::Timeout=120 install -y --no-install-recommends valgrind
 
       # macOS deps
       - name: Install libcurl (macOS)

@@ -32,7 +32,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
       readers = (events & IO::READABLE) != 0 ? [io] : nil
       writers = (events & IO::WRITABLE) != 0 ? [io] : nil
-      readable, writable = Fiber.blocking { IO.select(readers, writers, nil, timeout) }
+      readable, writable = blocking_io { IO.select(readers, writers, nil, timeout) }
 
       ready = 0
       ready |= IO::READABLE if readable && !readable.empty?
@@ -42,7 +42,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
     def io_select(readers, writers, excepts, timeout = nil)
       @io_select_calls += 1
-      Fiber.blocking { IO.select(readers, writers, excepts, timeout) }
+      blocking_io { IO.select(readers, writers, excepts, timeout) }
     end
 
     def kernel_sleep(duration = nil)
@@ -61,6 +61,16 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     end
 
     def fiber_interrupt(*)
+    end
+
+    private
+
+    def blocking_io(&block)
+      if Fiber.respond_to?(:blocking)
+        Fiber.blocking(&block)
+      else
+        block.call
+      end
     end
   end
 
