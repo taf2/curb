@@ -107,9 +107,10 @@ else
 end
 
 ruby_memcheck_config = { binary_name: 'curb_core' }
+ruby_version = Gem::Version.new(RUBY_VERSION)
 
-if RUBY_ENGINE == 'ruby' && RUBY_VERSION == '4.0.4'
-  # Ruby 4.0.4 reports fiber/block-handler VM stack accesses under Valgrind.
+if RUBY_ENGINE == 'ruby' && ruby_version >= Gem::Version.new('4.0.4') && ruby_version < Gem::Version.new('4.1.0')
+  # Ruby 4.0.4+ reports fiber/block-handler VM stack accesses under Valgrind.
   # Keep reporting errors that originate in curb_core, but filter Ruby-side noise.
   ruby_memcheck_config[:filter_all_errors] = true
   if RubyMemcheck::Configuration.instance_method(:initialize).parameters.any? { |type, name|
