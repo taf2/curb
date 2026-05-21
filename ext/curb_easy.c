@@ -229,10 +229,13 @@ static size_t read_data_handler(void *ptr,
         return curl_read_abort_result();
       }
 
-      str_len = (size_t)RSTRING_LEN(str);
-      if (str_len > read_bytes) {
-        snprintf(rbce->err_buf, CURL_ERROR_SIZE, "read callback returned more data than requested");
-        return curl_read_abort_result();
+      {
+        long raw_len = RSTRING_LEN(str);
+        if (raw_len < 0 || (size_t)raw_len > read_bytes) {
+          snprintf(rbce->err_buf, CURL_ERROR_SIZE, "read callback returned more data than requested");
+          return curl_read_abort_result();
+        }
+        str_len = (size_t)raw_len;
       }
 
       memcpy(ptr, RSTRING_PTR(str), str_len);
