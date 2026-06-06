@@ -18,6 +18,13 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_equal 200, easy.code
   end
 
+  def test_perform_with_implicit_multi
+    easy = Curl::Easy.new($TEST_URL)
+
+    assert_nothing_raised { easy.perform }
+    assert_match(/^# DO NOT REMOVE THIS COMMENT/, easy.body_str)
+  end
+
   def test_curlopt_resolve
     require 'resolv'
     uri = URI.parse(TestServlet.url)

@@ -783,6 +783,21 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     m.close if m
   end
 
+  def test_frozen_idle_easy_multi_reference_is_cleared_on_close
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new($TEST_URL)
+    easy.freeze
+
+    easy.multi = multi
+
+    assert_same multi, easy.multi
+    assert_nothing_raised { multi.close }
+    assert_nil easy.multi
+    multi = nil
+  ensure
+    multi.close if multi
+  end
+
   def test_easy_multi_is_available_during_completion_callbacks
     multi = Curl::Multi.new
     easy = Curl::Easy.new($TEST_URL)

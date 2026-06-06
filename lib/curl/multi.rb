@@ -4,6 +4,15 @@ module Curl
     class DownloadError < RuntimeError
       attr_accessor :errors
     end
+
+    IDLE_EASY_REFERENCES_USE_WEAK_MAP = begin
+      probe = ObjectSpace::WeakMap.new
+      probe[Object.new.freeze] = true
+      true
+    rescue ArgumentError, FrozenError, NameError
+      false
+    end
+
     class << self
       # call-seq:
       #   Curl::Multi.get(['url1','url2','url3','url4','url5'], :follow_location => true) do|easy|
@@ -271,18 +280,24 @@ module Curl
     end
 
     def __idle_easy_references
-      @__curb_idle_easy_references ||= ObjectSpace::WeakMap.new
+      @__curb_idle_easy_references ||= __new_idle_easy_references
     end
     
     def __register_idle_easy_reference(easy)
-      __idle_easy_references[easy] = true
+      if IDLE_EASY_REFERENCES_USE_WEAK_MAP
+        __idle_easy_references[easy] = true
+      else
+        __idle_easy_references[easy.object_id] = true
+      end
       self
     end
     
     def __unregister_idle_easy_reference(easy)
       return self unless instance_variable_defined?(:@__curb_idle_easy_references)
 
-      if @__curb_idle_easy_references.respond_to?(:delete)
+      if !IDLE_EASY_REFERENCES_USE_WEAK_MAP
+        @__curb_idle_easy_references.delete(easy.object_id)
+      elsif @__curb_idle_easy_references.respond_to?(:delete)
         @__curb_idle_easy_references.delete(easy)
       else
         retained_references = ObjectSpace::WeakMap.new
@@ -299,15 +314,34 @@ module Curl
     
     def __clear_idle_easy_references
       return unless instance_variable_defined?(:@__curb_idle_easy_references)
-    
-      @__curb_idle_easy_references.keys.each do |easy|
-        easy.multi = nil if easy.multi.equal?(self)
+
+      if IDLE_EASY_REFERENCES_USE_WEAK_MAP
+        @__curb_idle_easy_references.keys.each do |easy|
+          easy.multi = nil if easy.multi.equal?(self)
+        end
+      else
+        @__curb_idle_easy_references.keys.each do |easy_object_id|
+          begin
+            easy = ObjectSpace._id2ref(easy_object_id)
+          rescue RangeError
+            next
+          end
+
+          next unless easy.is_a?(Curl::Easy)
+
+          easy.multi = nil if easy.multi.equal?(self)
+        end
       end
-      @__curb_idle_easy_references = ObjectSpace::WeakMap.new
+      @__curb_idle_easy_references = __new_idle_easy_references
+    end
+
+    def __new_idle_easy_references
+      IDLE_EASY_REFERENCES_USE_WEAK_MAP ? ObjectSpace::WeakMap.new : {}
     end
 
     private :__idle_easy_references, :__register_idle_easy_reference,
-            :__unregister_idle_easy_reference, :__clear_idle_easy_references
+            :__unregister_idle_easy_reference, :__clear_idle_easy_references,
+            :__new_idle_easy_references
 
     def add(easy)
       return self if requests[easy.object_id]
