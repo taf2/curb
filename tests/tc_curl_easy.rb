@@ -1780,6 +1780,35 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     end
   end
 
+  def test_close_during_http_post_argument_coercion_is_blocked
+    curl = Curl::Easy.new(TestServlet.url)
+    field = Object.new
+    field.define_singleton_method(:to_s) do
+      curl.close
+      "a=b"
+    end
+
+    error = assert_raise(RuntimeError) { curl.http_post(field) }
+    assert_match(/Cannot close an active curl handle/, error.message)
+
+    assert_nothing_raised { curl.close }
+  end
+
+  def test_close_during_url_coercion_is_blocked
+    curl = Curl::Easy.new
+    url = Object.new
+    url.define_singleton_method(:to_str) do
+      curl.close
+      TestServlet.url
+    end
+
+    curl.url = url
+    error = assert_raise(RuntimeError) { curl.perform }
+    assert_match(/Cannot close an active curl handle/, error.message)
+
+    assert_nothing_raised { curl.close }
+  end
+
   def test_close_in_on_progress_is_blocked
     curl = Curl::Easy.new(TestServlet.url)
     did_raise = false

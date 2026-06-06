@@ -189,6 +189,23 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     second_multi.close if defined?(second_multi) && second_multi
   end
 
+  def test_easy_multi_assignment_detaches_from_old_multi
+    multi = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+
+    multi.add(easy)
+    easy.multi = nil
+
+    assert_nil easy.multi
+    assert_equal({}, multi.requests)
+    assert_nothing_raised { easy.close }
+    assert_nothing_raised { multi.close }
+
+    multi = nil
+  ensure
+    multi.close if defined?(multi) && multi
+  end
+
   def test_close_makes_multi_unusable
     multi = Curl::Multi.new
     multi.close

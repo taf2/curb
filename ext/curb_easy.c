@@ -93,6 +93,20 @@ static VALUE with_easy_callback_active(ruby_curl_easy *rbce, VALUE (*func)(VALUE
   return rb_ensure(func, arg, ensure_clear_easy_callback_active, (VALUE)rbce);
 }
 
+static void ruby_curl_easy_enter_native(ruby_curl_easy *rbce) {
+  if (rbce) {
+    rbce->native_active++;
+  }
+}
+
+static VALUE ruby_curl_easy_leave_native(VALUE arg) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)arg;
+  if (rbce && rbce->native_active > 0) {
+    rbce->native_active--;
+  }
+  return Qnil;
+}
+
 struct stream_read_call_args {
   VALUE stream;
   size_t read_bytes;
@@ -705,6 +719,7 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->cookielist_engine_enabled = 0;
   rbce->ignore_content_length = 0;
   rbce->callback_active = 0;
+  rbce->native_active = 0;
   rbce->callback_error = Qnil;
   rbce->last_result = 0;
 }
@@ -841,6 +856,7 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   /* A cloned easy should not retain ownership reference to the original multi. */
   newrbce->multi = Qnil;
   newrbce->callback_error = Qnil;
+  newrbce->native_active = 0;
 
   if (rbce->opts != Qnil) {
     newrbce->opts = rb_funcall(rbce->opts, rb_intern("dup"), 0);
@@ -889,6 +905,10 @@ static VALUE ruby_curl_easy_close(VALUE self) {
     rb_raise(rb_eRuntimeError, "Cannot close an active curl handle within a callback");
   }
 
+  if (rbce->native_active) {
+    rb_raise(rb_eRuntimeError, "Cannot close an active curl handle during native operation");
+  }
+
   ruby_curl_easy_free(rbce);
 
   /* reinit the handle */
@@ -933,6 +953,10 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
 
   if (rbce->callback_active) {
     rb_raise(rb_eRuntimeError, "Cannot close an active curl handle within a callback");
+  }
+
+  if (rbce->native_active) {
+    rb_raise(rb_eRuntimeError, "Cannot reset an active curl handle during native operation");
   }
 
   opts_dup = rb_funcall(rbce->opts, rb_intern("dup"), 0);
@@ -1281,7 +1305,17 @@ static VALUE ruby_curl_easy_useragent_get(VALUE self) {
  *
  * This is handy if you want to perform a POST against a Curl::Multi instance.
  */
-static VALUE ruby_curl_easy_post_body_set_with_mode(VALUE self, VALUE post_body, int force_http_get_on_nil) {
+struct post_body_set_args {
+  VALUE self;
+  VALUE post_body;
+  int force_http_get_on_nil;
+};
+
+static VALUE ruby_curl_easy_post_body_set_with_mode_body(VALUE argp) {
+  struct post_body_set_args *args = (struct post_body_set_args *)argp;
+  VALUE self = args->self;
+  VALUE post_body = args->post_body;
+  int force_http_get_on_nil = args->force_http_get_on_nil;
   ruby_curl_easy *rbce;
   CURL *curl;
 
@@ -1343,6 +1377,17 @@ static VALUE ruby_curl_easy_post_body_set_with_mode(VALUE self, VALUE post_body,
   }
 
   return Qnil;
+}
+
+static VALUE ruby_curl_easy_post_body_set_with_mode(VALUE self, VALUE post_body, int force_http_get_on_nil) {
+  ruby_curl_easy *rbce;
+  struct post_body_set_args args = { self, post_body, force_http_get_on_nil };
+
+  TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+  ruby_curl_easy_enter_native(rbce);
+
+  return rb_ensure(ruby_curl_easy_post_body_set_with_mode_body, (VALUE)&args,
+                   ruby_curl_easy_leave_native, (VALUE)rbce);
 }
 
 static VALUE ruby_curl_easy_post_body_set(VALUE self, VALUE post_body) {
@@ -2808,7 +2853,8 @@ static VALUE cb_each_resolve(VALUE resolve, VALUE wrap, int _c, const VALUE *_pt
  *
  * Always returns Qtrue, rb_raise on error.
  */
-VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
+static VALUE ruby_curl_easy_setup_body(VALUE arg) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)arg;
   // TODO this could do with a bit of refactoring...
   CURL *curl;
   VALUE url, _url = rb_easy_get("url");
@@ -3191,6 +3237,12 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 
   return Qnil;
 }
+
+VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
+  ruby_curl_easy_enter_native(rbce);
+  return rb_ensure(ruby_curl_easy_setup_body, (VALUE)rbce,
+                   ruby_curl_easy_leave_native, (VALUE)rbce);
+}
 /***********************************************
  *
  * Clean up a connection
@@ -3350,6 +3402,23 @@ struct easy_form_perform_args {
   int form_set_on_curl;
 };
 
+struct easy_join_args {
+  VALUE args_ary;
+};
+
+static VALUE join_easy_arguments_body(VALUE argp) {
+  struct easy_join_args *args = (struct easy_join_args *)argp;
+  return rb_funcall(args->args_ary, idJoin, 1, rbstrAmp);
+}
+
+static VALUE join_easy_arguments(ruby_curl_easy *rbce, VALUE args_ary) {
+  struct easy_join_args args = { args_ary };
+
+  ruby_curl_easy_enter_native(rbce);
+  return rb_ensure(join_easy_arguments_body, (VALUE)&args,
+                   ruby_curl_easy_leave_native, (VALUE)rbce);
+}
+
 static void append_multipart_form_argument(VALUE arg,
                                            struct curl_httppost **first,
                                            struct curl_httppost **last) {
@@ -3452,7 +3521,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
   } else {
     VALUE post_body = Qnil;
     /* TODO: check for PostField.file and raise error before to_s fails */
-    if ((post_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp)) == Qnil) {
+    if ((post_body = join_easy_arguments(rbce, args_ary)) == Qnil) {
       rb_raise(eCurlErrError, "Failed to join arguments");
       return Qnil;
     } else {
@@ -3511,7 +3580,7 @@ static VALUE ruby_curl_easy_perform_patch(int argc, VALUE *argv, VALUE self) {
     return ret;
   } else {
     /* Join arguments into a raw PATCH body */
-    VALUE patch_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp);
+    VALUE patch_body = join_easy_arguments(rbce, args_ary);
     if (patch_body == Qnil) {
       rb_raise(eCurlErrError, "Failed to join arguments");
       return Qnil;
@@ -3570,7 +3639,7 @@ static VALUE ruby_curl_easy_perform_put(int argc, VALUE *argv, VALUE self) {
   }
   /* Fallback: join all arguments */
   else {
-    VALUE post_body = rb_funcall(args_ary, idJoin, 1, rbstrAmp);
+    VALUE post_body = join_easy_arguments(rbce, args_ary);
     if (post_body != Qnil && rb_type(post_body) == T_STRING &&
         RSTRING_LEN(post_body) > 0) {
       ruby_curl_easy_put_data_set(self, post_body);
@@ -4307,10 +4376,26 @@ static VALUE ruby_curl_easy_multi_get(VALUE self) {
  */
 static VALUE ruby_curl_easy_multi_set(VALUE self, VALUE multi) {
   ruby_curl_easy *rbce;
+  VALUE old_multi;
+  ruby_curl_multi *old_rbcm;
+  CURLMcode result;
   TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
 
   if (!NIL_P(multi) && rb_obj_is_kind_of(multi, cCurlMulti) != Qtrue) {
     rb_raise(rb_eTypeError, "expected Curl::Multi or nil");
+  }
+
+  old_multi = rbce->multi;
+  if (old_multi == multi) {
+    return rbce->multi;
+  }
+
+  old_rbcm = ruby_curl_multi_pointer_if_compatible(old_multi);
+  if (old_rbcm) {
+    result = rb_curl_multi_detach_easy(old_rbcm, rbce);
+    if (result != CURLM_OK) {
+      raise_curl_multi_error_exception(result);
+    }
   }
 
   rbce->multi = multi;

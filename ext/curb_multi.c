@@ -286,6 +286,33 @@ void rb_curl_multi_forget_easy(ruby_curl_multi *rbcm, void *rbce_ptr) {
   st_delete(rbcm->attached, &key, NULL);
 }
 
+CURLMcode rb_curl_multi_detach_easy(ruby_curl_multi *rbcm, void *rbce_ptr) {
+  ruby_curl_easy *rbce = (ruby_curl_easy *)rbce_ptr;
+  st_data_t key;
+
+  if (!rbcm || !rbce || !rbcm->attached) {
+    return CURLM_OK;
+  }
+
+  key = (st_data_t)rbce;
+  if (!st_delete(rbcm->attached, &key, NULL)) {
+    return CURLM_OK;
+  }
+
+  if (rbcm->handle && rbce->curl) {
+    CURLMcode result = curl_multi_remove_handle(rbcm->handle, rbce->curl);
+    if (result != CURLM_OK) {
+      return result;
+    }
+  }
+
+  if (rbcm->active > 0) {
+    rbcm->active--;
+  }
+
+  return CURLM_OK;
+}
+
 static void rb_curl_multi_detach_all(ruby_curl_multi *rbcm) {
   if (!rbcm || !rbcm->attached) {
     return;

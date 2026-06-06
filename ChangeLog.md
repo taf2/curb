@@ -1,6 +1,7 @@
 # ChangeLog
 ## 1.3.6
 * Extend Ruby 4.0.x valgrind test handling to Ruby 4.0.5 by filtering Ruby VM Fiber/block-handler noise while preserving reports for errors originating in `curb_core`.
+* Harden `Curl::Easy`/`Curl::Multi` cleanup against re-entrant close during coercion and stale multi attachments.
 
 ## 1.3.5
 * Improve Ruby 4.0.4 valgrind test handling by filtering Ruby VM Fiber/block-handler noise while preserving reports for errors originating in `curb_core`.

@@ -28,6 +28,7 @@ extern const rb_data_type_t ruby_curl_multi_data_type;
 
 void init_curb_multi();
 void rb_curl_multi_forget_easy(ruby_curl_multi *rbcm, void *rbce_ptr);
+CURLMcode rb_curl_multi_detach_easy(ruby_curl_multi *rbcm, void *rbce_ptr);
 
 
 #endif

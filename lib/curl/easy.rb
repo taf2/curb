@@ -94,7 +94,11 @@ module Curl
     def multi=(multi)
       previous_multi = self.multi
       return multi if previous_multi.equal?(multi)
-    
+
+      if previous_multi && previous_multi.requests[self.object_id]
+        previous_multi.remove(self)
+      end
+
       result = _curb_native_multi_set(multi)
       previous_multi.__send__(:__unregister_idle_easy_reference, self) if previous_multi
       multi.__send__(:__register_idle_easy_reference, self) if multi

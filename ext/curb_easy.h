@@ -83,6 +83,7 @@ typedef struct {
   char cookielist_engine_enabled; /* track if CURLOPT_COOKIELIST was used with a non-command to enable engine */
   char ignore_content_length;
   char callback_active;
+  unsigned int native_active;
 
   struct curl_slist *curl_headers;
   struct curl_slist *curl_proxy_headers;
