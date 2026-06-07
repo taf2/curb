@@ -82,11 +82,19 @@ jobs:
 
       - name: Run valgrind tests
         if: runner.os == 'Linux' && matrix.ruby == '4.0'
+        timeout-minutes: 20
         run: bundle exec rake test:valgrind
 
       - name: Run tests
-        if: runner.os != 'Linux' || matrix.ruby != '4.0'
+        if: runner.os != 'Windows' && (runner.os != 'Linux' || matrix.ruby != '4.0')
         timeout-minutes: 20
+        env:
+          TESTOPTS: --verbose
+        run: bundle exec rake
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 35
         env:
           TESTOPTS: --verbose
         run: bundle exec rake

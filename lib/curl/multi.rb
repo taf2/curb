@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'curl/download'
 module Curl
   class Multi
     class DownloadError < RuntimeError
@@ -111,6 +112,7 @@ module Curl
           url     = c.delete(:url)
           method  = c.delete(:method)
           headers = c.delete(:headers)
+          internal_info = c.delete(:__curb_internal_info)
 
           easy    = Curl::Easy.new if easy.nil?
 
@@ -149,7 +151,13 @@ module Curl
 
           easy.on_complete {|curl|
             free_handles << curl
-            blk.call(curl,curl.response_code,method) if blk
+            if blk
+              if internal_info
+                blk.call(curl,curl.response_code,method,internal_info)
+              else
+                blk.call(curl,curl.response_code,method)
+              end
+            end
           }
           m.add(easy)
         end
@@ -191,73 +199,122 @@ module Curl
       #
       # Curl::Multi.download(['http://example.com/p/a/t/h/file1.txt','http://example.com/p/a/t/h/file2.txt']){|c|}
       #
-      # will create 2 new files file1.txt and file2.txt
+      # will create 2 new files file1.txt and file2.txt, unless either file
+      # already exists. Auto-derived filenames are safely derived from the last
+      # URL path component. Pass <tt>:download_dir</tt> as the fifth argument to
+      # treat download_paths as basenames inside a trusted directory and reject
+      # absolute, parent-directory, dotfile, and nested names.
       #
       # 2 files will be opened, and remain open until the call completes
       #
       # when using the :post or :put method, urls should be a hash, including the individual post fields per post
       #
-      def download(urls,easy_options={},multi_options={},download_paths=nil,&blk)
+      def download(urls,easy_options={},multi_options={},download_paths=nil,download_options={},&blk)
         errors = []
         procs = []
         files = []
         urls_with_config = []
-        url_to_download_paths = {}
+        seen_download_paths = {}
+        download_infos = []
+
+        if Curl.download_options_hash?(download_paths) && download_options.empty?
+          download_options = download_paths
+          download_paths = nil
+        end
 
         urls.each_with_index do|urlcfg,i|
           if urlcfg.is_a?(Hash)
-            url = url[:url]
+            url = urlcfg[:url]
           else
             url = urlcfg
           end
 
-          if download_paths and download_paths[i]
-            download_path = download_paths[i]
-          else
-            download_path = File.basename(url)
+          download_path_arg = download_paths && download_paths[i]
+          download_path, file, safe_output, overwrite = Curl.resolve_download_output(url, download_path_arg, download_options)
+
+          if safe_output
+            expanded_path = File.expand_path(download_path)
+            raise ArgumentError, "duplicate download destination: #{download_path}" if seen_download_paths[expanded_path]
+
+            seen_download_paths[expanded_path] = true
           end
 
-          file = lambda do|dp|
-            file = File.open(dp,"wb")
-            procs << (lambda {|data| file.write data; data.size })
-            files << file
-            file
-          end.call(download_path)
-
-          if urlcfg.is_a?(Hash)
-            urls_with_config << urlcfg.merge({:on_body => procs.last}.merge(easy_options))
-          else
-            urls_with_config << {:url => url, :on_body => procs.last, :method => :get}.merge(easy_options)
-          end
-          url_to_download_paths[url] = {:path => download_path, :file => file} # store for later
+          download_infos << {
+            :url => url,
+            :urlcfg => urlcfg,
+            :path => download_path,
+            :file => file,
+            :safe_output => safe_output,
+            :overwrite => overwrite
+          }
         end
 
-        if blk
-          # when injecting the block, ensure file is closed before yielding
-          Curl::Multi.http(urls_with_config, multi_options) do |c,code,method|
-            info = url_to_download_paths[c.url]
+        download_infos.each do |info|
+          info[:file] ||= Curl.open_safe_download_output(info[:path], :overwrite => info[:overwrite])
+          file = info[:file]
+          procs << (lambda {|data| file.write data; data.size })
+          files << file
+
+          if info[:urlcfg].is_a?(Hash)
+            urls_with_config << info[:urlcfg].merge({:on_body => procs.last, :__curb_internal_info => info}.merge(easy_options))
+          else
+            urls_with_config << {:url => info[:url], :on_body => procs.last, :method => :get, :__curb_internal_info => info}.merge(easy_options)
+          end
+        end
+
+        finalize_download = lambda do |curl, info|
+          file = info[:file]
+          files.reject!{|f| f == file }
+
+          if curl.last_result != 0
             begin
-              file = info[:file]
-              files.reject!{|f| f == file }
-              file.close
+              if info[:safe_output]
+                file.close(false)
+              else
+                file.close
+              end
             rescue => e
               errors << e
             end
+            err_class, err_summary = Curl::Easy.error(curl.last_result)
+            err_detail = curl.last_error
+            errors << err_class.new([err_summary, err_detail].compact.join(": "))
+            false
+          else
+            begin
+              if info[:safe_output]
+                file.close(true)
+              else
+                file.close
+              end
+              true
+            rescue => e
+              errors << e
+              false
+            end
+          end
+        end
+
+        Curl::Multi.http(urls_with_config, multi_options) do |c,code,method,info|
+          if finalize_download.call(c, info) && blk
             blk.call(c,info[:path])
           end
-        else
-          Curl::Multi.http(urls_with_config, multi_options)
         end
 
       ensure
+        pending_exception = $!
         files.each {|f|
           begin
-            f.close
+            if f.is_a?(Curl::SafeDownloadOutput)
+              f.close(false)
+            else
+              f.close
+            end
           rescue => e
             errors << e
           end
         }
-        if errors.any?
+        if errors.any? && !pending_exception
           de = Curl::Multi::DownloadError.new
           de.errors = errors
           raise de
@@ -277,6 +334,27 @@ module Curl
 
     def requests
       @requests ||= {}
+    end
+
+    def __curb_native_safety_signatures
+      @__curb_native_safety_signatures ||= {}
+    end
+
+    def __curb_safety_signature_for(easy)
+      safety_signature = if Curl.respond_to?(:safety_signature_for, true)
+        Curl.__send__(:safety_signature_for, easy)
+      end
+
+      [
+        safety_signature,
+        easy.respond_to?(:network_policy) ? easy.network_policy : nil,
+        easy.respond_to?(:allowed_hosts) ? easy.allowed_hosts : nil,
+        easy.respond_to?(:allowed_cidrs) ? easy.allowed_cidrs : nil
+      ]
+    end
+
+    def __record_native_safety_signature(easy)
+      __curb_native_safety_signatures[easy.object_id] = __curb_safety_signature_for(easy)
     end
 
     def __idle_easy_references
@@ -339,24 +417,45 @@ module Curl
       IDLE_EASY_REFERENCES_USE_WEAK_MAP ? ObjectSpace::WeakMap.new : {}
     end
 
-    private :__idle_easy_references, :__register_idle_easy_reference,
+    private :__idle_easy_references, :__curb_native_safety_signatures,
+            :__curb_safety_signature_for, :__record_native_safety_signature,
+            :__register_idle_easy_reference,
             :__unregister_idle_easy_reference, :__clear_idle_easy_references,
             :__new_idle_easy_references
+
+    alias_method :_curb_native_perform, :perform
+
+    def perform(*args, &block)
+      requests.each_value do |easy|
+        Curl.__send__(:apply_safety!, easy) if Curl.respond_to?(:apply_safety!, true)
+        signature = __curb_safety_signature_for(easy)
+        if __curb_native_safety_signatures[easy.object_id] != signature &&
+           easy.respond_to?(:__curb_native_setup!, true)
+          easy.__send__(:__curb_native_setup!)
+          __curb_native_safety_signatures[easy.object_id] = signature
+        end
+      end
+
+      _curb_native_perform(*args, &block)
+    end
 
     def add(easy)
       return self if requests[easy.object_id]
       # Once a deferred callback exception is pending, Multi#perform is
       # draining existing transfers only and must not start replacement work.
       return self if instance_variable_defined?(:@__curb_deferred_exception)
+      Curl.__send__(:apply_safety!, easy) if Curl.respond_to?(:apply_safety!, true)
       _add(easy)
       __unregister_idle_easy_reference(easy)
       requests[easy.object_id] = easy
+      __record_native_safety_signature(easy)
       self
     end
 
     def remove(easy)
       return self if !requests[easy.object_id]
       requests.delete(easy.object_id)
+      __curb_native_safety_signatures.delete(easy.object_id)
       _remove(easy)
       self
     end

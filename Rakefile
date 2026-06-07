@@ -184,7 +184,11 @@ end
 # RDoc Tasks ---------------------------------------------------------
 desc "Create the RDOC documentation"
 task :doc do
-  ruby "doc.rb #{ENV['DOC_OPTS']}"
+  doc_opts = Shellwords.split(ENV.fetch('DOC_OPTS', ''))
+  unsupported_opts = doc_opts - ['--cpp']
+  fail "Unsupported DOC_OPTS: #{unsupported_opts.join(' ')}" unless unsupported_opts.empty?
+
+  ruby 'doc.rb', *doc_opts
 end
 
 desc "Publish the RDoc documentation to project web site"

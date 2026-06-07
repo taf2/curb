@@ -11,6 +11,18 @@
 
 #include <curl/easy.h>
 
+#define CURB_NETWORK_POLICY_NONE 0
+#define CURB_NETWORK_POLICY_PUBLIC 1
+
+#define CURB_CIDR_FAMILY_IPV4 4
+#define CURB_CIDR_FAMILY_IPV6 6
+
+typedef struct {
+  unsigned char family;
+  unsigned char prefix_bits;
+  unsigned char address[16];
+} curb_cidr_rule;
+
 #ifdef CURL_VERSION_SSL
 #if LIBCURL_VERSION_NUM >= 0x070b00
 #  if LIBCURL_VERSION_NUM <= 0x071004
@@ -38,6 +50,7 @@ typedef struct {
 
   /* Buffer for error details from CURLOPT_ERRORBUFFER */
   char err_buf[CURL_ERROR_SIZE];
+  char unsafe_destination_error[CURL_ERROR_SIZE];
 
   VALUE self; /* owning Ruby object */
   VALUE opts; /* rather then allocate everything we might need to store, allocate a Hash and only store objects we actually use... */
@@ -67,6 +80,7 @@ typedef struct {
   long ftp_filemethod;
   long http_version;
   unsigned short resolve_mode;
+  unsigned short network_policy;
 
   /* bool flags */
   char proxy_tunnel;
@@ -83,14 +97,25 @@ typedef struct {
   char cookielist_engine_enabled; /* track if CURLOPT_COOKIELIST was used with a non-command to enable engine */
   char ignore_content_length;
   char callback_active;
+  char unsafe_destination_blocked;
+  char allow_proxy;
+  char allow_unix_socket;
+  char forbid_reuse_set;
   unsigned int native_active;
+  long forbid_reuse;
 
   struct curl_slist *curl_headers;
   struct curl_slist *curl_proxy_headers;
   struct curl_slist *curl_ftp_commands;
   struct curl_slist *curl_resolve;
+  struct curl_slist *curl_connect_to;
+  curb_cidr_rule *network_allowed_cidr_rules;
+  char **network_allowed_hosts;
 
   unsigned long multi_attachment_generation;
+  curl_off_t downloaded_body_bytes;
+  size_t network_allowed_cidr_rule_count;
+  size_t network_allowed_host_count;
   int last_result; /* last result code from multi loop */
 
 } ruby_curl_easy;

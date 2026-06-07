@@ -106,6 +106,7 @@ extern VALUE eCurlErrSSLShutdownFailed;
 extern VALUE eCurlErrAgain;
 extern VALUE eCurlErrSSLCRLBadfile;
 extern VALUE eCurlErrSSLIssuerError;
+extern VALUE eCurlErrUnsafeDestination;
 
 /* multi errors */
 extern VALUE mCurlErrFailedInit;

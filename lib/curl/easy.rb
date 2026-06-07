@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'curl/download'
 module Curl
   class Easy
     class << self
@@ -83,10 +84,12 @@ module Curl
     
     alias_method :_curb_native_close, :close
     alias_method :_curb_native_multi_set, :multi=
+    alias_method :_curb_native_reset, :reset
     
     def close
       previous_multi = self.multi
       result = _curb_native_close
+      __curb_clear_safety_override!
       previous_multi.__send__(:__unregister_idle_easy_reference, self) if previous_multi
       result
     end
@@ -102,6 +105,12 @@ module Curl
       result = _curb_native_multi_set(multi)
       previous_multi.__send__(:__unregister_idle_easy_reference, self) if previous_multi
       multi.__send__(:__register_idle_easy_reference, self) if multi
+      result
+    end
+
+    def reset
+      result = _curb_native_reset
+      __curb_clear_safety_override!
       result
     end
     
@@ -158,6 +167,84 @@ module Curl
       Curl.const_get("CURLOPT_#{opt.to_s.upcase}")
     end
 
+    def allowed_protocols=(protocols)
+      set_protocol_allowlist('CURLOPT_PROTOCOLS_STR', 'CURLOPT_PROTOCOLS', protocols)
+    end
+
+    def allowed_redirect_protocols=(protocols)
+      set_protocol_allowlist('CURLOPT_REDIR_PROTOCOLS_STR', 'CURLOPT_REDIR_PROTOCOLS', protocols)
+    end
+
+    def safe_http!
+      __curb_set_safety_override!(
+        :protocols => [:http, :https],
+        :redirect_protocols => [:http, :https]
+      )
+    end
+
+    private
+
+    def __curb_set_safety_override!(options)
+      @__curb_safety_override = (defined?(@__curb_safety_override) && @__curb_safety_override) ? @__curb_safety_override.dup : {}
+      @__curb_safety_override[:protocols] = Array(options[:protocols]).map { |protocol| protocol.to_s.downcase.to_sym } if options.key?(:protocols)
+      @__curb_safety_override[:redirect_protocols] = Array(options[:redirect_protocols]).map { |protocol| protocol.to_s.downcase.to_sym } if options.key?(:redirect_protocols)
+      @__curb_safety_override[:max_body_bytes] = options[:max_body_bytes] if options.key?(:max_body_bytes) && options[:max_body_bytes]
+      @__curb_safety_override_generation = __curb_safety_override_generation + 1
+      Curl.__send__(:apply_safety!, self) if Curl.respond_to?(:apply_safety!, true)
+      self
+    end
+
+    def __curb_clear_safety_override!
+      had_override = defined?(@__curb_safety_override) && @__curb_safety_override
+      return unless had_override
+      return if frozen?
+
+      @__curb_safety_override = nil
+      @__curb_safety_override_generation = __curb_safety_override_generation + 1
+    end
+
+    def __curb_safety_override
+      defined?(@__curb_safety_override) ? @__curb_safety_override : nil
+    end
+
+    def __curb_safety_override_generation
+      defined?(@__curb_safety_override_generation) ? @__curb_safety_override_generation : 0
+    end
+
+    def set_protocol_allowlist(string_option, bitmask_option, protocols)
+      protocol_names = Array(protocols).map { |protocol| protocol.to_s.downcase }
+      raise ArgumentError, "at least one protocol is required" if protocol_names.empty?
+
+      valid_names = %w[
+        dict file ftp ftps gopher gophers http https imap imaps ldap ldaps
+        mqtt pop3 pop3s rtmp rtmpe rtmps rtmpt rtmpte rtmpts rtsp scp sftp
+        smb smbs smtp smtps telnet tftp ws wss
+      ]
+
+      if Curl.const_defined?(string_option)
+        protocol_names.each do |name|
+          raise ArgumentError, "unsupported protocol: #{name.inspect}" unless valid_names.include?(name)
+        end
+
+        setopt(Curl.const_get(string_option), protocol_names.join(','))
+      elsif Curl.const_defined?(bitmask_option)
+        protocol_pairs = protocol_names.map do |name|
+          const_name = "CURLPROTO_#{name.upcase}"
+          raise ArgumentError, "unsupported protocol: #{name.inspect}" unless Curl.const_defined?(const_name)
+
+          [name, Curl.const_get(const_name)]
+        end
+
+        setopt(Curl.const_get(bitmask_option), protocol_pairs.inject(0) { |mask, pair| mask | pair.last })
+      else
+        raise NotImplementedError, "protocol allowlists are not supported by this libcurl"
+      end
+
+      protocols
+    end
+
+    public
+
     #
     # call-seq:
     #   easy.perform                                     => true
@@ -167,6 +254,7 @@ module Curl
     # the configured HTTP Verb.
     #
     def perform
+      Curl.__send__(:apply_safety!, self) if Curl.respond_to?(:apply_safety!, true)
       self.class.flush_deferred_multi_closes
 
       if Curl.scheduler_active? && self.multi.nil?
@@ -212,6 +300,10 @@ module Curl
 
       if (callback_error = _take_callback_error)
         raise callback_error
+      end
+
+      if respond_to?(:unsafe_destination_error) && (unsafe_destination_error = self.unsafe_destination_error)
+        raise Curl::Err::UnsafeDestinationError, unsafe_destination_error
       end
 
       if self.last_result != 0 && self.on_failure.nil?
@@ -645,11 +737,15 @@ module Curl
       end
 
       # call-seq:
-      #   Curl::Easy.download(url, filename = url.split(/\?/).first.split(/\//).last) { |curl| ... }
+      #   Curl::Easy.download(url, filename = nil, options = {}) { |curl| ... }
       #
       # Stream the specified url (via perform) and save the data directly to the
-      # supplied filename (defaults to the last component of the URL path, which will
-      # usually be the filename most simple urls).
+      # supplied filename. The destination is written through a temporary file and
+      # existing files are not overwritten unless <tt>:overwrite => true</tt> is
+      # passed. When filename is omitted, the destination is safely derived from the
+      # last URL path component in the current directory. Pass
+      # <tt>:download_dir</tt> to treat the filename as a basename inside a trusted
+      # directory and reject absolute, parent-directory, dotfile, and nested names.
       #
       # If a block is supplied, it will be passed the curl instance prior to the
       # perform call.
@@ -662,16 +758,11 @@ module Curl
       # returns a size that differs from the data chunk size - in this case, the
       # offending chunk will *not* be written to the file, the file will be closed,
       # and a Curl::Err::AbortedByCallbackError will be raised.
-      def download(url, filename = url.split(/\?/).first.split(/\//).last, &blk)
+      def download(url, filename = nil, download_options = {}, &blk)
         curl = Curl::Easy.new(url, &blk)
+        _download_path, output, safe_output = Curl.prepare_download_output(url, filename, download_options)
 
-        output = if filename.is_a? IO
-          filename.binmode if filename.respond_to?(:binmode)
-          filename
-        else
-          File.open(filename, 'wb')
-        end
-
+        performed = false
         begin
           old_on_body = curl.on_body do |data|
             result = old_on_body ?  old_on_body.call(data) : data.length
@@ -679,8 +770,13 @@ module Curl
             result
           end
           curl.perform
+          performed = true
         ensure
-          output.close rescue IOError
+          if safe_output
+            output.close(performed)
+          else
+            output.close rescue IOError
+          end
         end
 
         return curl

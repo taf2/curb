@@ -199,6 +199,63 @@ Curl::Multi.download(urls, options) do |curl, file_path|
 end
 ```
 
+## Security considerations
+
+`curb` is a libcurl binding and intentionally supports protocols beyond HTTP.
+Do not pass untrusted URLs to `Curl.get`, `Curl::Easy.new`, or related raw
+helpers without application-level validation. For user-supplied URLs, enable the
+process-wide safety policy before making requests:
+
+```ruby
+Curl.safe! do |config|
+  config.network_policy = :public       # block local/private destination IPs
+  config.max_body_bytes = 1_000_000     # cap buffered/callback response bytes
+end
+
+curl = Curl.get(user_url)               # allows only http/https, including redirects
+```
+
+To allow a different protocol set, configure it explicitly. Redirects default to
+the same protocol list:
+
+```ruby
+Curl.safe! do |config|
+  config.protocols = [:http, :ftp]
+  config.max_body_bytes = 1_000_000
+end
+```
+
+For local per-handle policy instead of process-wide policy, use
+`easy.safe_http!` and `easy.max_body_bytes = ...` before `perform`.
+
+With `network_policy = :public`, curb checks peer addresses when libcurl opens
+the socket and blocks local/private destinations. Proxies, `resolve`,
+`connect_to`, DoH URL overrides, and Unix socket paths are disabled by default
+under this policy unless explicitly allowed in the safety config. Custom DNS
+server overrides are rejected. To use a trusted explicit proxy without
+re-enabling environment proxies, set `allowed_proxy_hosts` and configure
+`easy.proxy_url` on the request.
+
+For stricter egress, combine the public network policy with host and CIDR
+allowlists. Host allowlists gate the configured request URL and, when supported
+by libcurl, each followed redirect before the request is sent. CIDR allowlists
+are checked against the resolved peer address at socket-open time:
+
+```ruby
+Curl.safe! do |config|
+  config.network_policy = :public
+  config.allowed_hosts = ["api.example.com"]
+  config.allowed_proxy_hosts = ["proxy.example.com"]
+  config.allowed_cidrs = ["93.184.216.0/24", "2606:2800:220::/48"]
+end
+```
+
+By default, responses are buffered into `body` when no `on_body` callback is
+configured. For untrusted or large responses, use `on_body`, `download`, and/or
+`max_body_bytes` so a remote endpoint cannot force unbounded memory growth.
+`max_body_bytes` is enforced for downloads as well as buffered responses and
+custom body callbacks.
+
 ## You will need
 
 * A working Ruby installation (`2.0.0+` will work but `2.1+` preferred) (it's possible it still works with 1.8.7 but you'd have to tell me if not...)

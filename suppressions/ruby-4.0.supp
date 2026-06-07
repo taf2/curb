@@ -1,0 +1,30 @@
+{
+  Ruby 4.0 fiber block scan args false positive in Curl::Easy initialize
+  Memcheck:Addr8
+  ...
+  fun:rb_scan_args_set
+  fun:ruby_curl_easy_initialize
+  ...
+  fun:fiber_entry
+  ...
+}
+{
+  Ruby 4.0 fiber block scan args false positive in Curl::Easy on_complete
+  Memcheck:Addr8
+  ...
+  fun:rb_scan_args_set
+  fun:ruby_curl_easy_on_complete_set
+  ...
+  fun:fiber_entry
+  ...
+}
+{
+  Ruby 4.0 fiber block scan args false positive in Curl::Easy on_complete
+  Memcheck:Addr1
+  ...
+  fun:rb_scan_args_set
+  fun:ruby_curl_easy_on_complete_set
+  ...
+  fun:fiber_entry
+  ...
+}
