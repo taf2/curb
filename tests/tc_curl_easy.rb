@@ -1636,6 +1636,36 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     easy.http_get
   end
 
+  def test_easy_reset_clears_network_policy_allowlists
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.allowed_hosts = ['127.0.0.1']
+    easy.network_policy = :public
+    easy.allowed_cidrs = ['1.1.1.0/24']
+
+    settings = easy.reset
+
+    assert settings.key?(:allowed_hosts)
+    assert settings.key?(:allowed_cidrs)
+    assert_nil easy.allowed_hosts
+    assert_nil easy.allowed_cidrs
+    assert_equal :none, easy.network_policy
+  rescue NotImplementedError
+    omit('network_policy=:public requires CURLOPT_OPENSOCKETFUNCTION support')
+  end
+
+  def test_frozen_easy_close_and_reset_skip_safety_override_cleanup
+    closed_easy = Curl::Easy.new
+    closed_easy.freeze
+
+    assert_nothing_raised { closed_easy.close }
+
+    reset_easy = Curl::Easy.new
+    reset_easy.safe_http!
+    reset_easy.freeze
+
+    assert_nothing_raised { reset_easy.reset }
+  end
+
   def test_last_result_initialization
     # Test for issue #463 - ensure last_result is properly initialized to 0
     easy = Curl::Easy.new

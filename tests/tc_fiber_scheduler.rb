@@ -449,6 +449,47 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     end
   end
 
+  def test_easy_perform_isolates_public_network_policy_block_under_scheduler
+    if skip_no_async
+      return
+    end
+
+    with_ephemeral_http_server do |port, hits|
+      results = {}
+      details = {}
+
+      async_run do |top|
+        blocked = top.async do
+          easy = Curl::Easy.new("http://127.0.0.1:#{port}/fast")
+          easy.network_policy = :public
+          easy.perform
+          results[:blocked] = :returned
+        rescue => e
+          results[:blocked] = e
+          details[:blocked_error] = easy.unsafe_destination_error if defined?(easy) && easy
+        end
+
+        successful = top.async do
+          easy = Curl::Easy.new("http://127.0.0.1:#{port}/slow")
+          easy.perform
+          results[:successful] = easy.response_code
+        rescue => e
+          results[:successful] = e
+        end
+
+        blocked.wait
+        successful.wait
+      end
+
+      assert_equal 200, results[:successful], "scheduler peer without public policy should return normally"
+      assert_kind_of Curl::Err::UnsafeDestinationError, results[:blocked]
+      assert_match(/127\.0\.0\.1/, results[:blocked].message)
+      assert_match(/127\.0\.0\.1/, details[:blocked_error])
+      assert_equal 0, hits[:fast], "blocked public-policy peer should not reach the server"
+      assert_equal 1, hits[:slow]
+    end
+  end
+
   def test_drain_scheduler_pending_does_not_drop_work_rejected_during_deferred_abort
     state = Curl.scheduler_state
     easy = Curl::Easy.new("http://127.0.0.1:#{@port}/test")

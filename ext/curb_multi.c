@@ -74,6 +74,7 @@ extern VALUE mCurl;
 static VALUE idCall;
 static ID id_deferred_exception_ivar;
 static ID id_deferred_exception_source_id_ivar;
+static ID id_native_safety_signatures_ivar;
 static ID id_socket_io_cache_ivar;
 
 #ifdef RDOC_NEVER_DEFINED
@@ -341,6 +342,8 @@ static int rb_curl_multi_has_easy(ruby_curl_multi *rbcm, ruby_curl_easy *rbce) {
 
 static void rb_curl_multi_remove_request_reference(VALUE self, VALUE easy) {
   VALUE requests;
+  VALUE object_id;
+  VALUE safety_signatures;
 
   if (NIL_P(self) || NIL_P(easy)) {
     return;
@@ -351,7 +354,17 @@ static void rb_curl_multi_remove_request_reference(VALUE self, VALUE easy) {
     return;
   }
 
-  rb_hash_delete(requests, rb_obj_id(easy));
+  object_id = rb_obj_id(easy);
+  rb_hash_delete(requests, object_id);
+
+  if (!rb_ivar_defined(self, id_native_safety_signatures_ivar)) {
+    return;
+  }
+
+  safety_signatures = rb_ivar_get(self, id_native_safety_signatures_ivar);
+  if (RB_TYPE_P(safety_signatures, T_HASH)) {
+    rb_hash_delete(safety_signatures, object_id);
+  }
 }
 
 /* TypedData-compatible free function */
@@ -1454,6 +1467,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
     long wait_ms = cCurlMutiDefaulttimeout;
 
     if (multi_socket_timer_due(ctx)) {
+      ctx->timeout_deadline_ms = -1;
       mrc = curl_multi_socket_action(rbcm->handle, CURL_SOCKET_TIMEOUT, 0, &rbcm->running);
       curb_debugf("[curb.socket] socket_action timeout(due) -> mrc=%d running=%d", mrc, rbcm->running);
       if (mrc != CURLM_OK) raise_curl_multi_error_exception(mrc);
@@ -1715,10 +1729,14 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 #else
       rb_thread_wait_for(tv);
 #endif
-      did_timeout = multi_socket_timer_due(ctx);
+      /* libcurl can report active work without a socket callback or deadline;
+       * drive the timeout socket after the scheduler-aware sleep so the state
+       * machine does not stall indefinitely. */
+      did_timeout = 1;
     }
 
     if (did_timeout) {
+      ctx->timeout_deadline_ms = -1;
       mrc = curl_multi_socket_action(rbcm->handle, CURL_SOCKET_TIMEOUT, 0, &rbcm->running);
       curb_debugf("[curb.socket] socket_action timeout -> mrc=%d running=%d", mrc, rbcm->running);
       if (mrc != CURLM_OK) raise_curl_multi_error_exception(mrc);
@@ -2217,6 +2235,7 @@ void init_curb_multi() {
   idCall = rb_intern("call");
   id_deferred_exception_ivar = rb_intern("@__curb_deferred_exception");
   id_deferred_exception_source_id_ivar = rb_intern("@__curb_deferred_exception_source_id");
+  id_native_safety_signatures_ivar = rb_intern("@__curb_native_safety_signatures");
   id_socket_io_cache_ivar = rb_intern("@__curb_socket_io_cache");
   cCurlMulti = rb_define_class_under(mCurl, "Multi", rb_cObject);
 

@@ -1,5 +1,7 @@
 # ChangeLog
 ## 1.3.6
+* Add safe request mode for fetching untrusted HTTP(S) URLs: `Curl.safe!`, `Curl.safe_get`, and `Curl::Easy#safe_http!`.
+* Add `CURLOPT_CONNECT_TO`, `Curl::Easy#connect_to`, `CURLOPT_DOH_URL`, `Curl::Easy#doh_url`, and DoH SSL verification options.
 * Restore Ruby 2.6 CI coverage and fix `Curl::Easy#perform` on Ruby 2.6 by avoiding finalizer-backed `ObjectSpace::WeakMap` entries for idle `Curl::Easy` references, including frozen easy handles.
 * Extend Ruby 4.0.x valgrind test handling to Ruby 4.0.5 by filtering Ruby VM Fiber/block-handler noise while preserving reports for errors originating in `curb_core`.
 * Harden `Curl::Easy`/`Curl::Multi` cleanup against re-entrant close during coercion and stale multi attachments.
