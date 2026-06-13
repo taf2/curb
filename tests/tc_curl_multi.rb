@@ -1101,6 +1101,41 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  def test_multi_download_preserves_body_limit_callback_error
+    with_raw_http_response("HTTP/1.1 200 OK\r\nContent-Length: 64\r\n\r\n#{'x' * 64}") do |url|
+      Dir.mktmpdir('curb-download-') do |download_dir|
+        download_path = File.join(download_dir, 'too-large')
+
+        error = assert_raise(Curl::Err::FileSizeExceededError) do
+          Curl::Multi.download([url], { :max_body_bytes => 10 }, {}, [download_path])
+        end
+
+        assert_match(/Maximum body size exceeded/, error.message)
+        assert !File.exist?(download_path)
+      end
+    end
+  end
+
+  def test_multi_download_preserves_output_write_callback_error
+    writer_error = Class.new(StandardError)
+
+    with_raw_http_response("HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndata") do |url|
+      Dir.mktmpdir('curb-download-') do |download_dir|
+        writer = File.open(File.join(download_dir, 'writer'), 'wb')
+        writer.define_singleton_method(:write) do |_data|
+          raise writer_error, 'writer failed'
+        end
+
+        error = assert_raise(writer_error) do
+          Curl::Multi.download([url], {}, {}, [writer])
+        end
+
+        assert_equal 'writer failed', error.message
+        assert writer.closed?
+      end
+    end
+  end
+
   def test_multi_download_safe_directory_rejects_unsafe_names
     root_uri = 'http://127.0.0.1:9129/ext/'
 
@@ -1478,6 +1513,28 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     server.shutdown if defined?(server) && server
     server_thread.join(server_startup_timeout) if defined?(server_thread) && server_thread
     server_thread.kill if defined?(server_thread) && server_thread&.alive?
+  end
+
+  def with_raw_http_response(response)
+    server = TCPServer.new('127.0.0.1', 0)
+    port = server.addr[1]
+    thread = Thread.new do
+      socket = server.accept
+      begin
+        socket.readpartial(4096)
+      rescue EOFError
+      end
+      socket.write(response)
+      socket.close
+    end
+
+    yield "http://127.0.0.1:#{port}/"
+  ensure
+    server.close if defined?(server) && server && !server.closed?
+    if defined?(thread) && thread
+      thread.join(5)
+      thread.kill if thread.alive?
+    end
   end
 
   include TestServerMethods

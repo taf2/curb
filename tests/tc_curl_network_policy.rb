@@ -371,6 +371,32 @@ class TestCurbCurlNetworkPolicy < Test::Unit::TestCase
     end
   end
 
+  def test_public_network_policy_blocks_nat64_well_known_embedded_unsafe_ipv4_peers
+    require_public_network_policy!
+    omit('IPv6 sockets are not available on this platform') unless Socket.const_defined?(:AF_INET6)
+
+    unsafe_addresses = {
+      'nat64_well_known_loopback' => '64:ff9b::7f00:1',
+      'nat64_well_known_private' => '64:ff9b::a00:1'
+    }
+
+    unsafe_addresses.each do |label, address|
+      error = assert_resolved_destination_blocked(address, label)
+
+      assert_match(/#{Regexp.escape(address)}/, error.message)
+    end
+  end
+
+  def test_public_network_policy_blocks_nat64_local_use_translation_prefix
+    require_public_network_policy!
+    omit('IPv6 sockets are not available on this platform') unless Socket.const_defined?(:AF_INET6)
+
+    address = '64:ff9b:1::203:4'
+    error = assert_resolved_destination_blocked(address, 'nat64_local_use')
+
+    assert_match(/#{Regexp.escape(address)}/, error.message)
+  end
+
   def test_public_network_policy_uses_canonical_ipv6_diagnostics
     require_public_network_policy!
     omit('IPv6 sockets are not available on this platform') unless Socket.const_defined?(:AF_INET6)

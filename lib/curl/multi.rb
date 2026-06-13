@@ -302,6 +302,7 @@ module Curl
         end
 
       ensure
+        pending_exception = $!
         files.each {|f|
           begin
             if f.is_a?(Curl::SafeDownloadOutput)
@@ -313,7 +314,7 @@ module Curl
             errors << e
           end
         }
-        if errors.any?
+        if errors.any? && !pending_exception
           de = Curl::Multi::DownloadError.new
           de.errors = errors
           raise de

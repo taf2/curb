@@ -134,12 +134,30 @@ static int curb_ipv6_is_ipv4_compatible(const unsigned char *ip) {
   return curb_ipv6_prefix_matches(ip, prefix, 96);
 }
 
+static int curb_ipv6_is_nat64_well_known(const unsigned char *ip) {
+  static const unsigned char prefix[12] = {
+    0x00, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0
+  };
+
+  return curb_ipv6_prefix_matches(ip, prefix, 96);
+}
+
+static int curb_ipv6_is_nat64_local_use(const unsigned char *ip) {
+  static const unsigned char prefix[6] = {
+    0x00, 0x64, 0xff, 0x9b, 0x00, 0x01
+  };
+
+  return curb_ipv6_prefix_matches(ip, prefix, 48);
+}
+
 static int curb_ipv6_is_unsafe_destination(const unsigned char *ip) {
   static const unsigned char documentation_prefix[4] = { 0x20, 0x01, 0x0d, 0xb8 };
   static const unsigned char benchmarking_prefix[6] = { 0x20, 0x01, 0x00, 0x02, 0, 0 };
 
   if (curb_ipv6_is_all_zero(ip)) return 1;                 /* ::/128 */
   if (curb_ipv6_is_ipv4_mapped(ip)) return curb_ipv4_is_unsafe_destination(ip + 12);
+  if (curb_ipv6_is_nat64_well_known(ip)) return curb_ipv4_is_unsafe_destination(ip + 12);
+  if (curb_ipv6_is_nat64_local_use(ip)) return 1;
   if (curb_ipv6_is_ipv4_compatible(ip)) return 1;          /* deprecated non-public space */
   if (ip[0] == 0 && ip[1] == 0 && ip[14] == 0 && ip[15] == 1) return 1;
   if ((ip[0] & 0xfe) == 0xfc) return 1;                    /* fc00::/7 */
