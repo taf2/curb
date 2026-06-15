@@ -22,6 +22,7 @@ class TestCurbCurlEasyResolve < Test::Unit::TestCase
     mapping = "#{host}:#{TestServlet.port}:127.0.0.1"
 
     @easy.url = "http://#{host}:#{TestServlet.port}#{TestServlet.path}"
+    @easy.proxy_url = ""
     @easy.dns_cache_timeout = 0
     @easy.set(:resolve, [mapping])
 
@@ -39,6 +40,7 @@ class TestCurbCurlEasyResolve < Test::Unit::TestCase
     entry.define_singleton_method(:to_s) { mapping }
 
     @easy.url = "http://#{host}:#{TestServlet.port}#{TestServlet.path}"
+    @easy.proxy_url = ""
     @easy.dns_cache_timeout = 0
     @easy.resolve = [entry]
 

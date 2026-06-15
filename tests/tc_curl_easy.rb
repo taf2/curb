@@ -46,6 +46,7 @@ class TestCurbCurlEasy < Test::Unit::TestCase
 
     http = Curl::Easy.new(url)
     http.dns_cache_timeout = 0
+    http.proxy_url = ""
     http.resolve = [mapping]
     http.get
     assert_match(/GET/, http.body)
