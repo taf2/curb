@@ -1901,6 +1901,16 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     end
   end
 
+  def test_poison
+    res_a = Curl.get("#{TestServlet.url}?a_body")
+    first_a_body = Digest::MD5.hexdigest(res_a.body)
+    res_b = Curl.get("#{TestServlet.url}?b_body")
+
+    b_body = Digest::MD5.hexdigest(res_b.body)
+    a_body = Digest::MD5.hexdigest(res_a.body)
+    assert_not_equal a_body, b_body, "we expected #{a_body} to be #{first_a_body}"
+  end
+
   include TestServerMethods 
 
   def setup
