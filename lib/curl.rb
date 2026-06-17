@@ -602,23 +602,11 @@ module Curl
   end
 
   def self.http(verb, url, post_body=nil, put_data=nil, &block)
-    if Thread.current[:curb_curl_yielding]
-      handle = Curl::Easy.new # we can't reuse this
-    else
-      handle = Thread.current[:curb_curl] ||= Curl::Easy.new
-      handle.reset
-    end
+    handle = Curl::Easy.new
     handle.url = url
     handle.post_body = post_body if post_body
     handle.put_data = put_data if put_data
-    if block_given?
-      begin
-        Thread.current[:curb_curl_yielding] = true
-        yield handle
-      ensure
-        Thread.current[:curb_curl_yielding] = false
-      end
-    end
+    yield handle if block_given?
     handle.http(verb)
     handle
   end
