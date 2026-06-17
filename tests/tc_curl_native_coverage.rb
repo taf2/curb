@@ -70,6 +70,7 @@ class TestCurbCurlNativeCoverage < Test::Unit::TestCase
 
   def test_clone_preserves_native_lists_after_original_handle_closes
     easy = Curl::Easy.new("http://curb.invalid:#{TestServlet.port}#{TestServlet.path}")
+    easy.proxy_url = ""
     easy.headers['X-Test'] = '1'
     easy.proxy_headers['X-Proxy'] = '2'
     easy.ftp_commands = ['PWD']
