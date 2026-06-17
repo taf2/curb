@@ -1,5 +1,6 @@
 # ChangeLog
 ## 1.3.6
+* Removing long standing potential for mis-use with the Thread.current caching of easy handles (potentially a breaking change for some but more likely a fix)
 * Add safe request mode for fetching untrusted HTTP(S) URLs: `Curl.safe!`, `Curl.safe_get`, and `Curl::Easy#safe_http!`.
 * Add `CURLOPT_CONNECT_TO`, `Curl::Easy#connect_to`, `CURLOPT_DOH_URL`, `Curl::Easy#doh_url`, and DoH SSL verification options.
 * Restore Ruby 2.6 CI coverage and fix `Curl::Easy#perform` on Ruby 2.6 by avoiding finalizer-backed `ObjectSpace::WeakMap` entries for idle `Curl::Easy` references, including frozen easy handles.
