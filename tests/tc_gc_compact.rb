@@ -96,6 +96,52 @@ class TestGcCompact < Test::Unit::TestCase
     end
   end
 
+  # Regression: after compaction relocates a persistent Curl::Easy and its old
+  # heap slot is recycled by another T_DATA object, completion dispatch (which
+  # reads the rbce->self back-reference via CURLINFO_PRIVATE) must still
+  # resolve to the correct Curl::Easy. Without pinning in curl_easy_mark this
+  # raises "TypeError: wrong argument type Curl::Upload (expected Curl::Easy)"
+  # on the first round, or defers it onto the multi and raises it from a later
+  # request.
+  def test_completion_dispatch_survives_compact_and_slot_reuse
+    omit('needs GC.verify_compaction_references') unless GC.respond_to?(:verify_compaction_references)
+
+    # Heap-only reference: holding the easy in a local would pin it to the
+    # stack and mask the bug.
+    holder = { easy: Curl::Easy.new($TEST_URL) }
+    holder[:easy].timeout = 5
+    completed = nil
+    holder[:easy].on_complete { |e| completed = e }
+    holder[:easy].http(:GET)
+    assert_same holder[:easy], completed
+    expected_body = holder[:easy].body_str
+    refute_empty expected_body
+
+    3.times do
+      # Relocate every movable object, then recycle freed slots with other
+      # T_DATA instances so a stale back-reference cannot fail soft.
+      GC.verify_compaction_references(toward: :empty, expand_heap: true)
+      churn = Array.new(50_000) { Curl::Upload.new }
+
+      completed = nil
+      holder[:easy].http(:GET)
+
+      multi = holder[:easy].multi
+      if multi&.instance_variable_defined?(:@__curb_deferred_exception)
+        raise multi.instance_variable_get(:@__curb_deferred_exception)
+      end
+      assert_same holder[:easy], completed
+      assert_equal expected_body, holder[:easy].body_str
+      churn.clear
+    end
+  ensure
+    begin
+      holder[:easy]&.close
+    rescue StandardError
+      nil
+    end
+  end
+
   private
 
   def run_multi_perform_compact_iteration
