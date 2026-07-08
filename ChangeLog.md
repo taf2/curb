@@ -1,5 +1,6 @@
 # ChangeLog
 ## 1.3.7
+* Pin `Curl::Easy` wrappers during GC compaction so libcurl completion dispatch cannot follow a stale Ruby object reference (#482).
 * Fix FTP option configuration (#481): add `Curl::Easy#ftp_create_missing_dirs` and its setter, export the available `CURLFTP_CREATE_DIR_*` mode constants, and route detected scalar/string FTP options through `Curl::Easy#set`.
 * Make `Curl::Multi#perform` and scheduler-driven `Curl::Easy#perform` nonblocking under Fiber schedulers while preserving cancellation and final-yield behavior, including schedulers without `io_select`.
 

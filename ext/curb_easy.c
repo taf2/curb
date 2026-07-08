@@ -1187,6 +1187,7 @@ static int proc_debug_handler(CURL *curl,
 static void curl_easy_mark(void *ptr) {
   ruby_curl_easy *rbce = (ruby_curl_easy *)ptr;
   if (rbce) {
+    if (!NIL_P(rbce->self)) { rb_gc_mark(rbce->self); }
     if (!NIL_P(rbce->opts)) { rb_gc_mark(rbce->opts); }
     if (!NIL_P(rbce->multi)) { rb_gc_mark(rbce->multi); }
     if (!NIL_P(rbce->callback_error)) { rb_gc_mark(rbce->callback_error); }
