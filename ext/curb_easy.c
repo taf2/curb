@@ -5581,6 +5581,17 @@ static VALUE ruby_curl_easy_last_error(VALUE self) {
  * @note Some options - like url or cookie - aren't set directly throught +curl_easy_setopt+, but stored in the Ruby object state.
  * @note When +curl_easy_setopt+ is called, return value is not checked here.
  */
+static long ruby_curl_easy_option_to_long(VALUE value) {
+  if (value == Qtrue) {
+    return 1L;
+  }
+  if (value == Qfalse) {
+    return 0L;
+  }
+
+  return NUM2LONG(rb_funcall(value, rb_intern("to_i"), 0));
+}
+
 static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   ruby_curl_easy *rbce;
   long option = NUM2LONG(opt);
@@ -5696,59 +5707,76 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   /* FTP-specific toggles */
 #ifdef HAVE_CURLOPT_DIRLISTONLY
   case CURLOPT_DIRLISTONLY: {
-    int type = rb_type(val);
-    VALUE value;
-    if (type == T_TRUE) {
-      value = rb_int_new(1);
-    } else if (type == T_FALSE) {
-      value = rb_int_new(0);
-    } else {
-      value = rb_funcall(val, rb_intern("to_i"), 0);
-    }
-    curl_easy_setopt(rbce->curl, CURLOPT_DIRLISTONLY, NUM2LONG(value));
+    curl_easy_setopt(rbce->curl, CURLOPT_DIRLISTONLY, ruby_curl_easy_option_to_long(val));
     } break;
+#endif
+#ifdef HAVE_CURLOPT_FTPPORT
+  case CURLOPT_FTPPORT:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTPPORT, NIL_P(val) ? NULL : StringValueCStr(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_APPEND
+  case CURLOPT_APPEND:
+    curl_easy_setopt(rbce->curl, CURLOPT_APPEND, ruby_curl_easy_option_to_long(val));
+    break;
 #endif
 #ifdef HAVE_CURLOPT_FTP_USE_EPSV
-  case CURLOPT_FTP_USE_EPSV: {
-    int type = rb_type(val);
-    VALUE value;
-    if (type == T_TRUE) {
-      value = rb_int_new(1);
-    } else if (type == T_FALSE) {
-      value = rb_int_new(0);
-    } else {
-      value = rb_funcall(val, rb_intern("to_i"), 0);
-    }
-    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPSV, NUM2LONG(value));
-    } break;
+  case CURLOPT_FTP_USE_EPSV:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPSV, ruby_curl_easy_option_to_long(val));
+    break;
 #endif
 #ifdef HAVE_CURLOPT_FTP_USE_EPRT
-  case CURLOPT_FTP_USE_EPRT: {
-    int type = rb_type(val);
-    VALUE value;
-    if (type == T_TRUE) {
-      value = rb_int_new(1);
-    } else if (type == T_FALSE) {
-      value = rb_int_new(0);
-    } else {
-      value = rb_funcall(val, rb_intern("to_i"), 0);
-    }
-    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPRT, NUM2LONG(value));
-    } break;
+  case CURLOPT_FTP_USE_EPRT:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_EPRT, ruby_curl_easy_option_to_long(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_USE_PRET
+  case CURLOPT_FTP_USE_PRET:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_USE_PRET, ruby_curl_easy_option_to_long(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_CREATE_MISSING_DIRS
+  case CURLOPT_FTP_CREATE_MISSING_DIRS:
+    rb_easy_set("ftp_create_missing_dirs", val);
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_CREATE_MISSING_DIRS, ruby_curl_easy_option_to_long(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_RESPONSE_TIMEOUT
+  case CURLOPT_FTP_RESPONSE_TIMEOUT:
+    rbce->ftp_response_timeout = ruby_curl_easy_option_to_long(val);
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_RESPONSE_TIMEOUT, rbce->ftp_response_timeout);
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_ALTERNATIVE_TO_USER
+  case CURLOPT_FTP_ALTERNATIVE_TO_USER:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_ALTERNATIVE_TO_USER, NIL_P(val) ? NULL : StringValueCStr(val));
+    break;
 #endif
 #ifdef HAVE_CURLOPT_FTP_SKIP_PASV_IP
-  case CURLOPT_FTP_SKIP_PASV_IP: {
-    int type = rb_type(val);
-    VALUE value;
-    if (type == T_TRUE) {
-      value = rb_int_new(1);
-    } else if (type == T_FALSE) {
-      value = rb_int_new(0);
-    } else {
-      value = rb_funcall(val, rb_intern("to_i"), 0);
-    }
-    curl_easy_setopt(rbce->curl, CURLOPT_FTP_SKIP_PASV_IP, NUM2LONG(value));
-    } break;
+  case CURLOPT_FTP_SKIP_PASV_IP:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_SKIP_PASV_IP, ruby_curl_easy_option_to_long(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTPSSLAUTH
+  case CURLOPT_FTPSSLAUTH:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTPSSLAUTH, ruby_curl_easy_option_to_long(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_SSL_CCC
+  case CURLOPT_FTP_SSL_CCC:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_SSL_CCC, ruby_curl_easy_option_to_long(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_ACCOUNT
+  case CURLOPT_FTP_ACCOUNT:
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_ACCOUNT, NIL_P(val) ? NULL : StringValueCStr(val));
+    break;
+#endif
+#ifdef HAVE_CURLOPT_FTP_FILEMETHOD
+  case CURLOPT_FTP_FILEMETHOD:
+    rbce->ftp_filemethod = ruby_curl_easy_option_to_long(val);
+    curl_easy_setopt(rbce->curl, CURLOPT_FTP_FILEMETHOD, rbce->ftp_filemethod);
+    break;
 #endif
   case CURLOPT_RANGE: {
     curl_easy_setopt(rbce->curl, CURLOPT_RANGE, StringValueCStr(val));
@@ -5954,6 +5982,34 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 
   return val;
 }
+
+#ifdef HAVE_CURLOPT_FTP_CREATE_MISSING_DIRS
+/*
+ * call-seq:
+ *   easy.ftp_create_missing_dirs = boolean_or_mode  => boolean_or_mode
+ *
+ * Configure whether libcurl creates missing directories for an FTP or SFTP
+ * transfer. In addition to true and false, this accepts the
+ * Curl::CURLFTP_CREATE_DIR_* mode constants when provided by libcurl.
+ */
+static VALUE ruby_curl_easy_ftp_create_missing_dirs_set(VALUE self, VALUE value) {
+  return ruby_curl_easy_set_opt(
+    self,
+    LONG2NUM(CURLOPT_FTP_CREATE_MISSING_DIRS),
+    value
+  );
+}
+
+/*
+ * call-seq:
+ *   easy.ftp_create_missing_dirs  => boolean, number, or nil
+ *
+ * Return the configured missing-directory creation mode.
+ */
+static VALUE ruby_curl_easy_ftp_create_missing_dirs_get(VALUE self) {
+  CURB_OBJECT_HGETTER(ruby_curl_easy, ftp_create_missing_dirs);
+}
+#endif
 
 /*
  * call-seq:
@@ -6162,6 +6218,10 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "dns_cache_timeout", ruby_curl_easy_dns_cache_timeout_get, 0);
   rb_define_method(cCurlEasy, "ftp_response_timeout=", ruby_curl_easy_ftp_response_timeout_set, 1);
   rb_define_method(cCurlEasy, "ftp_response_timeout", ruby_curl_easy_ftp_response_timeout_get, 0);
+#ifdef HAVE_CURLOPT_FTP_CREATE_MISSING_DIRS
+  rb_define_method(cCurlEasy, "ftp_create_missing_dirs=", ruby_curl_easy_ftp_create_missing_dirs_set, 1);
+  rb_define_method(cCurlEasy, "ftp_create_missing_dirs", ruby_curl_easy_ftp_create_missing_dirs_get, 0);
+#endif
   rb_define_method(cCurlEasy, "low_speed_limit=", ruby_curl_easy_low_speed_limit_set, 1);
   rb_define_method(cCurlEasy, "low_speed_limit", ruby_curl_easy_low_speed_limit_get, 0);
   rb_define_method(cCurlEasy, "low_speed_time=", ruby_curl_easy_low_speed_time_set, 1);
