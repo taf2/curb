@@ -272,11 +272,13 @@ tested and reported to work across a variety of platforms / rubies)
 
 The upper bounds for recent releases reflect the compatibility work documented
 in the changelog, including the libcurl 8.16.0 regression workaround in 1.2.2
-and the libcurl 8.20.0 scheduler fixes in 1.3.5.
+and the libcurl 8.20.0 scheduler fixes in 1.3.5. The 1.3.7 upper bound also
+includes expected compatibility with libcurl 8.21.0; this version is not yet
+an explicit CI target.
 
 | Gem Version | Release Date   | libcurl versions  |
 | ----------- | -------------- | ----------------- |
-| 1.3.7       | Jul 10, 2026   | 7.58 – 8.20.0     |
+| 1.3.7       | Jul 10, 2026   | 7.58 – 8.21.0     |
 | 1.3.6       | Jun 17, 2026   | 7.58 – 8.20.0     |
 | 1.3.5       | May 14, 2026   | 7.58 – 8.20.0     |
 | 1.3.4       | May 12, 2026   | 7.58 – 8.16.0     |
