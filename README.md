@@ -270,8 +270,25 @@ A **non-exhaustive** set of compatibility versions of the libcurl library
 with this gem are as follows. (Note that these are only the ones that have been
 tested and reported to work across a variety of platforms / rubies)
 
+The upper bounds for recent releases reflect the compatibility work documented
+in the changelog, including the libcurl 8.16.0 regression workaround in 1.2.2
+and the libcurl 8.20.0 scheduler fixes in 1.3.5.
+
 | Gem Version | Release Date   | libcurl versions  |
 | ----------- | -------------- | ----------------- |
+| 1.3.7       | Jul 10, 2026   | 7.58 – 8.20.0     |
+| 1.3.6       | Jun 17, 2026   | 7.58 – 8.20.0     |
+| 1.3.5       | May 14, 2026   | 7.58 – 8.20.0     |
+| 1.3.4       | May 12, 2026   | 7.58 – 8.16.0     |
+| 1.3.3       | May 11, 2026   | 7.58 – 8.16.0     |
+| 1.3.2       | Apr 23, 2026   | 7.58 – 8.16.0     |
+| 1.3.1       | Apr 05, 2026   | 7.58 – 8.16.0     |
+| 1.3.0       | Apr 02, 2026   | 7.58 – 8.16.0     |
+| 1.2.2       | Sep 18, 2025   | 7.58 – 8.16.0     |
+| 1.2.1       | Sep 17, 2025   | 7.58 – 8.12.1     |
+| 1.2.0       | Aug 31, 2025   | 7.58 – 8.12.1     |
+| 1.1.0       | Jul 24, 2025   | 7.58 – 8.12.1     |
+| 1.0.9       | Feb 15, 2025   | 7.58 – 8.12.1     |
 | 1.0.8       | Feb 10, 2025   | 7.58 – 8.12.1     |
 | 1.0.7       | Feb 09, 2025   | 7.58 – 8.12.1     |
 | 1.0.6       | Aug 23, 2024   | 7.58 – 8.12.1     |
