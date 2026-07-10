@@ -1,10 +1,9 @@
 # Curb - Libcurl bindings for Ruby
 
-[![CI](https://github.com/taf2/curb/actions/workflows/ci.yml/badge.svg)](https://github.com/taf2/curb/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/taf2/curb/branch/master/graph/badge.svg)](https://codecov.io/gh/taf2/curb)
+[![CI](https://github.com/taf2/curb/actions/workflows/CI.yml/badge.svg)](https://github.com/taf2/curb/actions/workflows/CI.yml)
 [![Gem Version](https://badge.fury.io/rb/curb.svg)](https://badge.fury.io/rb/curb)
 
-* [CI Build Status](https://github.com/taf2/curb/actions/workflows/ci.yml)
+* [CI Build Status](https://github.com/taf2/curb/actions/workflows/CI.yml)
 * [rubydoc rdoc](http://www.rubydoc.info/github/taf2/curb/)
 * [github project](http://github.com/taf2/curb/tree/master)
 
