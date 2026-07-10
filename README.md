@@ -22,8 +22,8 @@ Ruby license. See the LICENSE file for the gory details.
 
 ## Easy mode
 
-GET request
-```
+### GET request
+```ruby
   res = Curl.get("https://www.google.com/") {|http|
     http.timeout = 10 # raise exception if request/response not handled within 10 seconds
   }
@@ -32,8 +32,8 @@ GET request
   puts res.body
 ```
 
-POST request
-```
+### POST request
+```ruby
   res = Curl.post("https://your-server.com/endpoint", {post: "this"}.to_json) {|http|
     http.headers["Content-Type"] = "application/json"
   }
@@ -44,7 +44,9 @@ POST request
 
 ## FTP Support
 
+```ruby
 require 'curb'
+```
 
 ### Basic FTP Download
 ```ruby
@@ -138,7 +140,7 @@ puts list.body
 ```
 
 ### Advanced FTP Usage with Various Options
-```
+```ruby
 puts "\n=== Advanced FTP Example ==="
 advanced = Curl::Easy.new do |curl|
   curl.url = 'ftp://ftp.example.com/remote/file.txt'
@@ -174,7 +176,7 @@ advanced.perform
 ```
 
 ### Parallel FTP Downloads
-```
+```ruby
 puts "\n=== Parallel FTP Downloads Example ==="
 urls = [
   'ftp://ftp.example.com/file1.txt',
@@ -184,7 +186,7 @@ urls = [
 ```
 
 ### Common options for all connections
-```
+```ruby
 options = {
   :username => 'user',
   :password => 'password',
@@ -259,7 +261,7 @@ custom body callbacks.
 
 * A working Ruby installation (`2.0.0+` will work but `2.1+` preferred) (it's possible it still works with 1.8.7 but you'd have to tell me if not...)
 * A working libcurl development installation
-(Ideally one of the versions listed in the compatibility chart below that maps to your `curb` version)
+  (Ideally one of the versions listed in the compatibility chart below that maps to your `curb` version)
 * A sane build environment (e.g. gcc, make)
 
 ## Version Compatibility chart
@@ -286,7 +288,7 @@ tested and reported to work across a variety of platforms / rubies)
 | 0.9.4       | Aug 2017       | 7.41 – 7.58       |
 | 0.9.3       | Apr 2016       | 7.26 – 7.58       |
 
-  ```*avoid using these version are known to have issues with segmentation faults```
+*Avoid using these versions; they are known to have issues with segmentation faults.*
 
 ## Installation...
 
@@ -456,6 +458,7 @@ c = Curl::Easy.http_post("http://my.rails.box/thing/create",
 c = Curl::Easy.new("http://my.rails.box/files/upload")
 c.multipart_form_post = true
 c.http_post(Curl::PostField.file('thing[file]', 'myfile.rb'))
+```
 
 ### Custom request target
 
@@ -469,7 +472,6 @@ c.perform
 ```
 
 For HTTPS, prefer `easy.resolve = ["host:443:IP"]` to keep Host/SNI/certificates aligned.
-```
 
 ### Using HTTP/2
 
