@@ -107,4 +107,19 @@ class TestServerMethodsLockHandling < Test::Unit::TestCase
     assert_equal false, File.exist?(locked_file)
     assert_equal false, server_responding?(@__port)
   end
+
+  def test_server_setup_reuses_the_process_server
+    server_setup(@__port)
+    first_server = @server
+
+    other = Object.new
+    other.extend(TestServerMethods)
+    lock_path = locked_file
+    other.define_singleton_method(:locked_file) { lock_path }
+    other.server_setup(@__port)
+
+    assert_same first_server, other.instance_variable_get(:@server)
+  ensure
+    other.stop_test_server if defined?(other) && other
+  end
 end

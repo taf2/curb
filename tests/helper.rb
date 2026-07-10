@@ -238,6 +238,85 @@ module BugTestServerSetupTeardown
   end
 end
 
+# Test::Unit creates a new test instance for every test method. Keep the
+# common WEBrick fixture process-scoped so those instances can share it while
+# still allowing an explicit stop_test_server call to exercise lifecycle code.
+module CurbTestServerRegistry
+  Entry = Struct.new(:key, :port, :server, :thread, :lock_file, :pid)
+
+  @mutex = Mutex.new
+  @entries = {}
+
+  class << self
+    def acquire(port, servlet)
+      key = [port, servlet]
+
+      @mutex.synchronize do
+        entry = @entries[key]
+        return entry if active?(entry)
+
+        @entries.delete(key)
+        entry = yield
+        @entries[key] = entry if entry
+        entry
+      end
+    end
+
+    def stop(entry, timeout)
+      return false unless remove(entry)
+
+      shutdown_entry(entry, timeout)
+      true
+    end
+
+    def register_shutdown_hook(entry)
+      # Test::Unit can run a directly executed test file from its own at_exit
+      # callback. Register after startup so this hook runs after that callback.
+      at_exit { stop(entry, 5) }
+    end
+
+    private
+
+    def active?(entry)
+      entry && entry.server && entry.thread && entry.thread.alive? && entry.server.status == :Running
+    rescue StandardError
+      false
+    end
+
+    def remove(entry)
+      @mutex.synchronize do
+        return false unless @entries[entry.key].equal?(entry)
+
+        @entries.delete(entry.key)
+        true
+      end
+    end
+
+    def shutdown_entry(entry, timeout)
+      return unless Process.pid == entry.pid
+
+      begin
+        entry.server.shutdown if entry.server
+      rescue StandardError
+        nil
+      end
+
+      thread = entry.thread
+      if thread
+        thread.join(timeout)
+        if thread.alive?
+          thread.kill
+          thread.join(timeout)
+        end
+      end
+
+      File.unlink(entry.lock_file) if entry.lock_file && File.exist?(entry.lock_file)
+    rescue Errno::ENOENT
+      nil
+    end
+  end
+end
+
 module TestServerMethods
   def server_responding?(port)
     socket = TCPSocket.new('127.0.0.1', port)
@@ -260,6 +339,22 @@ module TestServerMethods
       end
 
       return true if server_responding?(port)
+
+      raise "Failed to startup test server on port #{port}" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+      sleep 0.01
+    end
+  end
+
+  # Waiting on WEBrick's state avoids opening a probe connection for every
+  # startup. On Windows those short-lived connections make server teardown
+  # disproportionately expensive.
+  def wait_for_server_started(server, port, thread: nil)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + server_startup_timeout
+
+    loop do
+      return true if server.status == :Running
+      return false if thread && !thread.alive?
 
       raise "Failed to startup test server on port #{port}" if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
 
@@ -337,6 +432,13 @@ module TestServerMethods
   end
 
   def stop_test_server
+    shared_entry = instance_variable_defined?(:@__shared_test_server_entry) ? @__shared_test_server_entry : nil
+    if shared_entry
+      CurbTestServerRegistry.stop(shared_entry, server_shutdown_timeout)
+      release_shared_test_server
+      return
+    end
+
     server = instance_variable_defined?(:@server) ? @server : nil
     pid = instance_variable_defined?(:@__pid) ? @__pid : nil
     return unless server || pid
@@ -382,11 +484,28 @@ module TestServerMethods
   def teardown
     super
   ensure
-    stop_test_server
+    if instance_variable_defined?(:@__shared_test_server_entry) && @__shared_test_server_entry
+      release_shared_test_server
+    else
+      stop_test_server
+    end
   end
 
   def server_setup(port=9129,servlet=TestServlet)
     @__port = port
+
+    unless TEST_SINGLE_THREADED
+      entry = CurbTestServerRegistry.acquire(port, servlet) do
+        start_shared_test_server(port, servlet)
+      end
+
+      if entry
+        attach_shared_test_server(entry)
+      end
+
+      return
+    end
+
     @server = nil unless instance_variable_defined?(:@server)
     @__pid = nil unless instance_variable_defined?(:@__pid)
     @test_thread = nil unless instance_variable_defined?(:@test_thread)
@@ -473,6 +592,64 @@ module TestServerMethods
 
     end
   rescue Errno::EADDRINUSE
+  end
+
+  def attach_shared_test_server(entry)
+    @server = entry.server
+    @test_thread = entry.thread
+    @__pid = nil
+    @__shared_test_server_entry = entry
+  end
+
+  def release_shared_test_server
+    @server = nil
+    @test_thread = nil
+    @__pid = nil
+    @__shared_test_server_entry = nil
+  end
+
+  def start_shared_test_server(port, servlet)
+    clear_stale_server_lock(port)
+
+    if File.exist?(locked_file)
+      begin
+        wait_for_server_ready(port)
+        return nil
+      rescue RuntimeError
+        clear_stale_server_lock(port)
+      end
+    end
+
+    write_server_lock
+    server = WEBrick::HTTPServer.new(:Port => port, :DocumentRoot => File.expand_path(File.dirname(__FILE__)), :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+
+    server.mount(servlet.path, servlet)
+    server.mount("/ext", WEBrick::HTTPServlet::FileHandler, File.join(File.dirname(__FILE__),'..','ext'))
+
+    thread = Thread.new(server) { |srv| srv.start }
+    unless wait_for_server_started(server, port, thread: thread)
+      server.shutdown
+      thread.join(server_shutdown_timeout)
+      raise "Failed to startup test server on port #{port}"
+    end
+
+    entry = CurbTestServerRegistry::Entry.new([port, servlet], port, server, thread, locked_file, Process.pid)
+    CurbTestServerRegistry.register_shutdown_hook(entry)
+    entry
+  rescue Errno::EADDRINUSE
+    File.unlink(locked_file) if File.exist?(locked_file)
+    return nil if server_responding?(port)
+
+    raise
+  rescue StandardError
+    begin
+      server.shutdown if defined?(server) && server
+      thread.join(server_shutdown_timeout) if defined?(thread) && thread
+    rescue StandardError
+      nil
+    end
+    File.unlink(locked_file) if File.exist?(locked_file)
+    raise
   end
 end
 
