@@ -1,4 +1,8 @@
 # ChangeLog
+## 1.3.7
+* Fix FTP option configuration (#481): add `Curl::Easy#ftp_create_missing_dirs` and its setter, export the available `CURLFTP_CREATE_DIR_*` mode constants, and route detected scalar/string FTP options through `Curl::Easy#set`.
+* Make `Curl::Multi#perform` and scheduler-driven `Curl::Easy#perform` nonblocking under Fiber schedulers while preserving cancellation and final-yield behavior, including schedulers without `io_select`.
+
 ## 1.3.6
 * Removing long standing potential for mis-use with the Thread.current caching of easy handles (potentially a breaking change for some but more likely a fix)
 * Add safe request mode for fetching untrusted HTTP(S) URLs: `Curl.safe!`, `Curl.safe_get`, and `Curl::Easy#safe_http!`.
@@ -6,8 +10,6 @@
 * Restore Ruby 2.6 CI coverage and fix `Curl::Easy#perform` on Ruby 2.6 by avoiding finalizer-backed `ObjectSpace::WeakMap` entries for idle `Curl::Easy` references, including frozen easy handles.
 * Extend Ruby 4.0.x valgrind test handling to Ruby 4.0.5 by filtering Ruby VM Fiber/block-handler noise while preserving reports for errors originating in `curb_core`.
 * Harden `Curl::Easy`/`Curl::Multi` cleanup against re-entrant close during coercion and stale multi attachments.
-* Make `Curl::Multi#perform` and scheduler-driven `Curl::Easy#perform` nonblocking under Fiber schedulers while preserving cancellation and final-yield behavior, including schedulers without `io_select`.
-* Fix FTP option configuration (#481): add `Curl::Easy#ftp_create_missing_dirs` and its setter, export the available `CURLFTP_CREATE_DIR_*` mode constants, and route detected scalar/string FTP options through `Curl::Easy#set`.
 
 ## 1.3.5
 * Improve Ruby 4.0.4 valgrind test handling by filtering Ruby VM Fiber/block-handler noise while preserving reports for errors originating in `curb_core`.
