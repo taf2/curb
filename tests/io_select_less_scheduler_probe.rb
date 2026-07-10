@@ -9,6 +9,7 @@
 # Usage: ruby io_select_less_scheduler_probe.rb <port>
 #   <port> must serve HTTP GET /test (see BugTestServerSetupTeardown).
 
+require 'fiber'
 require 'curb'
 
 port = Integer(ARGV[0])

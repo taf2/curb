@@ -75,21 +75,69 @@ static void *curl_multi_wait_wrapper(void *p) {
 }
 #endif
 
+static VALUE cRubyFiber;
+static ID id_fiber_blocking_p;
+static ID id_fiber_scheduler;
+static ID id_kernel_sleep;
+static ID id_io_wait;
+
+/*
+ * Ruby 3.0 introduced the Fiber scheduler at the Ruby level, but did not ship
+ * the public ruby/fiber/scheduler.h C API. Use the public C entry points when
+ * available and otherwise dispatch through Fiber and the scheduler object.
+ */
+static VALUE curb_fiber_scheduler_current(void) {
+#if defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
+  return rb_fiber_scheduler_current();
+#else
+  VALUE scheduler;
+
+  if (!rb_respond_to(cRubyFiber, id_fiber_scheduler)) return Qnil;
+
+  scheduler = rb_funcall(cRubyFiber, id_fiber_scheduler, 0);
+  if (NIL_P(scheduler)) return Qnil;
+
+  /* Fiber.scheduler returns the thread scheduler even from a blocking fiber,
+   * while rb_fiber_scheduler_current returns nil there. Match the latter so
+   * ordinary blocking fibers keep using the legacy multi loop. */
+  if (rb_respond_to(cRubyFiber, id_fiber_blocking_p) &&
+      RTEST(rb_funcall(cRubyFiber, id_fiber_blocking_p, 0))) {
+    return Qnil;
+  }
+
+  return scheduler;
+#endif
+}
+
+static VALUE curb_fiber_scheduler_kernel_sleep(VALUE scheduler, VALUE timeout) {
+#if defined(HAVE_RB_FIBER_SCHEDULER_KERNEL_SLEEP)
+  return rb_fiber_scheduler_kernel_sleep(scheduler, timeout);
+#else
+  return rb_funcall(scheduler, id_kernel_sleep, 1, timeout);
+#endif
+}
+
+static VALUE curb_fiber_scheduler_io_wait(VALUE scheduler, VALUE io, VALUE events, VALUE timeout) {
+#if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT)
+  return rb_fiber_scheduler_io_wait(scheduler, io, events, timeout);
+#else
+  return rb_funcall(scheduler, id_io_wait, 3, io, events, timeout);
+#endif
+}
+
 /*
  * Sleep for the given interval without stalling sibling fibers: when the
  * current fiber runs under a fiber scheduler, wait via the scheduler's
  * kernel_sleep hook. rb_thread_fd_select(0, ...) and rb_thread_wait_for are
  * thread-level waits that never consult the scheduler, so they are only used
- * when no scheduler is active (or the build lacks the scheduler C API).
+ * when no scheduler is active.
  */
 static void curb_multi_scheduler_sleep(struct timeval *tv) {
-#if defined(HAVE_RB_FIBER_SCHEDULER_KERNEL_SLEEP) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
-  VALUE scheduler = rb_fiber_scheduler_current();
+  VALUE scheduler = curb_fiber_scheduler_current();
   if (scheduler != Qnil) {
-    rb_fiber_scheduler_kernel_sleep(scheduler, rb_float_new((double)tv->tv_sec + ((double)tv->tv_usec / 1e6)));
+    curb_fiber_scheduler_kernel_sleep(scheduler, rb_float_new((double)tv->tv_sec + ((double)tv->tv_usec / 1e6)));
     return;
   }
-#endif
 #ifdef HAVE_RB_THREAD_FD_SELECT
   {
     struct timeval tv_sleep = *tv;
@@ -103,16 +151,10 @@ static void curb_multi_scheduler_sleep(struct timeval *tv) {
 /* Yield a nonblocking fiber without changing legacy behavior when no
  * scheduler is active. */
 static void curb_multi_scheduler_yield(void) {
-#if defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
-  VALUE scheduler = rb_fiber_scheduler_current();
+  VALUE scheduler = curb_fiber_scheduler_current();
   if (scheduler != Qnil) {
-#if defined(HAVE_RB_FIBER_SCHEDULER_KERNEL_SLEEP)
-    rb_fiber_scheduler_kernel_sleep(scheduler, INT2FIX(0));
-#else
-    rb_thread_schedule();
-#endif
+    curb_fiber_scheduler_kernel_sleep(scheduler, INT2FIX(0));
   }
-#endif
 }
 
 extern VALUE mCurl;
@@ -1534,7 +1576,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 	    if (count_tracked > 1) {
 #if defined(HAVE_RB_FIBER_SCHEDULER_IO_SELECT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
 	      {
-	        VALUE scheduler = rb_fiber_scheduler_current();
+	        VALUE scheduler = curb_fiber_scheduler_current();
 	        if (scheduler != Qnil) {
 	          VALUE readables = rb_ary_new();
 	          VALUE writables = rb_ary_new();
@@ -1590,13 +1632,12 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 	        }
 	      }
 #endif
-	      /* Ruby 3.1 has scheduler io_wait but no public io_select C API, and
-	       * io_select is optional on newer schedulers. Wait cooperatively on one
+	      /* Ruby versions without the public io_select C API, and newer
+	       * schedulers that omit the optional hook, wait cooperatively on one
 	       * representative descriptor, then use a zero-time select below to
 	       * collect readiness across the whole set. */
-#if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
 	      if (!handled_wait && wait_fd >= 0) {
-	        VALUE scheduler = rb_fiber_scheduler_current();
+	        VALUE scheduler = curb_fiber_scheduler_current();
 	        if (scheduler != Qnil) {
 	          if (!multi_socket_fd_valid_p(wait_fd)) {
 	            multi_socket_forget_fd(ctx, wait_fd);
@@ -1610,14 +1651,13 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 	            if (!NIL_P(io)) {
 	              int events = multi_socket_wait_events_for_curl_poll(wait_what);
 	              double timeout_s = (double)tv.tv_sec + ((double)tv.tv_usec / 1e6);
-	              rb_fiber_scheduler_io_wait(scheduler, io, INT2NUM(events), rb_float_new(timeout_s));
+	              curb_fiber_scheduler_io_wait(scheduler, io, INT2NUM(events), rb_float_new(timeout_s));
 	              tv.tv_sec = 0;
 	              tv.tv_usec = 0;
 	            }
 	          }
 	        }
 	      }
-#endif
 	      if (!handled_wait) {
 	        /* Multi-fd select. After the scheduler io_wait fallback above, tv is
 	         * zero and this only polls the complete descriptor set. Without a
@@ -1660,9 +1700,8 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 	        handled_wait = 1;
 	      }
 	    } else if (count_tracked == 1) {
-#if defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT)
       {
-        VALUE scheduler = rb_fiber_scheduler_current();
+        VALUE scheduler = curb_fiber_scheduler_current();
         if (scheduler != Qnil) {
           int scheduler_wait_handled = 0;
           int events = 0;
@@ -1689,7 +1728,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
             if (NIL_P(io)) {
               any_ready = 0;
             } else {
-              VALUE ready = rb_fiber_scheduler_io_wait(scheduler, io, INT2NUM(events), timeout);
+              VALUE ready = curb_fiber_scheduler_io_wait(scheduler, io, INT2NUM(events), timeout);
               scheduler_wait_handled = 1;
               any_ready = (ready != Qfalse && !NIL_P(ready));
               did_timeout = !any_ready && multi_socket_timer_due(ctx);
@@ -1711,7 +1750,6 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
           if (scheduler_wait_handled) handled_wait = 1;
         }
       }
-#endif
 #if defined(HAVE_RB_WAIT_FOR_SINGLE_FD)
       if (!handled_wait && wait_fd >= 0) {
         int ev = multi_socket_wait_events_for_curl_poll(wait_what);
@@ -2191,7 +2229,7 @@ static VALUE ruby_curl_multi_with_perform_guard(int argc, VALUE *argv, VALUE sel
 }
 
 VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
-#if defined(HAVE_CURL_MULTI_SOCKET_ACTION) && defined(HAVE_CURLMOPT_SOCKETFUNCTION) && defined(HAVE_CURLMOPT_TIMERFUNCTION) && defined(HAVE_RB_THREAD_FD_SELECT) && !defined(_WIN32) && defined(HAVE_RB_FIBER_SCHEDULER_CURRENT) && defined(HAVE_RB_FIBER_SCHEDULER_IO_WAIT) && defined(HAVE_RB_FIBER_SCHEDULER_KERNEL_SLEEP)
+#if defined(HAVE_CURL_MULTI_SOCKET_ACTION) && defined(HAVE_CURLMOPT_SOCKETFUNCTION) && defined(HAVE_CURLMOPT_TIMERFUNCTION) && defined(HAVE_RB_THREAD_FD_SELECT) && !defined(_WIN32)
   /*
    * The legacy fdset loop waits with rb_thread_fd_select, which releases the
    * GVL but never consults the fiber scheduler, stalling every other fiber on
@@ -2199,7 +2237,7 @@ VALUE ruby_curl_multi_perform(int argc, VALUE *argv, VALUE self) {
    * runs under a fiber scheduler, use the socket-action drive loop, which
    * waits through the scheduler's io_wait/io_select/kernel_sleep hooks.
    */
-  if (rb_fiber_scheduler_current() != Qnil) {
+  if (curb_fiber_scheduler_current() != Qnil) {
     return ruby_curl_multi_with_perform_guard(argc, argv, self, ruby_curl_multi_socket_perform_impl);
   }
 #endif
@@ -2269,6 +2307,12 @@ static void curl_multi_mark(void *ptr) {
 /* =================== INIT LIB =====================*/
 void init_curb_multi() {
   idCall = rb_intern("call");
+  cRubyFiber = rb_const_get(rb_cObject, rb_intern("Fiber"));
+  rb_global_variable(&cRubyFiber);
+  id_fiber_blocking_p = rb_intern("blocking?");
+  id_fiber_scheduler = rb_intern("scheduler");
+  id_kernel_sleep = rb_intern("kernel_sleep");
+  id_io_wait = rb_intern("io_wait");
   id_deferred_exception_ivar = rb_intern("@__curb_deferred_exception");
   id_deferred_exception_source_id_ivar = rb_intern("@__curb_deferred_exception_source_id");
   id_native_safety_signatures_ivar = rb_intern("@__curb_native_safety_signatures");
