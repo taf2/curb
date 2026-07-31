@@ -3,13 +3,20 @@ require 'curl/download'
 module Curl
   class Easy
     class << self
+      def deferred_multi_close_state
+        Curl.__send__(:ractor_local_state)
+      end
+      private :deferred_multi_close_state
+
       def deferred_multi_close_mutex
-        @deferred_multi_close_mutex ||= Mutex.new
+        state = deferred_multi_close_state
+        state[:deferred_multi_close_mutex] ||= Mutex.new
       end
 
       def deferred_multi_closes
+        state = deferred_multi_close_state
         deferred_multi_close_mutex.synchronize do
-          (@deferred_multi_closes ||= []).dup
+          (state[:deferred_multi_closes] ||= []).dup
         end
       end
 
@@ -34,27 +41,29 @@ module Curl
       end
 
       def defer_multi_close(multi, easy, owner: Thread.current)
+        state = deferred_multi_close_state
         deferred_multi_close_mutex.synchronize do
-          @deferred_multi_closes ||= []
-          return if @deferred_multi_closes.any? { |entry| entry[:multi].equal?(multi) }
+          state[:deferred_multi_closes] ||= []
+          return if state[:deferred_multi_closes].any? { |entry| entry[:multi].equal?(multi) }
 
           multi.instance_variable_set(:@deferred_close, true)
-          @deferred_multi_closes << { multi: multi, easy: easy, owner: owner }
+          state[:deferred_multi_closes] << { multi: multi, easy: easy, owner: owner }
         end
       end
 
       def flush_deferred_multi_closes(all_threads: false)
+        state = deferred_multi_close_state
         pending = deferred_multi_close_mutex.synchronize do
-          @deferred_multi_closes ||= []
+          deferred_closes = (state[:deferred_multi_closes] ||= [])
 
           if all_threads
-            @deferred_multi_closes.shift(@deferred_multi_closes.length)
+            deferred_closes.shift(deferred_closes.length)
           else
             owner = Thread.current
             remaining = []
             current = []
 
-            @deferred_multi_closes.each do |entry|
+            deferred_closes.each do |entry|
               if entry[:owner].equal?(owner)
                 current << entry
               else
@@ -62,7 +71,7 @@ module Curl
               end
             end
 
-            @deferred_multi_closes = remaining
+            state[:deferred_multi_closes] = remaining
             current
           end
         end

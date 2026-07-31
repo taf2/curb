@@ -1,4 +1,7 @@
 # ChangeLog
+## Unreleased
+* Add guarded Ractor support on Ruby 3.0+ with thread-safe libcurl builds: isolate mutable configuration and cleanup queues per Ractor, freeze exported string constants, default Easy handles to `CURLOPT_NOSIGNAL`, and cover concurrent Easy requests with regression tests.
+
 ## 1.3.7
 * Pin `Curl::Easy` wrappers during GC compaction so libcurl completion dispatch cannot follow a stale Ruby object reference (#482).
 * Fix FTP option configuration (#481): add `Curl::Easy#ftp_create_missing_dirs` and its setter, export the available `CURLFTP_CREATE_DIR_*` mode constants, and route detected scalar/string FTP options through `Curl::Easy#set`.

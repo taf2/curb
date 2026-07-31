@@ -243,25 +243,38 @@ static void finalize_curb_core(VALUE data) {
 
 void Init_curb_core() {
   curl_version_info_data *ver;
-  VALUE curlver, curllongver, curlvernum;
+  VALUE curbver, curlver, curllongver, curlvernum;
+  int ractor_safe = 0;
 
   curl_global_init(CURL_GLOBAL_ALL);
   rb_set_end_proc(finalize_curb_core, Qnil);
   ver = curl_version_info(CURLVERSION_NOW);
 
+#if defined(HAVE_RB_EXT_RACTOR_SAFE) && defined(HAVE_CURL_VERSION_THREADSAFE)
+  /* Ractors execute native methods in parallel. Only opt in when both Ruby
+   * provides the safety marker and libcurl advertises thread-safe global
+   * initialization. Individual Curl handles remain Ractor-owned. */
+  if (ver && (ver->features & CURL_VERSION_THREADSAFE)) {
+    rb_ext_ractor_safe(1);
+    ractor_safe = 1;
+  }
+#endif
+
   mCurl = rb_define_module("Curl");
 
-  curlver = rb_str_new2(ver->version);
-  curllongver = rb_str_new2(curl_version());
+  curbver = rb_obj_freeze(rb_str_new2(CURB_VERSION));
+  curlver = rb_obj_freeze(rb_str_new2(ver->version));
+  curllongver = rb_obj_freeze(rb_str_new2(curl_version()));
   curlvernum = LONG2NUM(LIBCURL_VERSION_NUM);
 
-  rb_define_const(mCurl, "CURB_VERSION", rb_str_new2(CURB_VERSION));
+  rb_define_const(mCurl, "CURB_VERSION", curbver);
   rb_define_const(mCurl, "VERSION", curlver);
   rb_define_const(mCurl, "CURL_VERSION", curlver);
   rb_define_const(mCurl, "VERNUM", curlvernum);
   rb_define_const(mCurl, "CURL_VERNUM", curlvernum);
   rb_define_const(mCurl, "LONG_VERSION", curllongver);
   rb_define_const(mCurl, "CURL_LONG_VERSION", curllongver);
+  rb_define_const(mCurl, "RACTOR_SAFE", ractor_safe ? Qtrue : Qfalse);
 
   /* Passed to on_debug handler to indicate that the data is informational text. */
   rb_define_const(mCurl, "CURLINFO_TEXT", LONG2NUM(CURLINFO_TEXT));

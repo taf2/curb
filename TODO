@@ -1,0 +1,8 @@
+Ractor support (inspired by https://news.ycombinator.com/item?id=41487714)
+
+- [x] Audit native and Ruby global state
+- [x] Isolate mutable settings and cleanup queues per Ractor
+- [x] Freeze shared Ruby strings
+- [x] Enable CURLOPT_NOSIGNAL by default
+- [x] Guard rb_ext_ractor_safe(true) on Ruby and thread-safe libcurl support
+- [x] Add concurrent Ractor regression coverage

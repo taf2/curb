@@ -8,6 +8,19 @@ require 'uri'
 
 # expose shortcut methods
 module Curl
+  # Module/class instance variables cannot be read or written by non-main
+  # Ractors, even when the value itself would otherwise be safe. Keep curb's
+  # mutable Ruby-side configuration in storage owned by the current Ractor.
+  # Older Rubies retain the historical process-wide state.
+  def self.ractor_local_state
+    if defined?(Ractor) && Ractor.respond_to?(:current) &&
+       Ractor.current.respond_to?(:[]) && Ractor.current.respond_to?(:[]=)
+      Ractor.current[:__curb_ractor_local_state] ||= {}
+    else
+      @legacy_local_state ||= {}
+    end
+  end
+
   class SafetyConfig
     DEFAULT_PROTOCOLS = [:http, :https].freeze
 
@@ -176,12 +189,12 @@ module Curl
   def self.safe!
     config = SafetyConfig.new
     yield config if block_given?
-    @safety_config = config
+    ractor_local_state[:safety_config] = config
     bump_safety_generation!
   end
 
   def self.apply_safety!(easy)
-    config = @safety_config
+    config = ractor_local_state[:safety_config]
     override = safety_override_for(easy)
     return easy unless config || override
 
@@ -215,12 +228,12 @@ module Curl
   end
 
   def self.clear_safe!
-    @safety_config = nil
+    ractor_local_state[:safety_config] = nil
     bump_safety_generation!
   end
 
   def self.safety_active_for?(easy)
-    !!(@safety_config || safety_override_for(easy))
+    !!(ractor_local_state[:safety_config] || safety_override_for(easy))
   end
 
   def self.safety_signature_for(easy)
@@ -240,11 +253,11 @@ module Curl
   end
 
   def self.safety_generation
-    @safety_generation ||= 0
+    ractor_local_state[:safety_generation] ||= 0
   end
 
   def self.bump_safety_generation!
-    @safety_generation = safety_generation + 1
+    ractor_local_state[:safety_generation] = safety_generation + 1
   end
 
   def self.safety_protocol_intersection(base_protocols, override_protocols)
@@ -395,7 +408,8 @@ module Curl
     easy.set(Curl::CURLOPT_NOPROXY, "*") if Curl.const_defined?(:CURLOPT_NOPROXY)
   end
 
-  private_class_method :apply_safety!, :clear_safe!, :safety_active_for?,
+  private_class_method :ractor_local_state,
+                       :apply_safety!, :clear_safe!, :safety_active_for?,
                        :safety_signature_for, :safety_override_for,
                        :safety_generation, :bump_safety_generation!,
                        :safety_protocol_intersection,

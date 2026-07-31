@@ -260,6 +260,7 @@ have_constant "curl_version_idn"
 have_constant "curl_version_sspi"
 have_constant "curl_version_conv"
 have_constant "curl_version_http2"
+have_constant "curl_version_threadsafe"
 have_constant "curlproxy_http"
 have_constant "curlproxy_socks4"
 have_constant "curlproxy_socks4a"
@@ -704,6 +705,7 @@ have_func('rb_fiber_scheduler_current', 'ruby/fiber/scheduler.h')
 have_func('rb_fiber_scheduler_io_wait', 'ruby/fiber/scheduler.h')
 have_func('rb_fiber_scheduler_io_select', 'ruby/fiber/scheduler.h')
 have_func('rb_fiber_scheduler_kernel_sleep', 'ruby/fiber/scheduler.h')
+have_func('rb_ext_ractor_safe')
 have_func('rb_io_stdio_file')
 have_func('curl_multi_wait')
 have_func('curl_multi_socket_action')

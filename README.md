@@ -205,7 +205,7 @@ end
 `curb` is a libcurl binding and intentionally supports protocols beyond HTTP.
 Do not pass untrusted URLs to `Curl.get`, `Curl::Easy.new`, or related raw
 helpers without application-level validation. For user-supplied URLs, enable the
-process-wide safety policy before making requests:
+safety policy for the current Ractor before making requests:
 
 ```ruby
 Curl.safe! do |config|
@@ -256,6 +256,42 @@ configured. For untrusted or large responses, use `on_body`, `download`, and/or
 `max_body_bytes` so a remote endpoint cannot force unbounded memory growth.
 `max_body_bytes` is enforced for downloads as well as buffered responses and
 custom body callbacks.
+
+## Ractor support
+
+On Ruby 3.0+, curb can perform requests from multiple Ractors when it is built
+against a libcurl that reports the `CURL_VERSION_THREADSAFE` capability
+(libcurl 7.84.0 or newer). Check `Curl::RACTOR_SAFE` at runtime. Builds that do
+not meet those requirements continue to work in the main Ractor but do not
+advertise native Ractor safety.
+
+Create `Curl::Easy` and `Curl::Multi` handles inside the Ractor that uses them;
+do not operate on the same native handle concurrently from different Ractors.
+Safety configuration, `Curl::Multi.default_timeout`, `Curl::Multi.autoclose`,
+and deferred cleanup queues are isolated per Ractor. Call `Curl.safe!` in each
+Ractor that needs the safety policy:
+
+```ruby
+raise "this curb build is not Ractor-safe" unless Curl::RACTOR_SAFE
+
+workers = 4.times.map do
+  Ractor.new do
+    Curl.safe! { |config| config.protocols = [:http, :https] }
+    easy = Curl::Easy.new("https://example.com/")
+    easy.perform
+    easy.response_code
+  end
+end
+
+# Ruby 4.0 uses Ractor#value; earlier Ractor releases use Ractor#take.
+statuses = workers.map do |worker|
+  worker.respond_to?(:value) ? worker.value : worker.take
+end
+```
+
+Curb enables `CURLOPT_NOSIGNAL` on newly initialized and reset Easy handles by
+default so separate handles can be used safely from parallel Ruby execution.
+Applications can still override the option explicitly when required.
 
 ## You will need
 

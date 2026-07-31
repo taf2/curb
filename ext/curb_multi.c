@@ -76,10 +76,16 @@ static void *curl_multi_wait_wrapper(void *p) {
 #endif
 
 static VALUE cRubyFiber;
+static VALUE cRubyRactor;
 static ID id_fiber_blocking_p;
 static ID id_fiber_scheduler;
 static ID id_kernel_sleep;
 static ID id_io_wait;
+static ID id_ractor_current;
+static ID id_ractor_aref;
+static ID id_ractor_aset;
+static ID id_ractor_default_timeout_key;
+static ID id_ractor_autoclose_key;
 
 /*
  * Ruby 3.0 introduced the Fiber scheduler at the Ruby level, but did not ship
@@ -172,6 +178,32 @@ VALUE cCurlMulti;
 
 static long cCurlMutiDefaulttimeout = 100; /* milliseconds */
 static char cCurlMutiAutoClose = 0;
+
+/* Ruby 3.0+ provides storage owned by the current Ractor. Keep configurable
+ * defaults there so separate Ractors never race on process-global C values.
+ * Rubies without Ractor retain the historical process-wide settings. */
+static VALUE curb_multi_ractor_setting(ID key) {
+  VALUE current;
+
+  if (NIL_P(cRubyRactor)) return Qundef;
+  current = rb_funcall(cRubyRactor, id_ractor_current, 0);
+  return rb_funcall(current, id_ractor_aref, 1, ID2SYM(key));
+}
+
+static void curb_multi_set_ractor_setting(ID key, VALUE value) {
+  VALUE current = rb_funcall(cRubyRactor, id_ractor_current, 0);
+  rb_funcall(current, id_ractor_aset, 2, ID2SYM(key), value);
+}
+
+static long curb_multi_default_timeout(void) {
+  VALUE value = curb_multi_ractor_setting(id_ractor_default_timeout_key);
+  return (UNDEF_P(value) || NIL_P(value)) ? cCurlMutiDefaulttimeout : NUM2LONG(value);
+}
+
+static int curb_multi_autoclose_enabled(void) {
+  VALUE value = curb_multi_ractor_setting(id_ractor_autoclose_key);
+  return (UNDEF_P(value) || NIL_P(value)) ? cCurlMutiAutoClose == 1 : RTEST(value);
+}
 
 static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int result);
 static void rb_curl_multi_remove(ruby_curl_multi *rbcm, VALUE easy);
@@ -563,12 +595,18 @@ static VALUE ruby_curl_multi_initialize(VALUE self) {
  * call-seq:
  *   Curl::Multi.default_timeout = 4 => 4
  *
- * Set the global default time out for all Curl::Multi Handles.  This value is used
- * when libcurl cannot determine a timeout value when calling curl_multi_timeout.
+ * Set the default timeout for Curl::Multi handles in the current Ractor. On
+ * Rubies without Ractor this remains process-wide. This value is used when
+ * libcurl cannot determine a timeout value when calling curl_multi_timeout.
  *
  */
 VALUE ruby_curl_multi_set_default_timeout(VALUE klass, VALUE timeout) {
-  cCurlMutiDefaulttimeout = NUM2LONG(timeout);
+  long value = NUM2LONG(timeout);
+  if (NIL_P(cRubyRactor)) {
+    cCurlMutiDefaulttimeout = value;
+  } else {
+    curb_multi_set_ractor_setting(id_ractor_default_timeout_key, LONG2NUM(value));
+  }
   return timeout;
 }
 
@@ -576,23 +614,29 @@ VALUE ruby_curl_multi_set_default_timeout(VALUE klass, VALUE timeout) {
  * call-seq:
  *   Curl::Multi.default_timeout = 4 => 4
  *
- * Get the global default time out for all Curl::Multi Handles.
+ * Get the current Ractor's default timeout for Curl::Multi handles.
  *
  */
 VALUE ruby_curl_multi_get_default_timeout(VALUE klass) {
-  return LONG2NUM(cCurlMutiDefaulttimeout);
+  return LONG2NUM(curb_multi_default_timeout());
 }
 
 /*
  * call-seq:
  *   Curl::Multi.autoclose = true => true
  *
- * Automatically close open connections after each request. Otherwise, the connection will remain open 
- * for reuse until the next GC
+ * Automatically close open connections after each request in the current
+ * Ractor. Otherwise, the connection will remain open for reuse until the next
+ * GC.
  *
  */
 VALUE ruby_curl_multi_set_autoclose(VALUE klass, VALUE onoff) {
-  cCurlMutiAutoClose = ((onoff == Qtrue) ? 1 : 0);
+  VALUE value = onoff == Qtrue ? Qtrue : Qfalse;
+  if (NIL_P(cRubyRactor)) {
+    cCurlMutiAutoClose = RTEST(value) ? 1 : 0;
+  } else {
+    curb_multi_set_ractor_setting(id_ractor_autoclose_key, value);
+  }
   return onoff;
 }
 
@@ -600,11 +644,11 @@ VALUE ruby_curl_multi_set_autoclose(VALUE klass, VALUE onoff) {
  * call-seq:
  *   Curl::Multi.autoclose => true|false
  *
- * Get the global default autoclose setting for all Curl::Multi Handles.
+ * Get the current Ractor's default autoclose setting for Curl::Multi handles.
  *
  */
 VALUE ruby_curl_multi_get_autoclose(VALUE klass) {
-  return cCurlMutiAutoClose == 1 ? Qtrue : Qfalse;
+  return curb_multi_autoclose_enabled() ? Qtrue : Qfalse;
 }
 
 /*
@@ -1526,7 +1570,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 
     while (rbcm->running) {
     struct timeval tv = {0, 0};
-    long wait_ms = cCurlMutiDefaulttimeout;
+    long wait_ms = curb_multi_default_timeout();
 
     if (multi_socket_timer_due(ctx)) {
       ctx->timeout_deadline_ms = -1;
@@ -1896,7 +1940,7 @@ static VALUE ruby_curl_multi_socket_perform_impl(int argc, VALUE *argv, VALUE se
   rb_ensure(ruby_curl_multi_socket_drive_body, (VALUE)&body_args, ruby_curl_multi_socket_drive_ensure, (VALUE)&ensure_args);
 
   /* finalize */
-  if (cCurlMutiAutoClose == 1) {
+  if (curb_multi_autoclose_enabled()) {
     rbcm->allow_close_during_perform = 1;
     rb_funcall(self, rb_intern("_autoclose"), 0);
     rbcm->allow_close_during_perform = 0;
@@ -1997,7 +2041,7 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
     clear_multi_deferred_exception_source_id_if_any(self);
   }
 
-  timeout_milliseconds = cCurlMutiDefaulttimeout;
+  timeout_milliseconds = curb_multi_default_timeout();
 
   // Run curl_multi_perform for the first time to get the ball rolling
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
@@ -2037,8 +2081,8 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
         continue;
       }
 
-      if (timeout_milliseconds < 0 || timeout_milliseconds > cCurlMutiDefaulttimeout) {
-        timeout_milliseconds = cCurlMutiDefaulttimeout; /* libcurl doesn't know how long to wait, use a default timeout */
+      if (timeout_milliseconds < 0 || timeout_milliseconds > curb_multi_default_timeout()) {
+        timeout_milliseconds = curb_multi_default_timeout(); /* libcurl doesn't know how long to wait, use a default timeout */
                                                         /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
       }
 
@@ -2177,7 +2221,7 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
     rb_curl_multi_yield_if_given(self, block);
   } while( rbcm->running );
 
-  if (cCurlMutiAutoClose  == 1) {
+  if (curb_multi_autoclose_enabled()) {
     rbcm->allow_close_during_perform = 1;
     rb_funcall(self, rb_intern("_autoclose"), 0);
     rbcm->allow_close_during_perform = 0;
@@ -2309,6 +2353,20 @@ void init_curb_multi() {
   idCall = rb_intern("call");
   cRubyFiber = rb_const_get(rb_cObject, rb_intern("Fiber"));
   rb_global_variable(&cRubyFiber);
+  cRubyRactor = Qnil;
+  id_ractor_current = rb_intern("current");
+  id_ractor_aref = rb_intern("[]");
+  id_ractor_aset = rb_intern("[]=");
+  id_ractor_default_timeout_key = rb_intern("__curb_multi_default_timeout");
+  id_ractor_autoclose_key = rb_intern("__curb_multi_autoclose");
+  if (rb_const_defined(rb_cObject, rb_intern("Ractor"))) {
+    VALUE ractor = rb_const_get(rb_cObject, rb_intern("Ractor"));
+    VALUE current = rb_funcall(ractor, id_ractor_current, 0);
+    if (rb_respond_to(current, id_ractor_aref) && rb_respond_to(current, id_ractor_aset)) {
+      cRubyRactor = ractor;
+    }
+  }
+  rb_global_variable(&cRubyRactor);
   id_fiber_blocking_p = rb_intern("blocking?");
   id_fiber_scheduler = rb_intern("scheduler");
   id_kernel_sleep = rb_intern("kernel_sleep");

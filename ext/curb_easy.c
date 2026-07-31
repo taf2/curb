@@ -66,6 +66,17 @@ static struct curl_slist *duplicate_curl_slist(struct curl_slist *list);
 static size_t proc_data_handler(char *stream, size_t size, size_t nmemb, VALUE proc);
 static int curb_array_includes_string(VALUE list, VALUE value);
 
+static void curb_easy_apply_thread_defaults(ruby_curl_easy *rbce) {
+#ifdef HAVE_CURLOPT_NOSIGNAL
+  CURLcode ecode = curl_easy_setopt(rbce->curl, CURLOPT_NOSIGNAL, 1L);
+  if (ecode != CURLE_OK) {
+    raise_curl_easy_error_exception(ecode);
+  }
+#else
+  (void)rbce;
+#endif
+}
+
 /* ================== CURL HANDLER FUNCS ==============*/
 
 static int curb_ipv4_is_unsafe_destination(const unsigned char *ip) {
@@ -1501,6 +1512,7 @@ static VALUE ruby_curl_easy_initialize(int argc, VALUE *argv, VALUE self) {
   ruby_curl_easy_zero(rbce);
   rbce->self = self;
 
+  curb_easy_apply_thread_defaults(rbce);
   curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
   rb_easy_set("url", url);
@@ -1659,6 +1671,7 @@ static VALUE ruby_curl_easy_close(VALUE self) {
   ruby_curl_easy_zero(rbce);
   rbce->self = self;
 
+  curb_easy_apply_thread_defaults(rbce);
   curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, rbce->err_buf);
 
   /* give the new curl handle a reference back to the ruby object */
@@ -1703,6 +1716,7 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
   ruby_curl_easy_zero(rbce);
   rbce->self = self;
 
+  curb_easy_apply_thread_defaults(rbce);
   curl_easy_setopt(rbce->curl, CURLOPT_ERRORBUFFER, &rbce->err_buf);
 
   /* reset clobbers the private setting, so reset it to self */
@@ -6132,7 +6146,7 @@ void init_curb_easy() {
   idNetworkPolicyNone = rb_intern("none");
   idNetworkPolicyPublic = rb_intern("public");
 
-  rbstrAmp = rb_str_new2("&");
+  rbstrAmp = rb_obj_freeze(rb_str_new2("&"));
   rb_global_variable(&rbstrAmp);
 
   cCurlEasy = rb_define_class_under(mCurl, "Easy", rb_cObject);
