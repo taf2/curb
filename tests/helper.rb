@@ -228,12 +228,17 @@ module BugTestServerSetupTeardown
     @thread = Thread.new(@server) do|srv|
       srv.start
     end
+
+    # WEBrick#shutdown is a no-op until start has created its shutdown pipe
+    # and set :Running, so wait for that before the test (and its teardown)
+    # runs. Otherwise a teardown racing server startup could miss the brief
+    # :Shutdown status and spin forever once the server settled back on :Stop.
+    sleep 0.001 until @server.status == :Running || !@thread.alive?
+    @thread.value unless @thread.alive?
   end
 
   def teardown
-    while @server.status != :Shutdown
-      @server.shutdown
-    end
+    @server.shutdown
     @thread.join
   end
 end

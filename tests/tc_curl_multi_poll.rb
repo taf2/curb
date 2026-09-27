@@ -107,6 +107,18 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
     Process.clock_gettime(Process::CLOCK_MONOTONIC)
   end
 
+  # Valgrind slows every request enough that wall-clock bounds can no longer
+  # tell the old fixed-sleep loop from ordinary overhead. Skip only those
+  # bounds there; the requests and their assertions still run under memcheck.
+  def under_valgrind?
+    ENV['LD_PRELOAD'].to_s.include?('vgpreload')
+  end
+
+  def assert_faster_than(limit, elapsed, message)
+    return if under_valgrind?
+    assert_operator elapsed, :<, limit, message
+  end
+
   # Occupy low descriptor numbers so every socket libcurl opens afterwards is
   # numbered above FD_SETSIZE and cannot be represented in an fd_set.
   def with_fds_above_fd_setsize
@@ -144,7 +156,7 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
       end
       elapsed = monotonic - started
 
-      assert_operator elapsed, :<, 0.6, "10 local requests took #{elapsed.round(3)}s with high-numbered sockets"
+      assert_faster_than 0.6, elapsed, "10 local requests took #{elapsed.round(3)}s with high-numbered sockets"
     end
   end
 
@@ -172,7 +184,7 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
       end
       elapsed = monotonic - started
 
-      assert_operator elapsed, :<, 0.8, "5 batches of 20 concurrent local requests took #{elapsed.round(3)}s with high-numbered sockets"
+      assert_faster_than 0.8, elapsed, "5 batches of 20 concurrent local requests took #{elapsed.round(3)}s with high-numbered sockets"
     end
   end
 
