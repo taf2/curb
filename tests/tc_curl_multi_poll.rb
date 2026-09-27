@@ -36,6 +36,9 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
   # numbered above FD_SETSIZE and cannot be represented in an fd_set.
   def with_fds_above_fd_setsize
     omit('fd numbering differs on Windows') if WINDOWS
+    # Before 7.68 there is no curl_multi_poll and perform falls back to
+    # select(), which cannot represent descriptors above FD_SETSIZE.
+    omit('libcurl < 7.68 has no curl_multi_poll') if Gem::Version.new(Curl::CURL_VERSION[/\A\d+(\.\d+)*/]) < Gem::Version.new('7.68.0')
 
     soft, hard = Process.getrlimit(:NOFILE)
     needed = HIGH_FD_TARGET + 256

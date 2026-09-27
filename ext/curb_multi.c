@@ -1221,21 +1221,14 @@ static void rb_curl_multi_run(VALUE self, CURLM *multi_handle, int *still_runnin
   CURLMcode mcode;
 
   /*
-   * curl_multi_perform will return CURLM_CALL_MULTI_PERFORM only when it wants to be called again immediately.
-   * When things are fine and there is nothing immediate it wants done, it'll return CURLM_OK.
-   *
-   * It will perform all pending actions on all added easy handles attached to this multi handle. We will loop
-   * here as long as mcode is CURLM_CALL_MULTIPERFORM.
+   * Perform all pending actions on every easy handle attached to this multi
+   * handle. libcurl stopped returning CURLM_CALL_MULTI_PERFORM here in 7.20
+   * (curb supports 7.58+); should it appear, treat it as success: the drive
+   * loop calls curl_multi_perform again on its next pass.
    */
-  do {
-    mcode = curl_multi_perform(multi_handle, still_running);
-  } while (mcode == CURLM_CALL_MULTI_PERFORM);
+  mcode = curl_multi_perform(multi_handle, still_running);
 
-  /*
-   * Nothing more to do, check if an error occured in the loop above and raise an exception if necessary.
-   */
-
-  if (mcode != CURLM_OK) {
+  if (mcode != CURLM_OK && mcode != CURLM_CALL_MULTI_PERFORM) {
     raise_curl_multi_error_exception(mcode);
   }
 
@@ -2385,8 +2378,10 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
       }
 #else
 
-      tv.tv_sec  = 0; /* never wait longer than 1 second */
-      tv.tv_usec = (int)(timeout_milliseconds * 1000); /* XXX: int is the right type for OSX, what about linux? */
+      /* Split into seconds and microseconds: a raw select() rejects a
+       * tv_usec of 1000000 or more, which default_timeout > 1000 produced. */
+      tv.tv_sec  = timeout_milliseconds / 1000;
+      tv.tv_usec = (timeout_milliseconds % 1000) * 1000;
 
       FD_ZERO(&fdread);
       FD_ZERO(&fdwrite);
