@@ -46,14 +46,17 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
     expires = (Date.today + 2).to_datetime
     easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/set_cookies"
     easy.setopt(Curl::CURLOPT_COOKIELIST, "Set-Cookie: c1=v1; domain=localhost; expires=#{expires.httpdate};")
-    easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', domain: 'localhost', expires: expires.httpdate, path: '/' }])
+    # c2 has no Domain attribute so it is host-only on every libcurl version.
+    # With domain=localhost, curl >= 8.22 built with libpsl makes it host-only
+    # (localhost is a public suffix) while older curl tail-matches (#483).
+    easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', expires: expires.httpdate, path: '/' }])
     easy.perform
     easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/get_cookies"
     easy.post_body = nil
     easy.perform
 
     assert !easy.enable_cookies?
-    assert_equal [".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc1\tv1", ".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc2\tv2"], easy.cookielist
+    assert_equal [".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc1\tv1", "localhost\tFALSE\t/\tFALSE\t#{expires.to_time.to_i}\tc2\tv2"], easy.cookielist
     assert_equal 'c2=v2; c1=v1', easy.body_str
   end
 
@@ -245,14 +248,15 @@ class TestCurbCurlEasyCookielist < Test::Unit::TestCase
       expires = (Date.today + 2).to_datetime
       easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/set_cookies"
       easy.setopt(Curl::CURLOPT_COOKIELIST, command)
-      easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', domain: 'localhost', expires: expires.httpdate, path: '/' }])
+      # host-only c2, see test_setopt_cookielist_enables_cookie_engine (#483)
+      easy.post_body = JSON.generate([{ name: 'c2', value: 'v2', expires: expires.httpdate, path: '/' }])
       easy.perform
       easy.url = "http://localhost:#{TestServlet.port}#{TestServlet.path}/get_cookies"
       easy.post_body = nil
       easy.perform
 
       assert !easy.enable_cookies?
-      assert_equal [".localhost\tTRUE\t/\tFALSE\t#{expires.to_time.to_i}\tc2\tv2"], easy.cookielist
+      assert_equal ["localhost\tFALSE\t/\tFALSE\t#{expires.to_time.to_i}\tc2\tv2"], easy.cookielist
       assert_equal 'c2=v2', easy.body_str
     end
   end
