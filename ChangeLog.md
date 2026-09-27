@@ -1,10 +1,16 @@
 # ChangeLog
-## Unreleased
+## 1.4.0
 * Fix crashes when a user-supplied value's `#to_s` returns a non-String (e.g. a Fixnum): `Curl::PostField#to_s` (name and content coercion), `Curl::Easy#http_auth_types=`, and `Curl::Easy#escape` now use `rb_obj_as_string` instead of trusting a raw `#to_s` result, and `Curl::Easy#unescape` coerces its argument before use. Previously these passed the unchecked result straight to raw C string macros (`RSTRING_PTR`/`RSTRING_LEN`), which could segfault instead of raising.
 * Fix `Curl::Easy#http_auth_types = [:basic, :digest]` (the documented array form), which previously stringified the whole Array and set no auth types.
 * `Curl::Easy#proxy_auth_types=` now accepts auth type symbols (`:basic`, `[:basic, :ntlm]`, etc.) like `http_auth_types=`, in addition to an Integer mask.
 * Fix a curl handle leak in `Curl::PostField#to_s` when the content proc, `#to_s`, or UTF-8 conversion raised.
 * Add guarded Ractor support on Ruby 3.0+ with thread-safe libcurl builds: isolate mutable configuration and cleanup queues per Ractor, freeze exported string constants, default Easy handles to `CURLOPT_NOSIGNAL`, and cover concurrent Easy requests with regression tests.
+* `Curl::Multi#perform` now waits with `curl_multi_poll` (libcurl 7.68+) instead of `curl_multi_fdset`/`select`. Sockets numbered above `FD_SETSIZE` (1024), common in long-running servers, no longer fall back to fixed 100ms sleeps (20 sequential GETs: 4.0s → 12ms); `Thread#raise`, `Thread#kill` and signals interrupt the wait immediately through `curl_multi_wakeup`; and idle waits follow libcurl's timeout instead of a fixed 100ms sleep. Older libcurl keeps the previous wait loop.
+* Under a Fiber scheduler, the socket-action loop now mirrors libcurl's sockets into one epoll (Linux) or kqueue (macOS/BSD) descriptor and waits on it with the scheduler's `io_wait` hook. This avoids the optional `io_select` hook, which Async implements by starting a thread per call (50 concurrent downloads with a CPU-busy Ruby thread: 637ms → 131ms), and fixes schedulers without `io_select` waiting up to `Curl::Multi.default_timeout` behind an idle socket. Platforms without epoll/kqueue keep the previous paths.
+* Make completion processing in `Curl::Multi` O(1) per finished transfer instead of copying every attached handle (16,000 transfers: 6.5s → 2.6s).
+* Scheduler-driven `Curl::Easy#perform` now queues completions instead of scanning every waiter on each drive-loop pass.
+* Fix an invalid `timeval` in the fallback wait loop when `Curl::Multi.default_timeout` exceeds 1000, and drop a retry loop for `CURLM_CALL_MULTI_PERFORM`, which libcurl has not returned since 7.20.
+* Test suite: fix cookie-list tests on libcurl 8.22+ with libpsl (#483), fix a WEBrick teardown race that could hang CI (notably the valgrind job), space fiber stacks apart in `rake test:valgrind` so valgrind tracks fiber switches instead of reporting false invalid reads, skip wall-clock bounds under valgrind, and add coverage for the new wait paths, poller cleanup, and completion/waiter bookkeeping.
 
 ## 1.3.7
 * Pin `Curl::Easy` wrappers during GC compaction so libcurl completion dispatch cannot follow a stale Ruby object reference (#482).
