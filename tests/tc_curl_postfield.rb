@@ -318,3 +318,42 @@ class TestCurbCurlPostfieldMultipartCoverage < Test::Unit::TestCase
     assert_match(/Content-Type: text\/plain/, body)
   end
 end
+
+class TestCurbCurlPostfieldInvalidToS < Test::Unit::TestCase
+  class BadToS
+    def to_s
+      42
+    end
+  end
+
+  def test_to_s_with_non_string_content_to_s_result_does_not_crash
+    pf = Curl::PostField.content('name', BadToS.new)
+    body = nil
+    assert_nothing_raised { body = pf.to_s }
+    assert_kind_of String, body
+    assert body.start_with?('name=')
+  end
+
+  def test_to_s_with_non_string_name_to_s_result_does_not_crash
+    pf = Curl::PostField.content(BadToS.new, 'value')
+    body = nil
+    assert_nothing_raised { body = pf.to_s }
+    assert_kind_of String, body
+  end
+
+  def test_to_s_with_content_proc_returning_non_string_does_not_crash
+    pf = Curl::PostField.content('name') { BadToS.new }
+    assert_nothing_raised { pf.to_s }
+  end
+
+  def test_to_s_content_proc_raising_error_still_propagates
+    pf = Curl::PostField.content('name') { raise 'boom' }
+    error = assert_raise(RuntimeError) { pf.to_s }
+    assert_equal 'boom', error.message
+  end
+
+  def test_to_s_still_coerces_objects_with_valid_to_s
+    pf = Curl::PostField.content('name', 42)
+    assert_equal 'name=42', pf.to_s
+  end
+end

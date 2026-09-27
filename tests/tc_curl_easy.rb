@@ -1,6 +1,12 @@
 require File.expand_path(File.join(File.dirname(__FILE__), 'helper'))
-class FooNoToS 
+class FooNoToS
   undef to_s
+end
+
+class FooBadToS
+  def to_s
+    42
+  end
 end
 
 class TestCurbCurlEasy < Test::Unit::TestCase
@@ -560,7 +566,24 @@ class TestCurbCurlEasy < Test::Unit::TestCase
       assert_equal "one\000two three", c.unescape("one%00two%20three")
     end
   end
-  
+
+  def test_escape_with_non_string_to_s_result_does_not_crash
+    c = Curl::Easy.new
+    result = nil
+    # #to_s returning a non-String (42, a Fixnum) makes rb_obj_as_string
+    # fall back to the default Object#to_s representation rather than "42" -
+    # the point of this test is that it doesn't crash, not the exact value.
+    assert_nothing_raised { result = c.escape(FooBadToS.new) }
+    assert_kind_of String, result
+  end
+
+  def test_unescape_with_non_string_to_s_result_raises_type_error
+    c = Curl::Easy.new
+    # unescape expects an actual String (or something #to_str-coercible);
+    # it must raise cleanly rather than crash on a bad #to_s.
+    assert_raise(TypeError) { c.unescape(FooBadToS.new) }
+  end
+
   def test_headers
     c = Curl::Easy.new($TEST_URL)
     
@@ -745,7 +768,23 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c.http_auth_types = nil
     assert_nil c.http_auth_types
   end
-  
+
+  def test_http_auth_types_with_non_string_to_s_result_does_not_crash
+    c = Curl::Easy.new
+    assert_nothing_raised { c.http_auth_types = FooBadToS.new }
+    assert_nothing_raised { c.http_auth_types = [FooBadToS.new, :basic] }
+    assert_equal Curl::CURLAUTH_BASIC, c.http_auth_types
+  end
+
+  def test_http_auth_types_array_of_symbols
+    c = Curl::Easy.new
+    c.http_auth_types = [:basic, :digest]
+    assert_equal Curl::CURLAUTH_BASIC | Curl::CURLAUTH_DIGEST, c.http_auth_types
+
+    c.send(:http_auth_types=, :basic, :ntlm)
+    assert_equal Curl::CURLAUTH_BASIC | Curl::CURLAUTH_NTLM, c.http_auth_types
+  end
+
   def test_proxy_auth_types_01
     c = Curl::Easy.new($TEST_URL)
     
@@ -757,7 +796,23 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     c.proxy_auth_types = nil
     assert_nil c.proxy_auth_types
   end
-  
+
+  def test_proxy_auth_types_symbols
+    c = Curl::Easy.new
+
+    c.proxy_auth_types = :basic
+    assert_equal Curl::CURLAUTH_BASIC, c.proxy_auth_types
+
+    c.proxy_auth_types = [:basic, :ntlm]
+    assert_equal Curl::CURLAUTH_BASIC | Curl::CURLAUTH_NTLM, c.proxy_auth_types
+
+    c.send(:proxy_auth_types=, :basic, :digest)
+    assert_equal Curl::CURLAUTH_BASIC | Curl::CURLAUTH_DIGEST, c.proxy_auth_types
+
+    assert_nothing_raised { c.proxy_auth_types = [FooBadToS.new, :basic] }
+    assert_equal Curl::CURLAUTH_BASIC, c.proxy_auth_types
+  end
+
   def test_max_redirects_01
     c = Curl::Easy.new($TEST_URL)
     

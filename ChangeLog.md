@@ -1,5 +1,9 @@
 # ChangeLog
 ## Unreleased
+* Fix crashes when a user-supplied value's `#to_s` returns a non-String (e.g. a Fixnum): `Curl::PostField#to_s` (name and content coercion), `Curl::Easy#http_auth_types=`, and `Curl::Easy#escape` now use `rb_obj_as_string` instead of trusting a raw `#to_s` result, and `Curl::Easy#unescape` coerces its argument before use. Previously these passed the unchecked result straight to raw C string macros (`RSTRING_PTR`/`RSTRING_LEN`), which could segfault instead of raising.
+* Fix `Curl::Easy#http_auth_types = [:basic, :digest]` (the documented array form), which previously stringified the whole Array and set no auth types.
+* `Curl::Easy#proxy_auth_types=` now accepts auth type symbols (`:basic`, `[:basic, :ntlm]`, etc.) like `http_auth_types=`, in addition to an Integer mask.
+* Fix a curl handle leak in `Curl::PostField#to_s` when the content proc, `#to_s`, or UTF-8 conversion raised.
 * Add guarded Ractor support on Ruby 3.0+ with thread-safe libcurl builds: isolate mutable configuration and cleanup queues per Ractor, freeze exported string constants, default Easy handles to `CURLOPT_NOSIGNAL`, and cover concurrent Easy requests with regression tests.
 
 ## 1.3.7

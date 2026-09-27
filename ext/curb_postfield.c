@@ -468,7 +468,10 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
     name = rbcpf->name;
     if (TYPE(name) != T_STRING) {
       if (rb_respond_to(name, rb_intern("to_s")))
-        name = rb_funcall(name, rb_intern("to_s"), 0);
+        /* rb_obj_as_string always yields a String, even if #to_s misbehaves
+         * and returns a non-String; a raw rb_funcall result could later be
+         * handed to RSTRING_PTR/RSTRING_LEN and crash. */
+        name = rb_obj_as_string(name);
       else
         name = Qnil;
     }
@@ -480,6 +483,33 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
   }
   /* Force field name to UTF-8 before escaping */
   VALUE name_utf8 = rb_str_export_to_enc(name, rb_utf8_encoding());
+
+  /* Resolve and coerce the content before creating the curl handle: the
+   * content proc, #to_s and the UTF-8 export can all raise, which would
+   * otherwise leak the handle. */
+  VALUE tmpcontent = Qnil;
+  if (rbcpf->content_proc != Qnil) {
+    tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
+  } else if (rbcpf->content != Qnil) {
+    tmpcontent = rbcpf->content;
+  } else if (rbcpf->local_file != Qnil) {
+    tmpcontent = rbcpf->local_file;
+  } else if (rbcpf->remote_file != Qnil) {
+    tmpcontent = rbcpf->remote_file;
+  } else {
+    tmpcontent = rb_str_new2("");
+  }
+  if (TYPE(tmpcontent) != T_STRING) {
+    if (rb_respond_to(tmpcontent, rb_intern("to_s")))
+      /* rb_obj_as_string always yields a String, even if #to_s misbehaves */
+      tmpcontent = rb_obj_as_string(tmpcontent);
+    else
+      rb_raise(rb_eRuntimeError,
+               "postfield(%"PRIsVALUE") is not a string and does not respond_to to_s",
+               name);
+  }
+  /* Force content to UTF-8 before escaping */
+  VALUE content_utf8 = rb_str_export_to_enc(tmpcontent, rb_utf8_encoding());
 
 #ifdef HAVE_CURL_EASY_ESCAPE
   curl_handle = curl_easy_init();
@@ -499,38 +529,8 @@ static VALUE ruby_curl_postfield_to_str(VALUE self) {
 #endif
 
   VALUE escd_name = rb_str_new2(tmpchrs);
-#ifdef HAVE_CURL_EASY_ESCAPE
   curl_free(tmpchrs);
-#else
-  curl_free(tmpchrs);
-#endif
 
-  VALUE tmpcontent = Qnil;
-  if (rbcpf->content_proc != Qnil) {
-    tmpcontent = rb_funcall(rbcpf->content_proc, idCall, 1, self);
-  } else if (rbcpf->content != Qnil) {
-    tmpcontent = rbcpf->content;
-  } else if (rbcpf->local_file != Qnil) {
-    tmpcontent = rbcpf->local_file;
-  } else if (rbcpf->remote_file != Qnil) {
-    tmpcontent = rbcpf->remote_file;
-  } else {
-    tmpcontent = rb_str_new2("");
-  }
-  if (TYPE(tmpcontent) != T_STRING) {
-    if (rb_respond_to(tmpcontent, rb_intern("to_s")))
-      tmpcontent = rb_funcall(tmpcontent, rb_intern("to_s"), 0);
-    else {
-#ifdef HAVE_CURL_EASY_ESCAPE
-      curl_easy_cleanup(curl_handle);
-#endif
-      rb_raise(rb_eRuntimeError,
-               "postfield(%s) is not a string and does not respond_to to_s",
-               RSTRING_PTR(escd_name));
-    }
-  }
-  /* Force content to UTF-8 before escaping */
-  VALUE content_utf8 = rb_str_export_to_enc(tmpcontent, rb_utf8_encoding());
 #ifdef HAVE_CURL_EASY_ESCAPE
   tmpchrs = curl_easy_escape(curl_handle, StringValuePtr(content_utf8), (int)RSTRING_LEN(content_utf8));
   if (!tmpchrs) {

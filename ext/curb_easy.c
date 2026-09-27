@@ -2567,6 +2567,41 @@ static VALUE ruby_curl_easy_proxy_type_get(VALUE self) {
   (!strncmp("any",node,3)) ? CURLAUTH_ANY : 0
 #endif
 /*
+ * Convert the arguments to http_auth_types= / proxy_auth_types= into a
+ * CURLAUTH bitmask. Accepts nil, an Integer mask, or one or more auth type
+ * names (symbols/strings), either as separate args or as a single Array.
+ */
+static long ruby_curl_easy_auth_types_to_mask(VALUE args_ary) {
+  long i, len;
+  char* node = NULL;
+  long mask = 0;
+  VALUE first;
+
+  /* easy.http_auth_types = [:basic, :digest] arrives as a single Array arg */
+  if (RARRAY_LEN(args_ary) == 1 && RB_TYPE_P(rb_ary_entry(args_ary,0), T_ARRAY)) {
+    args_ary = rb_ary_entry(args_ary,0);
+  }
+
+  len = RARRAY_LEN(args_ary);
+  first = rb_ary_entry(args_ary,0);
+
+  if (len == 1 && (first == Qnil || TYPE(first) == T_FIXNUM || TYPE(first) == T_BIGNUM)) {
+    return first == Qnil ? 0 : NUM2LONG(first);
+  }
+
+  // we could have multiple values, but they should be symbols
+  // rb_obj_as_string always yields a String, even if to_s misbehaves;
+  // RSTRING_PTR on a raw rb_funcall result would crash if #to_s returned
+  // a non-String (e.g. a Fixnum, whose VALUE isn't a real pointer).
+  for( i = 0; i < len; ++i ) {
+    VALUE node_str = rb_obj_as_string(rb_ary_entry(args_ary,i));
+    node = StringValuePtr(node_str);
+    mask |= CURL_HTTPAUTH_STR_TO_NUM(node);
+  }
+  return mask;
+}
+
+/*
  * call-seq:
  *   easy.http_auth_types = fixnum or nil             => fixnum or nil
  *   easy.http_auth_types = [:basic,:digest,:digest_ie,:gssnegotiate, :ntlm, :any, :anysafe]
@@ -2575,37 +2610,14 @@ static VALUE ruby_curl_easy_proxy_type_get(VALUE self) {
  * +perform+ calls. This is a bitmap made by ORing together the
  * Curl::CURLAUTH constants.
  */
-static VALUE ruby_curl_easy_http_auth_types_set(int argc, VALUE *argv, VALUE self) {//VALUE self, VALUE http_auth_types) {
+static VALUE ruby_curl_easy_http_auth_types_set(int argc, VALUE *argv, VALUE self) {
   ruby_curl_easy *rbce;
   VALUE args_ary;
-  long i, len;
-  char* node = NULL;
-  long mask = 0;
 
   rb_scan_args(argc, argv, "*", &args_ary);
   TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
 
-  len = RARRAY_LEN(args_ary);
-
-  if (len == 1 && (rb_ary_entry(args_ary,0) == Qnil || TYPE(rb_ary_entry(args_ary,0)) == T_FIXNUM ||
-        TYPE(rb_ary_entry(args_ary,0)) == T_BIGNUM)) {
-    if (rb_ary_entry(args_ary,0) == Qnil) {
-      rbce->http_auth_types = 0;
-    }
-    else {
-      rbce->http_auth_types = NUM2LONG(rb_ary_entry(args_ary,0));
-    }
-  }
-  else {
-    // we could have multiple values, but they should be symbols
-    node = RSTRING_PTR(rb_funcall(rb_ary_entry(args_ary,0),rb_intern("to_s"),0));
-    mask = CURL_HTTPAUTH_STR_TO_NUM(node);
-    for( i = 1; i < len; ++i ) {
-      node = RSTRING_PTR(rb_funcall(rb_ary_entry(args_ary,i),rb_intern("to_s"),0));
-      mask |= CURL_HTTPAUTH_STR_TO_NUM(node);
-    }
-    rbce->http_auth_types = mask;
-  }
+  rbce->http_auth_types = ruby_curl_easy_auth_types_to_mask(args_ary);
   return LONG2NUM(rbce->http_auth_types);
 }
 
@@ -2623,13 +2635,21 @@ static VALUE ruby_curl_easy_http_auth_types_get(VALUE self) {
 /*
  * call-seq:
  *   easy.proxy_auth_types = fixnum or nil            => fixnum or nil
+ *   easy.proxy_auth_types = [:basic,:digest,:digest_ie,:gssnegotiate, :ntlm, :any, :anysafe]
  *
  * Set the proxy authentication types that may be used for the following
  * +perform+ calls. This is a bitmap made by ORing together the
  * Curl::CURLAUTH constants.
  */
-static VALUE ruby_curl_easy_proxy_auth_types_set(VALUE self, VALUE proxy_auth_types) {
-  CURB_IMMED_SETTER(ruby_curl_easy, proxy_auth_types, 0);
+static VALUE ruby_curl_easy_proxy_auth_types_set(int argc, VALUE *argv, VALUE self) {
+  ruby_curl_easy *rbce;
+  VALUE args_ary;
+
+  rb_scan_args(argc, argv, "*", &args_ary);
+  TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+
+  rbce->proxy_auth_types = ruby_curl_easy_auth_types_to_mask(args_ary);
+  return LONG2NUM(rbce->proxy_auth_types);
 }
 
 /*
@@ -6081,8 +6101,9 @@ static VALUE ruby_curl_easy_escape(VALUE self, VALUE svalue) {
 
   TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
 
-  /* NOTE: make sure the value is a string, if not call to_s */
-  if( rb_type(str) != T_STRING ) { str = rb_funcall(str,rb_intern("to_s"),0); }
+  /* NOTE: make sure the value is a string; rb_obj_as_string always yields a
+   * String, even if the object's to_s misbehaves and returns a non-String. */
+  if( rb_type(str) != T_STRING ) { str = rb_obj_as_string(str); }
 
 #if (LIBCURL_VERSION_NUM >= 0x070f04)
   result = (char*)curl_easy_escape(rbce->curl, StringValuePtr(str), (int)RSTRING_LEN(str));
@@ -6111,6 +6132,11 @@ static VALUE ruby_curl_easy_unescape(VALUE self, VALUE str) {
   VALUE rresult;
 
   TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+
+  /* Coerce as its own statement before use below - StringValuePtr and
+   * RSTRING_LEN are sibling args to the same call and C does not guarantee
+   * left-to-right evaluation order between them. */
+  StringValue(str);
 
 #if (LIBCURL_VERSION_NUM >= 0x070f04)
   result = (char*)curl_easy_unescape(rbce->curl, StringValuePtr(str), (int)RSTRING_LEN(str), &rlen);
@@ -6217,7 +6243,7 @@ void init_curb_easy() {
   rb_define_method(cCurlEasy, "proxy_type", ruby_curl_easy_proxy_type_get, 0);
   rb_define_method(cCurlEasy, "http_auth_types=", ruby_curl_easy_http_auth_types_set, -1);
   rb_define_method(cCurlEasy, "http_auth_types", ruby_curl_easy_http_auth_types_get, 0);
-  rb_define_method(cCurlEasy, "proxy_auth_types=", ruby_curl_easy_proxy_auth_types_set, 1);
+  rb_define_method(cCurlEasy, "proxy_auth_types=", ruby_curl_easy_proxy_auth_types_set, -1);
   rb_define_method(cCurlEasy, "proxy_auth_types", ruby_curl_easy_proxy_auth_types_get, 0);
   rb_define_method(cCurlEasy, "max_redirects=", ruby_curl_easy_max_redirects_set, 1);
   rb_define_method(cCurlEasy, "max_redirects", ruby_curl_easy_max_redirects_get, 0);
