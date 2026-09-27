@@ -32,6 +32,7 @@
 #include <sys/time.h>
 #include <time.h>
 #endif
+#include <limits.h>
 #include <stdint.h>
 #include <stdarg.h>
 
@@ -62,7 +63,40 @@
   #include <fcntl.h>
 #endif
 
-#if defined(HAVE_CURL_MULTI_WAIT) && !defined(HAVE_RB_THREAD_FD_SELECT)
+/*
+ * Prefer curl_multi_poll for the blocking perform loop: it uses poll(), so it
+ * has no FD_SETSIZE limit (select-based waiting cannot see sockets numbered
+ * above 1024 and degrades to fixed sleeps), and curl_multi_wakeup lets the
+ * unblocking function end the wait immediately for Thread#raise, Thread#kill
+ * and signal delivery.
+ */
+#if defined(HAVE_CURL_MULTI_POLL) && defined(HAVE_CURL_MULTI_WAKEUP) && defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL)
+#define CURB_USE_MULTI_POLL 1
+#endif
+
+#ifdef CURB_USE_MULTI_POLL
+struct multi_poll_args {
+  CURLM *handle;
+  int timeout_ms;
+  int numfds;
+  CURLMcode code;
+};
+
+static void *curb_multi_poll_without_gvl(void *p) {
+  struct multi_poll_args *args = p;
+  args->code = curl_multi_poll(args->handle, NULL, 0, args->timeout_ms, &args->numfds);
+  return NULL;
+}
+
+/* Unblocking function: curl_multi_wakeup is safe to call from another thread
+ * while curl_multi_poll is blocked on the same handle. A wakeup that arrives
+ * after the poll returned only makes the next poll return early once. */
+static void curb_multi_poll_ubf(void *handle) {
+  curl_multi_wakeup((CURLM *)handle);
+}
+#endif
+
+#if defined(HAVE_CURL_MULTI_WAIT) && !defined(HAVE_RB_THREAD_FD_SELECT) && !defined(CURB_USE_MULTI_POLL)
 struct wait_args {
   CURLM *handle;
   long timeout_ms;
@@ -2020,17 +2054,19 @@ static void *curb_select_without_gvl(void *args) {
 static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
   CURLMcode mcode;
   ruby_curl_multi *rbcm;
+  long timeout_milliseconds;
+  VALUE block = Qnil;
+#ifndef CURB_USE_MULTI_POLL
   int maxfd, rc = -1;
   fd_set fdread, fdwrite, fdexcep;
 #ifdef _WIN32
   fd_set crt_fdread, crt_fdwrite, crt_fdexcep;
 #endif
-  long timeout_milliseconds;
   struct timeval tv = {0, 0};
   struct timeval tv_100ms = {0, 100000};
-  VALUE block = Qnil;
 #if !defined(HAVE_RB_THREAD_FD_SELECT) && (defined(HAVE_RB_THREAD_BLOCKING_REGION) || defined(HAVE_RB_THREAD_CALL_WITHOUT_GVL))
   struct _select_set fdset_args;
+#endif
 #endif
 
   rb_scan_args(argc, argv, "0&", &block);
@@ -2086,7 +2122,31 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
                                                         /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
       }
 
-#if defined(HAVE_CURL_MULTI_WAIT) && !defined(HAVE_RB_THREAD_FD_SELECT)
+#if defined(CURB_USE_MULTI_POLL)
+      {
+        struct multi_poll_args poll_args;
+        poll_args.handle     = rbcm->handle;
+        poll_args.timeout_ms = timeout_milliseconds > INT_MAX ? INT_MAX : (int)timeout_milliseconds;
+        poll_args.numfds     = 0;
+        poll_args.code       = CURLM_OK;
+        /*
+         * Wait with the GVL released. curl_multi_poll sleeps for the full
+         * timeout even when libcurl has no sockets to watch, so no separate
+         * idle sleep is needed. Pending interrupts are checked when
+         * rb_thread_call_without_gvl returns. Like rb_thread_fd_select, this
+         * wait does not consult the fiber scheduler; perform routes to the
+         * socket-action loop when a scheduler is active.
+         */
+        rb_thread_call_without_gvl(curb_multi_poll_without_gvl, &poll_args,
+                                   curb_multi_poll_ubf, rbcm->handle);
+        if (poll_args.code != CURLM_OK) {
+          raise_curl_multi_error_exception(poll_args.code);
+        }
+        rb_curl_multi_run(self, rbcm->handle, &(rbcm->running));
+        rb_curl_multi_read_info(self, rbcm->handle);
+        rb_curl_multi_yield_if_given(self, block);
+      }
+#elif defined(HAVE_CURL_MULTI_WAIT) && !defined(HAVE_RB_THREAD_FD_SELECT)
       {
         struct wait_args wait_args;
         wait_args.handle     = rbcm->handle;
