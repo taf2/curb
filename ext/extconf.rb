@@ -716,6 +716,10 @@ have_func('curl_multi_socket')
 have_func('curl_multi_timer_callback')
 have_constant 'curlmopt_socketfunction'
 have_constant 'curlmopt_timerfunction'
+# Kernel event queues let the socket-action loop wait on one descriptor for
+# every libcurl socket under a fiber scheduler.
+have_header('sys/epoll.h') && have_func('epoll_create1', 'sys/epoll.h')
+have_header('sys/event.h') && have_func('kqueue', ['sys/types.h', 'sys/event.h'])
 have_func('curl_easy_duphandle')
 
 # Optional: enable verbose socket-action debug logging.

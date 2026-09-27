@@ -118,7 +118,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
     duration = Time.now - started
 
-    assert duration < THRESHOLD, "Requests did not run concurrently under fiber scheduler (#{duration}s) which exceeds the expected threshold of: #{THRESHOLD} serial time would be about: #{SERIAL_TIME_WOULD_BE_ABOUT}"
+    assert_ran_concurrently(duration)
     assert_equal ITERS, results.size
     assert_equal ITERS.times.map {200}, results
   end
@@ -149,7 +149,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
 
     duration = Time.now - started
 
-    assert duration < THRESHOLD, "Requests did not run concurrently under fiber scheduler (#{duration}s) which exceeds the expected threshold of: #{THRESHOLD} serial time would be about: #{SERIAL_TIME_WOULD_BE_ABOUT}"
+    assert_ran_concurrently(duration)
     assert_equal ITERS, results.size
     assert_equal ITERS.times.map {200}, results
   end
@@ -847,6 +847,14 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
       return true
     end
     false
+  end
+
+  # Wall-clock bounds are not reliable under valgrind, which slows and
+  # serializes threads unpredictably; there the requests and their results are
+  # still checked under memcheck, only the duration bound is skipped.
+  def assert_ran_concurrently(duration)
+    return if curb_under_valgrind?
+    assert duration < THRESHOLD, "Requests did not run concurrently under fiber scheduler (#{duration}s) which exceeds the expected threshold of: #{THRESHOLD} serial time would be about: #{SERIAL_TIME_WOULD_BE_ABOUT}"
   end
 
   def socket_perform_supported?

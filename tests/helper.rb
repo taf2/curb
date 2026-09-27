@@ -735,3 +735,117 @@ end
 unless URI.methods.include?(:encode_www_form)
   URI.extend(Backports::Ruby18::URIFormEncoding)
 end
+
+# Valgrind slows every request enough that tight wall-clock bounds stop
+# meaning anything; tests use this to relax or skip only those bounds.
+def curb_under_valgrind?
+  ENV['LD_PRELOAD'].to_s.include?('vgpreload')
+end
+
+# Queue#pop(timeout:) needs Ruby 3.2. Older Rubies take the keyword hash as
+# the positional non_block flag and raise ThreadError immediately.
+def curb_pop_within(queue, seconds)
+  deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds
+  loop do
+    begin
+      return queue.pop(true)
+    rescue ThreadError
+      return nil if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+      sleep 0.01
+    end
+  end
+end
+
+# Minimal HTTP/1.1 server so a test controls exactly when and how a response
+# is written. Every request gets its own connection (Connection: close).
+#
+#   /fast                   "fast" immediately
+#   /delay/<seconds>        "delayed" after sleeping
+#   /hang                   "released" once release_hung is called
+#   /stream/<chunks>/<n>    <chunks> writes of <n> bytes (see stream_body)
+#   /truncate               promises 100000 bytes, sends 10, then closes
+#   /reset                  sends part of a body, then aborts with a TCP RST
+class CurbTinyHTTPServer
+  attr_reader :port, :requests
+
+  # Chunk i is filled with one letter so a test can verify reassembly.
+  def self.stream_body(chunks, bytes)
+    (0...chunks).map { |i| (97 + (i % 26)).chr * bytes }.join
+  end
+
+  def initialize
+    @listener = TCPServer.new('127.0.0.1', 0)
+    @port = @listener.addr[1]
+    @requests = Queue.new
+    @release = Queue.new
+    @clients = []
+    @thread = Thread.new { accept_loop }
+  end
+
+  def url(path)
+    "http://127.0.0.1:#{@port}#{path}"
+  end
+
+  # Let pending /hang requests finish.
+  def release_hung(count = 64)
+    count.times { @release << true }
+  end
+
+  def close
+    release_hung
+    @listener.close rescue nil
+    @thread.kill
+    @thread.join(2)
+    @clients.each { |t| t.kill; t.join(1) }
+  end
+
+  private
+
+  def accept_loop
+    loop do
+      sock = @listener.accept
+      @clients << Thread.new(sock) { |s| handle(s) }
+    end
+  rescue IOError, Errno::EBADF
+    nil
+  end
+
+  def handle(sock)
+    request_line = sock.gets.to_s
+    while (line = sock.gets) && line != "\r\n"; end
+    path = request_line.split(' ')[1].to_s
+    @requests << path
+
+    case path
+    when %r{\A/delay/([\d.]+)}
+      sleep Float($1)
+      respond(sock, "delayed")
+    when '/hang'
+      curb_pop_within(@release, 10)
+      respond(sock, "released")
+    when %r{\A/stream/(\d+)/(\d+)}
+      chunks = Integer($1)
+      bytes = Integer($2)
+      sock.write("HTTP/1.1 200 OK\r\nContent-Length: #{chunks * bytes}\r\nConnection: close\r\n\r\n")
+      chunks.times do |i|
+        sock.write((97 + (i % 26)).chr * bytes)
+        Thread.pass
+      end
+    when '/truncate'
+      sock.write("HTTP/1.1 200 OK\r\nContent-Length: 100000\r\nConnection: close\r\n\r\n0123456789")
+    when '/reset'
+      sock.write("HTTP/1.1 200 OK\r\nContent-Length: 100000\r\nConnection: close\r\n\r\n0123456789")
+      sock.setsockopt(Socket::Option.linger(true, 0))
+    else
+      respond(sock, "fast")
+    end
+  rescue IOError, SystemCallError
+    nil
+  ensure
+    sock.close rescue nil
+  end
+
+  def respond(sock, body)
+    sock.write("HTTP/1.1 200 OK\r\nContent-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}")
+  end
+end

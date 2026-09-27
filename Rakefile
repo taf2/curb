@@ -120,7 +120,13 @@ if RUBY_ENGINE == 'ruby' && ruby_version >= Gem::Version.new('4.0.4') && ruby_ve
   end
   ruby_memcheck_config[:skipped_ruby_functions] =
     RubyMemcheck::Configuration::DEFAULT_SKIPPED_RUBY_FUNCTIONS + [
-      /\Arb_vm_frame_block_handler\z/
+      /\Arb_vm_frame_block_handler\z/,
+      # Converting a block to a Proc (rb_scan_args "&") inside a fiber copies
+      # the block's environment from the main thread's VM stack, which Ruby
+      # allocates on the native stack. Valgrind loses track of that stack
+      # across fiber switches and reports the reads as invalid ("on thread 1's
+      # stack"); plain valgrind shows the same reports with no curb code loaded.
+      /\Arb_vm_make_proc_lambda\z/
     ]
 end
 

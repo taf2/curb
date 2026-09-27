@@ -6,94 +6,11 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
   FD_SETSIZE = 1024
   HIGH_FD_TARGET = FD_SETSIZE + 76
 
-  # Queue#pop(timeout:) needs Ruby 3.2. Older Rubies take the keyword hash as
-  # the positional non_block flag and raise ThreadError immediately.
-  def self.pop_within(queue, seconds)
-    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds
-    loop do
-      begin
-        return queue.pop(true)
-      rescue ThreadError
-        return nil if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
-        sleep 0.01
-      end
-    end
-  end
-
-  # Minimal HTTP/1.1 server so each test controls exactly when a response is
-  # written. Every request gets its own connection (Connection: close).
-  class TinyServer
-    attr_reader :port, :requests
-
-    def initialize
-      @listener = TCPServer.new('127.0.0.1', 0)
-      @port = @listener.addr[1]
-      @requests = Queue.new
-      @release = Queue.new
-      @clients = []
-      @thread = Thread.new { accept_loop }
-    end
-
-    def url(path)
-      "http://127.0.0.1:#{@port}#{path}"
-    end
-
-    # Let every pending /hang request finish.
-    def release_hung(count = 64)
-      count.times { @release << true }
-    end
-
-    def close
-      release_hung
-      @listener.close rescue nil
-      @thread.kill
-      @thread.join(2)
-      @clients.each { |t| t.kill; t.join(1) }
-    end
-
-    private
-
-    def accept_loop
-      loop do
-        sock = @listener.accept
-        @clients << Thread.new(sock) { |s| handle(s) }
-      end
-    rescue IOError, Errno::EBADF
-      nil
-    end
-
-    def handle(sock)
-      request_line = sock.gets.to_s
-      while (line = sock.gets) && line != "\r\n"; end
-      path = request_line.split(' ')[1].to_s
-      @requests << path
-
-      case path
-      when %r{\A/delay/([\d.]+)}
-        sleep Float($1)
-        respond(sock, "delayed")
-      when '/hang'
-        TestCurbCurlMultiPoll.pop_within(@release, 10)
-        respond(sock, "released")
-      else
-        respond(sock, "fast")
-      end
-    rescue IOError, SystemCallError
-      nil
-    ensure
-      sock.close rescue nil
-    end
-
-    def respond(sock, body)
-      sock.write("HTTP/1.1 200 OK\r\nContent-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}")
-    end
-  end
-
   class PollInterrupt < StandardError; end
 
   def setup
     super
-    @server = TinyServer.new
+    @server = CurbTinyHTTPServer.new
     @original_default_timeout = Curl::Multi.default_timeout
   end
 
@@ -107,15 +24,11 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
     Process.clock_gettime(Process::CLOCK_MONOTONIC)
   end
 
-  # Valgrind slows every request enough that wall-clock bounds can no longer
-  # tell the old fixed-sleep loop from ordinary overhead. Skip only those
-  # bounds there; the requests and their assertions still run under memcheck.
-  def under_valgrind?
-    ENV['LD_PRELOAD'].to_s.include?('vgpreload')
-  end
-
+  # Under valgrind these bounds can no longer tell the old fixed-sleep loop
+  # from ordinary overhead. Skip only the bounds; the requests and their
+  # assertions still run under memcheck.
   def assert_faster_than(limit, elapsed, message)
-    return if under_valgrind?
+    return if curb_under_valgrind?
     assert_operator elapsed, :<, limit, message
   end
 
@@ -243,7 +156,7 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
       end
     end
 
-    assert_equal '/hang', self.class.pop_within(@server.requests, 5), "server never received the request"
+    assert_equal '/hang', curb_pop_within(@server.requests, 5), "server never received the request"
     # Give the worker a moment to settle into the blocking wait.
     sleep 0.1
 
@@ -286,7 +199,7 @@ class TestCurbCurlMultiPoll < Test::Unit::TestCase
     sent_at = nil
 
     signaller = Thread.new do
-      self.class.pop_within(@server.requests, 5)
+      curb_pop_within(@server.requests, 5)
       sleep 0.1
       sent_at = monotonic
       Process.kill('USR2', Process.pid)
