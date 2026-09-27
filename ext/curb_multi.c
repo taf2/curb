@@ -818,7 +818,7 @@ VALUE ruby_curl_multi_add(VALUE self, VALUE easy) {
     }
   }
 
-  rbce->multi_attachment_generation++;
+  rbce->multi_attachment_generation = ++rbcm->attachment_sequence;
   st_insert(rbcm->attached, (st_data_t)rbce, (st_data_t)easy);
 
   /* track a reference to associated multi handle */
@@ -938,42 +938,17 @@ struct multi_complete_callback_args {
   ruby_curl_multi *rbcm;
   ruby_curl_easy *rbce;
   int result;
-  st_table *attached_snapshot;
+  /* rbcm->attachment_sequence before the callbacks ran; easies stamped later
+   * were attached (or re-attached) by the callbacks. */
+  unsigned long attachment_sequence_before;
 };
 
-static int snapshot_attached_easy_i(st_data_t key, st_data_t val, st_data_t arg) {
-  st_table *snapshot = (st_table *)arg;
-  ruby_curl_easy *rbce = (ruby_curl_easy *)key;
-
-  if (!rbce) {
-    return ST_CONTINUE;
-  }
-
-  st_insert(snapshot, key, (st_data_t)rbce->multi_attachment_generation);
-  return ST_CONTINUE;
-}
-
-static st_table *capture_attached_easy_snapshot(ruby_curl_multi *rbcm) {
-  st_table *snapshot = st_init_numtable();
-
-  if (!snapshot) {
-    rb_raise(rb_eNoMemError, "Failed to allocate multi callback snapshot table");
-  }
-
-  if (rbcm && rbcm->attached) {
-    st_foreach(rbcm->attached, snapshot_attached_easy_i, (st_data_t)snapshot);
-  }
-
-  return snapshot;
-}
-
 struct collect_new_attached_easies_ctx {
-  st_table *snapshot;
+  unsigned long attachment_sequence_before;
   VALUE easies;
 };
 
 static int collect_new_attached_easies_i(st_data_t key, st_data_t val, st_data_t arg) {
-  st_data_t existing = 0;
   ruby_curl_easy *rbce = (ruby_curl_easy *)key;
   struct collect_new_attached_easies_ctx *ctx = (struct collect_new_attached_easies_ctx *)arg;
 
@@ -981,24 +956,25 @@ static int collect_new_attached_easies_i(st_data_t key, st_data_t val, st_data_t
     return ST_CONTINUE;
   }
 
-  if (!ctx->snapshot || !st_lookup(ctx->snapshot, key, &existing) ||
-      existing != (st_data_t)rbce->multi_attachment_generation) {
+  if (rbce->multi_attachment_generation > ctx->attachment_sequence_before) {
     rb_ary_push(ctx->easies, (VALUE)val);
   }
 
   return ST_CONTINUE;
 }
 
-static void rb_curl_multi_remove_added_easies_since_snapshot(VALUE self, ruby_curl_multi *rbcm, st_table *snapshot) {
+/* Only runs when a completion callback raised, so this walk over the
+ * attached table stays off the per-completion path. */
+static void rb_curl_multi_remove_easies_attached_since(VALUE self, ruby_curl_multi *rbcm, unsigned long attachment_sequence_before) {
   struct collect_new_attached_easies_ctx ctx;
   VALUE easies = rb_ary_new();
   long index;
 
-  if (!rbcm || !snapshot || !rbcm->attached) {
+  if (!rbcm || !rbcm->attached) {
     return;
   }
 
-  ctx.snapshot = snapshot;
+  ctx.attachment_sequence_before = attachment_sequence_before;
   ctx.easies = easies;
   st_foreach(rbcm->attached, collect_new_attached_easies_i, (st_data_t)&ctx);
 
@@ -1035,7 +1011,7 @@ static void stash_and_raise_status_callback_error_if_unmasked(struct multi_compl
   }
 
   stash_multi_exception_if_unset(args->self, exception, args->easy);
-  rb_curl_multi_remove_added_easies_since_snapshot(args->self, args->rbcm, args->attached_snapshot);
+  rb_curl_multi_remove_easies_attached_since(args->self, args->rbcm, args->attachment_sequence_before);
   rb_exc_raise(exception);
 }
 
@@ -1138,11 +1114,6 @@ static VALUE rb_curl_multi_finish_completion_callbacks(VALUE argp) {
     args->rbce->multi = Qnil;
   }
 
-  if (args->attached_snapshot) {
-    st_free_table(args->attached_snapshot);
-    args->attached_snapshot = NULL;
-  }
-
   return Qnil;
 }
 
@@ -1203,7 +1174,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
     rbcm,
     rbce,
     result,
-    capture_attached_easy_snapshot(rbcm)
+    rbcm->attachment_sequence
   };
   rb_ensure(rb_curl_multi_run_completion_callbacks, (VALUE)&args,
             rb_curl_multi_finish_completion_callbacks, (VALUE)&args);

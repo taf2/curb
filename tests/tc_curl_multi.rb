@@ -586,6 +586,35 @@ class TestCurbCurlMulti < Test::Unit::TestCase
     end
   end
 
+  # Only easies attached by the raising callback itself are withdrawn. Work
+  # queued by an earlier, successful callback in the same perform was already
+  # attached when the failing callback started, so it keeps running and the
+  # deferred exception is raised once it drains.
+  def test_multi_perform_keeps_work_added_by_earlier_callback_when_later_callback_raises
+    server = CurbTinyHTTPServer.new
+    multi = Curl::Multi.new
+    first = Curl::Easy.new(server.url('/fast'))
+    failing = Curl::Easy.new(server.url('/delay/0.15'))
+    kept = Curl::Easy.new(server.url('/delay/0.4'))
+
+    first.on_complete { multi.add(kept) }
+    failing.on_complete { raise "complete blew up" }
+
+    error = assert_raise(Curl::Err::AbortedByCallbackError) do
+      multi.add(first)
+      multi.add(failing)
+      multi.perform
+    end
+
+    assert_equal "complete blew up", error.message
+    assert_equal 0, kept.last_result
+    assert_equal "delayed", kept.body_str,
+                 "work added by an earlier successful callback should finish, not be withdrawn with the failing callback's additions"
+  ensure
+    multi.close if multi
+    server.close if server
+  end
+
   def test_multi_perform_does_not_start_work_added_within_on_complete_after_on_body_exception
     with_queue_refill_test_server do |port, hits|
       multi = Curl::Multi.new

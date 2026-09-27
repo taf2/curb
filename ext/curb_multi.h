@@ -21,6 +21,10 @@ typedef struct {
   char allow_close_during_perform;
   CURLM *handle;
   struct st_table *attached;
+  /* Bumped on every add and stamped onto the easy (multi_attachment_generation),
+   * so "attached after point X" is a comparison instead of a table snapshot.
+   * Monotonic for the object's lifetime; never reset. */
+  unsigned long attachment_sequence;
 } ruby_curl_multi;
 
 extern VALUE cCurlMulti;

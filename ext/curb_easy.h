@@ -112,6 +112,7 @@ typedef struct {
   curb_cidr_rule *network_allowed_cidr_rules;
   char **network_allowed_hosts;
 
+  /* attachment_sequence of the multi at the time this easy was last added. */
   unsigned long multi_attachment_generation;
   curl_off_t downloaded_body_bytes;
   size_t network_allowed_cidr_rule_count;
