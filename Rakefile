@@ -120,19 +120,24 @@ if RUBY_ENGINE == 'ruby' && ruby_version >= Gem::Version.new('4.0.4') && ruby_ve
   end
   ruby_memcheck_config[:skipped_ruby_functions] =
     RubyMemcheck::Configuration::DEFAULT_SKIPPED_RUBY_FUNCTIONS + [
-      /\Arb_vm_frame_block_handler\z/,
-      # Converting a block to a Proc (rb_scan_args "&") inside a fiber copies
-      # the block's environment from the main thread's VM stack, which Ruby
-      # allocates on the native stack. Valgrind loses track of that stack
-      # across fiber switches and reports the reads as invalid ("on thread 1's
-      # stack"); plain valgrind shows the same reports with no curb code loaded.
-      /\Arb_vm_make_proc_lambda\z/
+      /\Arb_vm_frame_block_handler\z/
     ]
 end
 
 RubyMemcheck.config(**ruby_memcheck_config)
 namespace :test do
-  RubyMemcheck::TestTask.new(valgrind: :compile) do|t|
+  # Ruby pools fiber stacks next to each other, about 1MB apart. Valgrind
+  # treats a stack-pointer jump smaller than --max-stackframe (2MB) as an
+  # ordinary call or return rather than a switch to another stack, and marks
+  # the memory in between, which can hold another fiber's stack, as
+  # inaccessible. Later reads of that fiber's stack (turning a block into a
+  # Proc, GC marking suspended fibers) are then reported as invalid. Spacing
+  # fiber stacks wider than that lets valgrind recognize every fiber switch.
+  task :valgrind_env do
+    ENV['RUBY_FIBER_MACHINE_STACK_SIZE'] ||= (4 * 1024 * 1024).to_s
+  end
+
+  RubyMemcheck::TestTask.new(valgrind: [:compile, :valgrind_env]) do|t|
     t.test_files = FileList['tests/tc_*.rb']
     t.verbose = false
   end
