@@ -734,6 +734,97 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     end
   end
 
+  # Records unblock calls in place of a real scheduler.
+  class UnblockRecorder
+    attr_reader :unblocked
+
+    def initialize
+      @unblocked = []
+    end
+
+    def unblock(blocker, _fiber)
+      @unblocked << blocker
+    end
+  end
+
+  # Enumerating every waiter on every drive-loop pass made release cost
+  # O(waiters) per pass; only the queued completions should be visited.
+  class NonEnumerableWaiters < Hash
+    %i[each each_pair each_value each_key].each do |name|
+      define_method(name) { |*| raise 'release_scheduler_waiters must not enumerate all waiters' }
+    end
+  end
+
+  def scheduler_test_waiter(scheduler)
+    {completed: true, done: false, error: nil, fiber: Fiber.new {}, scheduler: scheduler}
+  end
+
+  def test_release_scheduler_waiters_visits_only_queued_completions
+    state = Curl.scheduler_state
+    recorder = UnblockRecorder.new
+    waiters = NonEnumerableWaiters.new
+    1_000.times { |i| waiters[i] = scheduler_test_waiter(recorder).merge(completed: false) }
+    finished = scheduler_test_waiter(recorder)
+    waiters[:finished] = finished
+    state[:waiters] = waiters
+    state[:completed] << [:finished, finished]
+
+    Curl.release_scheduler_waiters(state)
+
+    assert_equal [finished], recorder.unblocked
+    assert finished[:done]
+    assert_empty state[:completed]
+  ensure
+    cleanup_scheduler_state
+  end
+
+  # A waiter whose perform already returned (it raised) is unregistered and its
+  # fiber may be blocked on something else, so a late completion must not
+  # unblock it.
+  def test_release_scheduler_waiters_skips_unregistered_waiter
+    state = Curl.scheduler_state
+    recorder = UnblockRecorder.new
+    stale = scheduler_test_waiter(recorder)
+    state[:completed] << [:stale, stale]
+
+    Curl.release_scheduler_waiters(state)
+
+    assert_empty recorder.unblocked
+    assert_equal false, stale[:done]
+    assert_empty state[:completed]
+  ensure
+    cleanup_scheduler_state
+  end
+
+  # The transfer whose callback raised the deferred exception receives that
+  # error rather than a normal completion; it stays queued so it is completed
+  # normally if the exception source changes.
+  def test_release_scheduler_waiters_holds_back_deferred_exception_source
+    state = Curl.scheduler_state
+    recorder = UnblockRecorder.new
+    source = scheduler_test_waiter(recorder)
+    sibling = scheduler_test_waiter(recorder)
+    state[:waiters][:source] = source
+    state[:waiters][:sibling] = sibling
+    state[:completed] << [:source, source] << [:sibling, sibling]
+    state[:multi].instance_variable_set(:@__curb_deferred_exception_source_id, :source)
+
+    Curl.release_scheduler_waiters(state)
+
+    assert_equal [sibling], recorder.unblocked
+    assert_equal false, source[:done]
+    assert_equal [[:source, source]], state[:completed]
+
+    state[:multi].remove_instance_variable(:@__curb_deferred_exception_source_id)
+    Curl.release_scheduler_waiters(state)
+
+    assert_equal [sibling, source], recorder.unblocked
+    assert source[:done]
+    assert_empty state[:completed]
+  ensure
+    cleanup_scheduler_state
+  end
+
   def test_drain_scheduler_pending_does_not_drop_work_rejected_during_deferred_abort
     state = Curl.scheduler_state
     easy = Curl::Easy.new("http://127.0.0.1:#{@port}/test")

@@ -494,23 +494,44 @@ module Curl
     end
   end
 
+  # Wakes the waiters whose transfers finished since the last call. Completions
+  # are queued by the on_complete wrapper in perform_with_scheduler, so each
+  # drive-loop pass costs O(new completions) rather than O(all waiters).
   def self.release_scheduler_waiters(state)
+    completed = state[:completed]
+    return if completed.empty?
+
     source_id = deferred_exception_source_id(state)
+    retained = nil
 
-    state[:waiters].each do |easy_id, waiter|
-      next if source_id == easy_id
+    until completed.empty?
+      easy_id, waiter = completed.shift
+      # A waiter whose perform already returned (it raised) is no longer
+      # blocked on this completion; waking its fiber would be spurious.
+      next unless state[:waiters][easy_id].equal?(waiter)
 
-      complete_scheduler_waiter(waiter) if waiter[:completed]
+      if source_id == easy_id
+        # The transfer that raised the deferred exception gets that error via
+        # release_scheduler_error. Keep it queued in case the source changes.
+        (retained ||= []) << [easy_id, waiter]
+        next
+      end
+
+      complete_scheduler_waiter(waiter)
     end
+
+    completed.concat(retained) if retained
   end
 
   def self.perform_with_scheduler(easy)
     state = scheduler_state
+    easy_id = easy.object_id
     waiter = {completed: false, done: false, error: nil, fiber: nil, scheduler: Fiber.scheduler}
-    state[:waiters][easy.object_id] = waiter
+    state[:waiters][easy_id] = waiter
     previous_complete = easy.on_complete do |completed_easy|
       previous_complete.call(completed_easy) if previous_complete
       waiter[:completed] = true
+      state[:completed] << [easy_id, waiter]
     end
 
     state[:pending] << easy
@@ -547,6 +568,8 @@ module Curl
         driver_running: false,
         error: nil,
         waiters: {},
+        # [easy object_id, waiter] pairs completed but not yet woken
+        completed: [],
       }
       Thread.current.thread_variable_set(:curb_scheduler_state, state)
       state
