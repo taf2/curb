@@ -179,6 +179,32 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     assert_match(/GET/, http.body)
   end
 
+  # The default body/header buffers used to reserve 32 KB/16 KB up front, and
+  # that capacity stayed attached to every returned string.
+  def test_small_response_strings_do_not_retain_large_buffers
+    require 'objspace'
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.perform
+
+    body = easy.body_str
+    header = easy.header_str
+    assert_operator body.bytesize, :>, 0
+    assert_operator ObjectSpace.memsize_of(body), :<, 4096, 'body_str keeps excess capacity'
+    assert_operator ObjectSpace.memsize_of(header), :<, 4096, 'header_str keeps excess capacity'
+  end
+
+  def test_large_response_body_is_complete
+    require 'objspace'
+    server = CurbTinyHTTPServer.new
+    expected = CurbTinyHTTPServer.stream_body(64, 4096)
+    easy = Curl::Easy.new(server.url('/stream/64/4096'))
+    easy.perform
+    assert_equal expected, easy.body_str
+    assert_operator ObjectSpace.memsize_of(easy.body_str), :<, expected.bytesize + 4096
+  ensure
+    server.close if server
+  end
+
   def test_curlopt_stderr_with_file
     # does not work with Tempfile directly
     path = Tempfile.new('curb_test_curlopt_stderr').path

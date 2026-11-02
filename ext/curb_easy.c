@@ -974,6 +974,13 @@ static int ruby_curl_easy_body_limit_exceeded(ruby_curl_easy *rbce, size_t total
   return 0;
 }
 
+/* Initial capacity for the default body/header buffers. rb_str_buf_cat grows
+ * them geometrically, so starting small costs a few reallocations at most,
+ * while a large fixed reservation stays attached to every returned body_str
+ * (a 2 KB response used to keep 32 KB alive). */
+#define CURB_DEFAULT_BODY_BUFFER_CAPA 0
+#define CURB_DEFAULT_HEADER_BUFFER_CAPA 0
+
 /* Default body handler appends to easy.body_data buffer */
 static size_t default_body_handler(char *stream,
                                    size_t size,
@@ -988,7 +995,7 @@ static size_t default_body_handler(char *stream,
   }
 
   if (NIL_P(out)) {
-    out = rb_easy_set("body_data", rb_str_buf_new(32768));
+    out = rb_easy_set("body_data", rb_str_buf_new(CURB_DEFAULT_BODY_BUFFER_CAPA));
   }
   rb_str_buf_cat(out, stream, total);
   return total;
@@ -1003,7 +1010,7 @@ static size_t default_header_handler(char *stream,
   size_t total = size * nmemb;
   VALUE out = rb_easy_get("header_data");
   if (NIL_P(out)) {
-    out = rb_easy_set("header_data", rb_str_buf_new(16384));
+    out = rb_easy_set("header_data", rb_str_buf_new(CURB_DEFAULT_HEADER_BUFFER_CAPA));
   }
   rb_str_buf_cat(out, stream, total);
   return total;
@@ -4311,7 +4318,7 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
     /* clear out the body_data if it was set */
     rb_easy_del("body_data");
   } else {
-    rb_easy_set("body_data", rb_str_buf_new(32768));
+    rb_easy_set("body_data", rb_str_buf_new(CURB_DEFAULT_BODY_BUFFER_CAPA));
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback)&default_body_handler);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, rbce);
   }
@@ -4322,7 +4329,7 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
     /* clear out the header_data if it was set */
     rb_easy_del("header_data");
   } else {
-    rb_easy_set("header_data", rb_str_buf_new(16384));
+    rb_easy_set("header_data", rb_str_buf_new(CURB_DEFAULT_HEADER_BUFFER_CAPA));
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, (curl_write_callback)&default_header_handler);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, rbce);
   }

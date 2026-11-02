@@ -650,6 +650,48 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
     end
   end
 
+  # The scheduler driver no longer yields on every Multi#perform pass when the
+  # socket-action loop is in use; sibling fibers must still run while a large
+  # body streams in.
+  def test_sibling_fibers_run_while_easy_perform_streams_large_body
+    if skip_no_async
+      return
+    end
+
+    server = CurbTinyHTTPServer.new
+    expected = CurbTinyHTTPServer.stream_body(256, 65536)
+    ticks = 0
+    ticks_during_transfer = nil
+    body = nil
+
+    async_run do |top|
+      done = false
+      ticker = top.async do
+        until done
+          ticks += 1
+          sleep 0.001
+        end
+      end
+
+      top.async do
+        start_ticks = ticks
+        easy = Curl::Easy.new(server.url('/stream/256/65536'))
+        easy.perform
+        ticks_during_transfer = ticks - start_ticks
+        body = easy.body_str
+      ensure
+        done = true
+      end.wait
+      ticker.wait
+    end
+
+    assert_equal expected.bytesize, body.bytesize
+    assert_equal expected, body
+    assert_operator ticks_during_transfer, :>=, 2, 'sibling fiber should run while the transfer streams'
+  ensure
+    server.close if server
+  end
+
   def test_easy_perform_keeps_scheduler_timers_running_while_draining_deferred_on_complete_exception
     if skip_no_async
       return

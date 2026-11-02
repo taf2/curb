@@ -908,6 +908,21 @@ static VALUE call_status_handler2(VALUE ary) {
   return rb_funcall(rb_ary_entry(ary, 0), idCall, 2, rb_ary_entry(ary, 1), rb_ary_entry(ary, 2));
 }
 
+/* The default body/header buffers grow geometrically, leaving up to half
+ * their capacity unused. Once the transfer is complete, give that back so a
+ * retained body_str/header_str is exact-fit. rb_str_resize only reallocates
+ * when the excess is significant. */
+static void trim_default_buffers(ruby_curl_easy *rbce) {
+  VALUE body = rb_easy_get("body_data");
+  VALUE header = rb_easy_get("header_data");
+  if (RB_TYPE_P(body, T_STRING) && !OBJ_FROZEN(body)) {
+    rb_str_resize(body, RSTRING_LEN(body));
+  }
+  if (RB_TYPE_P(header, T_STRING) && !OBJ_FROZEN(header)) {
+    rb_str_resize(header, RSTRING_LEN(header));
+  }
+}
+
 static void flush_stderr_if_any(ruby_curl_easy *rbce) {
   VALUE stderr_io = rb_easy_get("stderr_io");
   /* The caller may have closed their IO; curb's own stream stays valid. */
@@ -1197,6 +1212,7 @@ static void rb_curl_mutli_handle_complete(VALUE self, CURL *easy_handle, int res
 
   /* Flush again after removal to cover any last buffered data. */
   flush_stderr_if_any(rbce);
+  trim_default_buffers(rbce);
 
   struct multi_complete_callback_args args = {
     self,

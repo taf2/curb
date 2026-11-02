@@ -475,6 +475,12 @@ module Curl
                        :reject_unix_socket_override!,
                        :disable_proxy!
 
+  # Multi#perform under a fiber scheduler uses the socket-action loop, which
+  # waits through the scheduler, exactly when this native method exists
+  # (same build condition). Otherwise it falls back to a thread-blocking wait.
+  SCHEDULER_COOPERATIVE_PERFORM = Curl::Multi.private_method_defined?(:_socket_perform)
+  private_constant :SCHEDULER_COOPERATIVE_PERFORM
+
   def self.scheduler_active?
     Fiber.respond_to?(:scheduler) && !Fiber.scheduler.nil?
   end
@@ -654,7 +660,11 @@ module Curl
             state[:multi].perform do
               drain_scheduler_pending(state)
               release_scheduler_waiters(state)
-              scheduler_yield
+              # The socket-action loop already waits through the scheduler on
+              # every pass, so sibling fibers run without an extra yield (which
+              # cost ~4 yields per request). The fallback loop blocks the thread
+              # while waiting, so it still needs one.
+              scheduler_yield unless SCHEDULER_COOPERATIVE_PERFORM
             end
           ensure
             # Release any siblings that completed just before a deferred
