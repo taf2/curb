@@ -650,6 +650,93 @@ static int curb_host_allowlist_prereq(void *clientp,
 }
 #endif
 
+#if defined(CURB_HAVE_OPENSOCKET_NETWORK_POLICY) && defined(HAVE_CURLOPT_DOH_URL)
+/* libcurl's DoH probe transfers do not inherit the socket policy callback,
+ * so under :public the DoH endpoint must be vetted before the transfer.
+ * Only public IP literals are accepted: a hostname would be resolved outside
+ * the policy, leaving a DNS-rebinding window. The host is taken from
+ * libcurl's own URL parser so it matches what libcurl will connect to. */
+static void curb_check_public_doh_url(ruby_curl_easy *rbce, const char *doh_url) {
+  CURLU *parsed_url;
+  char *host = NULL;
+  char literal[INET6_ADDRSTRLEN + 3];
+  char *address = literal;
+  size_t len;
+  unsigned char ip[16];
+  int parsed = 0;
+
+  parsed_url = curl_url();
+  if (!parsed_url) {
+    rb_raise(rb_eNoMemError, "Failed to allocate URL parser for DoH URL check");
+  }
+  if (curl_url_set(parsed_url, CURLUPART_URL, doh_url, 0) == CURLUE_OK &&
+      curl_url_get(parsed_url, CURLUPART_HOST, &host, 0) == CURLUE_OK && host) {
+    len = strlen(host);
+    if (len < sizeof(literal)) {
+      memcpy(literal, host, len + 1);
+      parsed = 1;
+    }
+  }
+  if (host) curl_free(host);
+  curl_url_cleanup(parsed_url);
+
+  if (!parsed) {
+    rb_raise(eCurlErrUnsafeDestination,
+             "DoH URL must use a public IP address under public network policy");
+  }
+
+  len = strlen(address);
+  if (len >= 2 && address[0] == '[' && address[len - 1] == ']') {
+    address[len - 1] = '\0';
+    address++;
+  }
+
+  if (inet_pton(AF_INET, address, ip) == 1) {
+    if (curb_ipv4_is_unsafe_destination(ip) || !curb_cidr_rules_match(rbce, CURB_CIDR_FAMILY_IPV4, ip)) {
+      rb_raise(eCurlErrUnsafeDestination,
+               "DoH URL address %s is not allowed by public network policy", address);
+    }
+  } else if (inet_pton(AF_INET6, address, ip) == 1) {
+    if (curb_ipv6_is_unsafe_destination(ip) || !curb_cidr_rules_match(rbce, CURB_CIDR_FAMILY_IPV6, ip)) {
+      rb_raise(eCurlErrUnsafeDestination,
+               "DoH URL address %s is not allowed by public network policy", address);
+    }
+  } else {
+    rb_raise(eCurlErrUnsafeDestination,
+             "DoH URL must use a public IP address under public network policy (got host %s)", address);
+  }
+}
+#endif
+
+#ifdef CURB_HAVE_OPENSOCKET_NETWORK_POLICY
+/* file:// opens no socket, so the public policy's socket check never sees
+ * it. Without a protocol allowlist, reject it up front; libcurl's default
+ * redirect protocols already exclude file. The scheme comes from libcurl's
+ * parser when available. */
+static void curb_check_public_url_scheme(const char *url) {
+  int is_file = 0;
+#if LIBCURL_VERSION_NUM >= 0x073e00
+  CURLU *parsed_url = curl_url();
+  char *scheme = NULL;
+  if (!parsed_url) {
+    rb_raise(rb_eNoMemError, "Failed to allocate URL parser for scheme check");
+  }
+  if (curl_url_set(parsed_url, CURLUPART_URL, url, CURLU_GUESS_SCHEME | CURLU_NON_SUPPORT_SCHEME) == CURLUE_OK &&
+      curl_url_get(parsed_url, CURLUPART_SCHEME, &scheme, 0) == CURLUE_OK && scheme) {
+    is_file = STRCASECMP(scheme, "file") == 0;
+  }
+  if (scheme) curl_free(scheme);
+  curl_url_cleanup(parsed_url);
+#else
+  while (*url == ' ' || *url == '\t') url++;
+  is_file = STRNCASECMP(url, "file:", 5) == 0;
+#endif
+  if (is_file) {
+    rb_raise(eCurlErrUnsafeDestination, "file:// URLs are not allowed by public network policy");
+  }
+}
+#endif
+
 #ifdef CURB_HAVE_OPENSOCKET_NETWORK_POLICY
 static curl_socket_t curb_public_network_opensocket(void *clientp, curlsocktype purpose, struct curl_sockaddr *address) {
   ruby_curl_easy *rbce = (ruby_curl_easy *)clientp;
@@ -703,6 +790,14 @@ static curl_socket_t curb_public_network_opensocket(void *clientp, curlsocktype 
     }
   }
 #endif
+
+  /* Anything other than an IP socket (e.g. a Unix domain socket configured
+   * after the policy was applied) has no address to vet. Refuse it unless
+   * Unix sockets were explicitly allowed. */
+  if (!checked_destination_address && rbce && !rbce->allow_unix_socket) {
+    curb_store_destination_error(rbce, "(non-IP socket)", "is not allowed");
+    return CURL_SOCKET_BAD;
+  }
 
   if (!checked_destination_address && rbce && rbce->network_allowed_cidr_rule_count > 0) {
     curb_store_destination_error(rbce, "unknown", "outside allowed CIDR ranges");
@@ -1509,6 +1604,8 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->http_auth_types = 0;
   rbce->proxy_auth_types = 0;
   rbce->max_redirs = -1;
+  rbce->max_redirs_set = 0;
+  rbce->protocols_set = 0;
   rbce->timeout = 0;
   rbce->timeout_ms = 0;
   rbce->connect_timeout = 0;
@@ -2802,14 +2899,27 @@ static VALUE ruby_curl_easy_proxy_auth_types_get(VALUE self) {
  *   easy.max_redirects = fixnum or nil               => fixnum or nil
  *
  * Set the maximum number of redirections to follow in the following +perform+
- * calls. Set to nil or -1 allow an infinite number (the default). Setting this
- * option only makes sense if +follow_location+ is also set true.
+ * calls. Set to -1 to allow an infinite number. When nil (the default), at
+ * most 30 redirects are followed, matching libcurl 8.3+ on every libcurl
+ * version. Setting this option only makes sense if +follow_location+ is also
+ * set true.
  *
  * With libcurl >= 7.15.1, setting this to 0 will cause libcurl to refuse any
  * redirect.
  */
 static VALUE ruby_curl_easy_max_redirects_set(VALUE self, VALUE max_redirs) {
-  CURB_IMMED_SETTER(ruby_curl_easy, max_redirs, -1);
+  ruby_curl_easy *rbce;
+
+  TypedData_Get_Struct(self, ruby_curl_easy, &ruby_curl_easy_data_type, rbce);
+  ruby_curl_easy_check_access(rbce);
+  if (NIL_P(max_redirs)) {
+    rbce->max_redirs = -1;
+    rbce->max_redirs_set = 0;
+  } else {
+    rbce->max_redirs = NUM2LONG(max_redirs);
+    rbce->max_redirs_set = 1;
+  }
+  return max_redirs;
 }
 
 /*
@@ -3877,6 +3987,37 @@ static VALUE ruby_curl_easy_on_debug_set(int argc, VALUE *argv, VALUE self) {
 
 /* =================== PERFORM =====================*/
 
+/* CR or LF in a header line would let the value inject extra headers or
+ * split the request; libcurl sends header strings verbatim. NUL would
+ * silently truncate the line. */
+static void curb_check_header_line_len(const char *ptr, long len, const char *what) {
+  if (memchr(ptr, '\r', (size_t)len) || memchr(ptr, '\n', (size_t)len) || memchr(ptr, '\0', (size_t)len)) {
+    rb_raise(rb_eArgError, "%s must not contain CR, LF, or NUL characters", what);
+  }
+}
+
+static void curb_check_header_line(VALUE str, const char *what) {
+  curb_check_header_line_len(RSTRING_PTR(str), RSTRING_LEN(str), what);
+}
+
+/* A String for the option stored under key, converting like rb_easy_get_str. */
+static VALUE curb_easy_opt_string(ruby_curl_easy *rbce, const char *key) {
+  VALUE value = rb_hash_aref(rbce->opts, rb_easy_hkey(key));
+  return RB_TYPE_P(value, T_STRING) ? value : rb_str_to_str(value);
+}
+
+static int curb_slist_has_header(const struct curl_slist *list, const char *name) {
+  size_t name_len = strlen(name);
+  for (; list; list = list->next) {
+    const char *line = list->data;
+    if (line && STRNCASECMP(line, name, name_len) == 0 &&
+        (line[name_len] == ':' || line[name_len] == ';')) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 /***********************************************
  * This is an rb_iterate callback used to set up http headers.
  */
@@ -3908,6 +4049,8 @@ static VALUE cb_each_http_header(VALUE header, VALUE wrap, int _c, const VALUE *
 
   //rb_p(header_str);
 
+  StringValue(header_str);
+  curb_check_header_line(header_str, "HTTP header");
   struct curl_slist *new_list = curl_slist_append(*list, StringValuePtr(header_str));
   if (!new_list) {
     rb_raise(rb_eNoMemError, "Failed to append to header list");
@@ -3944,6 +4087,8 @@ static VALUE cb_each_http_proxy_header(VALUE proxy_header, VALUE wrap, int _c, c
 
   //rb_p(header_str);
 
+  StringValue(proxy_header_str);
+  curb_check_header_line(proxy_header_str, "HTTP proxy header");
   struct curl_slist *new_list = curl_slist_append(*list, StringValuePtr(proxy_header_str));
   if (!new_list) {
     rb_raise(rb_eNoMemError, "Failed to append to proxy header list");
@@ -4089,6 +4234,17 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
     curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, rbce->forbid_reuse_set ? rbce->forbid_reuse : 0L);
 #endif
   }
+  /* With a protocol allowlist, libcurl enforces it (UnsupportedProtocolError)
+   * and an explicit :file entry is a deliberate opt-in. */
+  if (rbce->network_policy == CURB_NETWORK_POLICY_PUBLIC && !rbce->protocols_set) {
+    curb_check_public_url_scheme(StringValueCStr(url));
+  }
+#ifdef HAVE_CURLOPT_DOH_URL
+  /* After the CIDR rules above are prepared. */
+  if (rbce->network_policy == CURB_NETWORK_POLICY_PUBLIC && !rb_easy_nil("doh_url")) {
+    curb_check_public_doh_url(rbce, rb_easy_get_str("doh_url"));
+  }
+#endif
 #endif
 
   // network stuff and auth
@@ -4210,14 +4366,20 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
 
   curl_easy_setopt(curl, CURLOPT_HEADER, rbce->header_in_body);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, rbce->follow_location);
+  /* Unset: cap at 30, libcurl's default since 8.3.0. Passing curb's old
+   * default of -1 made redirects unlimited on every libcurl version. */
+  if (!rbce->max_redirs_set) {
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 30L);
+  } else {
 #if LIBCURL_VERSION_NUM == 0x081000
-  /* Work around 8.16.0 regression that clamps -1 (infinite) to zero */
-  if (rbce->max_redirs >= 0) {
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
-  }
+    /* Work around 8.16.0 regression that clamps -1 (infinite) to zero */
+    if (rbce->max_redirs >= 0) {
+      curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
+    }
 #else
-  curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, rbce->max_redirs);
 #endif
+  }
 
   curl_easy_setopt(curl, CURLOPT_HTTPPROXYTUNNEL,
                    public_policy_disables_proxy ? 0L : rbce->proxy_tunnel);
@@ -4333,9 +4495,7 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
     curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "");
   }
 
-  if (!rb_easy_nil("cookies")) {
-    curl_easy_setopt(curl, CURLOPT_COOKIE, rb_easy_get_str("cookies"));
-  }
+  /* cookies= is applied after the HTTP headers below. */
 
   /* Set up HTTPS cert handling if necessary */
   if (!rb_easy_nil("cert")) {
@@ -4380,7 +4540,9 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
 
   /* Set the user-agent string if specified */
   if (!rb_easy_nil("useragent")) {
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, rb_easy_get_str("useragent"));
+    VALUE useragent = curb_easy_opt_string(rbce, "useragent");
+    curb_check_header_line(useragent, "useragent");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, RSTRING_PTR(useragent));
   }
 
   /* Setup can be rerun for safety-policy changes while a handle is attached.
@@ -4397,6 +4559,7 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
       rb_block_call(rb_easy_get("headers"), rb_intern("each"), 0, NULL, cb_each_http_header, wrap);
     } else {
       VALUE headers_str = rb_obj_as_string(rb_easy_get("headers"));
+      curb_check_header_line(headers_str, "HTTP header");
       struct curl_slist *new_list = curl_slist_append(*hdrs, StringValuePtr(headers_str));
       if (!new_list) {
         rb_raise(rb_eNoMemError, "Failed to append to headers list");
@@ -4405,6 +4568,28 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
     }
 
     if (*hdrs) {
+      curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *hdrs);
+    }
+  }
+
+  /* cookies=: libcurl sends CURLOPT_COOKIE to every host a redirect reaches,
+   * but drops a custom Cookie header on cross-host redirects (7.83+). So
+   * send it as a header, unless the cookie engine is on: libcurl would then
+   * emit a second Cookie line, so CURLOPT_COOKIE is kept to merge them. */
+  curl_easy_setopt(curl, CURLOPT_COOKIE, NULL);
+  if (!rb_easy_nil("cookies")) {
+    VALUE cookies = curb_easy_opt_string(rbce, "cookies");
+    curb_check_header_line(cookies, "cookies");
+    if (rbce->enable_cookies || rbce->cookielist_engine_enabled) {
+      curl_easy_setopt(curl, CURLOPT_COOKIE, RSTRING_PTR(cookies));
+    } else if (RSTRING_LEN(cookies) > 0 && !curb_slist_has_header(*hdrs, "Cookie")) {
+      /* An explicit Cookie header already wins over cookies=, as before. */
+      VALUE cookie_header = rb_str_plus(rb_str_new_cstr("Cookie: "), cookies);
+      struct curl_slist *new_list = curl_slist_append(*hdrs, StringValueCStr(cookie_header));
+      if (!new_list) {
+        rb_raise(rb_eNoMemError, "Failed to append to headers list");
+      }
+      *hdrs = new_list;
       curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *hdrs);
     }
   }
@@ -4419,6 +4604,7 @@ static VALUE ruby_curl_easy_setup_body(VALUE arg) {
       rb_block_call(rb_easy_get("proxy_headers"), rb_intern("each"), 0, NULL, cb_each_http_proxy_header, wrap);
     } else {
       VALUE proxy_headers_str = rb_obj_as_string(rb_easy_get("proxy_headers"));
+      curb_check_header_line(proxy_headers_str, "HTTP proxy header");
       struct curl_slist *new_list = curl_slist_append(*phdrs, StringValuePtr(proxy_headers_str));
       if (!new_list) {
         rb_raise(rb_eNoMemError, "Failed to append to proxy headers list");
@@ -4608,6 +4794,8 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   curl = rbce->curl;
 
   memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
+
+  if (verb) curb_check_header_line_len(verb, (long)strlen(verb), "HTTP verb");
 
   /* Use method override and adjust related options for special verbs. */
   curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, verb);
@@ -5805,6 +5993,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     CURB_OBJECT_HSETTER(ruby_curl_easy, url);
     } break;
   case CURLOPT_CUSTOMREQUEST:
+    if (!NIL_P(val)) curb_check_header_line(StringValue(val), "custom request method");
     curl_easy_setopt(rbce->curl, CURLOPT_CUSTOMREQUEST, NIL_P(val) ? NULL : StringValueCStr(val));
     break;
   case CURLOPT_HTTP_VERSION: {
@@ -5880,6 +6069,7 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
 #ifdef HAVE_CURLOPT_REQUEST_TARGET
   case CURLOPT_REQUEST_TARGET: {
     /* Forward request-target directly to libcurl as a string. */
+    if (!NIL_P(val)) curb_check_header_line(StringValue(val), "request target");
     curl_easy_setopt(rbce->curl, CURLOPT_REQUEST_TARGET, NIL_P(val) ? NULL : StringValueCStr(val));
     } break;
 #endif
@@ -6060,10 +6250,12 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
   case CURLOPT_PROTOCOLS:
   case CURLOPT_REDIR_PROTOCOLS:
     curl_easy_setopt(rbce->curl, option, NUM2LONG(val));
+    if (option == CURLOPT_PROTOCOLS) rbce->protocols_set = 1;
     break;
 #ifdef HAVE_CURLOPT_PROTOCOLS_STR
   case CURLOPT_PROTOCOLS_STR:
     curl_easy_setopt(rbce->curl, CURLOPT_PROTOCOLS_STR, NIL_P(val) ? NULL : StringValueCStr(val));
+    rbce->protocols_set = !NIL_P(val);
     break;
 #endif
 #ifdef HAVE_CURLOPT_REDIR_PROTOCOLS_STR

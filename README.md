@@ -208,12 +208,17 @@ helpers without application-level validation. For user-supplied URLs, enable the
 safety policy for the current Ractor before making requests. `Curl.safe!` defaults
 to HTTP/HTTPS and `network_policy = :public`, blocking local/private destinations
 even when called without a block. Safe mode also defaults to a 10 MiB
-(10,485,760-byte) response-body limit:
+(10,485,760-byte) response-body limit, a 60-second transfer timeout, and at most
+20 redirects. The timeout and redirect cap only fill in limits a handle has not
+set itself (an unlimited `max_redirects = -1` is capped); set either to `nil` to
+disable it:
 
 ```ruby
 Curl.safe! do |config|
   config.network_policy = :public      # default; block local/private destination IPs
   config.max_body_bytes = 1_000_000     # optional tighter cap; default is 10 MiB
+  config.timeout = 30                   # seconds; default is 60
+  config.max_redirects = 5              # default is 20
 end
 
 curl = Curl.get(user_url)               # allows only http/https, including redirects
@@ -239,21 +244,27 @@ exceptions from `Curl.safe!` honored. Unsupported libcurl builds fail closed.
 Safe helpers and `easy.safe_http!` default to the global safe-mode body limit,
 or 10 MiB when global safe mode is not enabled. Override it explicitly with
 `Curl.safe_get(user_url, :max_body_bytes => 1_000_000)` or
-`easy.safe_http!(:max_body_bytes => 20 * 1024 * 1024)`. A tighter global limit
+`easy.safe_http!(:max_body_bytes => 20 * 1024 * 1024)`; `:timeout` and
+`:max_redirects` are accepted the same way. A tighter global limit
 always takes precedence. Set `config.max_body_bytes = nil` (or `0`) to disable
 the global cap; a helper's explicit `:max_body_bytes => nil` or `0` disables its
 own cap, but cannot bypass a global cap or an existing tighter handle limit.
-Raw requests outside safe mode remain unlimited unless configured otherwise.
+Raw requests outside safe mode have no body limit or timeout unless configured
+otherwise, and follow at most 30 redirects when `max_redirects` is unset.
 These limits cover body bytes, not response headers.
 For trusted local services, use the raw helpers with explicit protocol limits.
 If global safe mode is enabled, explicitly set `config.network_policy = :none`
 to opt out of peer-address filtering; `safe_*` helpers still enforce `:public`.
 
 With `network_policy = :public`, curb checks peer addresses when libcurl opens
-the socket and blocks local/private destinations. Proxies, `resolve`,
+the socket and blocks local/private destinations, `file://` URLs (unless an
+explicit protocol allowlist includes `:file`), and any non-IP socket such as a
+Unix socket path set after the policy was applied. Proxies, `resolve`,
 `connect_to`, DoH URL overrides, and Unix socket paths are disabled by default
-under this policy unless explicitly allowed in the safety config. Custom DNS
-server overrides are rejected. To use a trusted explicit proxy without
+under this policy unless explicitly allowed in the safety config. When DoH is
+allowed, the DoH URL must use a public IP address (for example
+`https://1.1.1.1/dns-query`): libcurl resolves a DoH hostname outside the
+policy, so hostnames are rejected. Custom DNS server overrides are rejected. To use a trusted explicit proxy without
 re-enabling environment proxies, set `allowed_proxy_hosts` and configure
 `easy.proxy_url` on the request.
 

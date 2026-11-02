@@ -29,14 +29,18 @@ module Curl
   class SafetyConfig
     DEFAULT_PROTOCOLS = [:http, :https].freeze
     DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024
+    DEFAULT_TIMEOUT = 60
+    DEFAULT_MAX_REDIRECTS = 20
 
-    attr_reader :max_body_bytes, :network_policy
+    attr_reader :max_body_bytes, :network_policy, :timeout, :max_redirects
     attr_accessor :allow_proxies, :allow_resolve, :allow_connect_to, :allow_doh, :allow_unix_socket
 
     def initialize
       @protocols = DEFAULT_PROTOCOLS
       @redirect_protocols = nil
       @max_body_bytes = DEFAULT_MAX_BODY_BYTES
+      @timeout = DEFAULT_TIMEOUT
+      @max_redirects = DEFAULT_MAX_REDIRECTS
       @network_policy = :public
       @allowed_hosts = nil
       @allowed_proxy_hosts = nil
@@ -86,6 +90,32 @@ module Curl
       raise ArgumentError, "max_body_bytes must be greater than or equal to zero" if bytes < 0
 
       @max_body_bytes = bytes.zero? ? nil : bytes
+    end
+
+    # Seconds; applied to handles with no timeout of their own. nil disables.
+    def timeout=(seconds)
+      if seconds.nil?
+        @timeout = nil
+        return
+      end
+
+      seconds = Float(seconds)
+      raise ArgumentError, "timeout must be greater than zero" unless seconds > 0
+
+      @timeout = seconds
+    end
+
+    # Applied to handles whose max_redirects is unset or unlimited. nil disables.
+    def max_redirects=(count)
+      if count.nil?
+        @max_redirects = nil
+        return
+      end
+
+      count = Integer(count)
+      raise ArgumentError, "max_redirects must be greater than or equal to zero" if count < 0
+
+      @max_redirects = count
     end
 
     def network_policy=(policy)
@@ -232,7 +262,24 @@ module Curl
 
     apply_max_body_bytes!(easy, config.max_body_bytes) if config&.max_body_bytes
     apply_max_body_bytes!(easy, override[:max_body_bytes]) if override && override.key?(:max_body_bytes)
+    apply_default_timeout!(easy, override && override.key?(:timeout) ? override[:timeout] : config&.timeout)
+    apply_default_max_redirects!(easy, override && override.key?(:max_redirects) ? override[:max_redirects] : config&.max_redirects)
     easy
+  end
+
+  # Only fills in a limit the handle has not chosen itself.
+  def self.apply_default_timeout!(easy, seconds)
+    return unless seconds
+    return unless easy.timeout_ms.to_i.zero?
+
+    easy.timeout = seconds
+  end
+
+  def self.apply_default_max_redirects!(easy, count)
+    return unless count
+
+    current = easy.max_redirects
+    easy.max_redirects = count if current.nil? || current < 0
   end
 
   def self.clear_safe!
@@ -420,6 +467,7 @@ module Curl
                        :safety_generation, :bump_safety_generation!,
                        :safety_protocol_intersection,
                        :apply_max_body_bytes!, :apply_public_network_policy_controls!,
+                       :apply_default_timeout!, :apply_default_max_redirects!,
                        :apply_allowed_hosts!, :apply_allowed_cidrs!,
                        :apply_allowed_proxy!, :normalize_proxy_host,
                        :reject_resolve_override!, :reject_connect_to_override!,
@@ -760,7 +808,7 @@ module Curl
   end
 
   def self.safe_http_option_keys
-    [:max_body_bytes]
+    [:max_body_bytes, :timeout, :max_redirects]
   end
 
   def self.reset

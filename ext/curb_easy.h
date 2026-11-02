@@ -65,6 +65,8 @@ typedef struct {
   long http_auth_types;
   long proxy_auth_types;
   long max_redirs;
+  char max_redirs_set; /* user configured max_redirs (nil = libcurl-style default) */
+  char protocols_set; /* CURLOPT_PROTOCOLS(_STR) allowlist configured */
   unsigned long timeout;
   unsigned long timeout_ms;
   unsigned long connect_timeout;

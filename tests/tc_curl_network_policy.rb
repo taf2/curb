@@ -1018,43 +1018,36 @@ class TestCurbCurlNetworkPolicy < Test::Unit::TestCase
     Curl.__send__(:clear_safe!) if Curl.respond_to?(:clear_safe!, true)
   end
 
-  def test_public_network_policy_blocks_private_peer_after_live_dns_answer_changes
-    omit('live DNS rebinding test requires CURLOPT_DOH_URL') unless Curl.const_defined?(:CURLOPT_DOH_URL)
-    omit('live DNS rebinding test requires CURLOPT_DOH_SSL_VERIFYPEER') unless Curl.const_defined?(:CURLOPT_DOH_SSL_VERIFYPEER)
-    omit('live DNS rebinding test requires CURLOPT_DOH_SSL_VERIFYHOST') unless Curl.const_defined?(:CURLOPT_DOH_SSL_VERIFYHOST)
+  # The peer address is vetted at connect time for every resolution, so a
+  # name that resolves to an allowed address once and a private one later is
+  # still blocked. (This used a loopback DoH server as the changing resolver;
+  # public policy now refuses non-public DoH endpoints, so CURLOPT_RESOLVE
+  # supplies the two answers instead.)
+  def test_public_network_policy_blocks_private_peer_after_dns_answer_changes
     require_public_network_policy!
 
-    host = 'curb-doh-rebind.invalid'
-    with_rebinding_doh_server(host, '1.1.1.1') do |doh_url, doh_state|
-      Curl.safe! do |config|
-        config.network_policy = :public
-        config.allow_doh = true
-        config.allowed_cidrs = ['8.8.8.0/24']
-      end
-
-      first = Curl::Easy.new("http://#{host}/dns-rebind-target")
-      configure_live_doh_easy(first, doh_url)
-
-      first_error = assert_raise(Curl::Err::UnsafeDestinationError) do
-        first.perform
-      end
-
-      assert_include doh_a_answers(doh_state), '1.1.1.1'
-      assert_match(/outside allowed CIDR ranges/, first_error.message)
-      assert_match(/1\.1\.1\.1/, first_error.message)
-
-      set_doh_answer(doh_state, '127.0.0.1')
-      second = Curl::Easy.new("http://#{host}/dns-rebind-target")
-      configure_live_doh_easy(second, doh_url)
-
-      error = assert_raise(Curl::Err::UnsafeDestinationError) do
-        second.perform
-      end
-
-      assert_include doh_a_answers(doh_state), '127.0.0.1'
-      assert_match(/public network policy/, error.message)
-      assert_match(/127\.0\.0\.1/, error.message)
+    host = 'curb-dns-rebind.invalid'
+    Curl.safe! do |config|
+      config.network_policy = :public
+      config.allow_resolve = true
+      config.allowed_cidrs = ['8.8.8.0/24']
     end
+
+    first = Curl::Easy.new("http://#{host}/dns-rebind-target")
+    first.resolve = ["#{host}:80:1.1.1.1"]
+    first_error = assert_raise(Curl::Err::UnsafeDestinationError) do
+      first.perform
+    end
+    assert_match(/outside allowed CIDR ranges/, first_error.message)
+    assert_match(/1\.1\.1\.1/, first_error.message)
+
+    second = Curl::Easy.new("http://#{host}/dns-rebind-target")
+    second.resolve = ["#{host}:80:127.0.0.1"]
+    error = assert_raise(Curl::Err::UnsafeDestinationError) do
+      second.perform
+    end
+    assert_match(/public network policy/, error.message)
+    assert_match(/127\.0\.0\.1/, error.message)
   ensure
     Curl.__send__(:clear_safe!) if Curl.respond_to?(:clear_safe!, true)
   end

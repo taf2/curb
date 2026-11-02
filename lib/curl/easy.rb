@@ -194,11 +194,15 @@ module Curl
       config = Curl.__send__(:ractor_local_state)[:safety_config] || Curl::SafetyConfig.new
       limit = Curl::SafetyConfig.new
       limit.max_body_bytes = options.fetch(:max_body_bytes, config.max_body_bytes)
+      limit.timeout = options.fetch(:timeout, config.timeout)
+      limit.max_redirects = options.fetch(:max_redirects, config.max_redirects)
       __curb_set_safety_override!(
         :protocols => [:http, :https],
         :redirect_protocols => [:http, :https],
         :network_policy => :public,
-        :max_body_bytes => limit.max_body_bytes
+        :max_body_bytes => limit.max_body_bytes,
+        :timeout => limit.timeout,
+        :max_redirects => limit.max_redirects
       )
     end
 
@@ -210,6 +214,8 @@ module Curl
       @__curb_safety_override[:redirect_protocols] = Array(options[:redirect_protocols]).map { |protocol| protocol.to_s.downcase.to_sym } if options.key?(:redirect_protocols)
       @__curb_safety_override[:max_body_bytes] = options[:max_body_bytes] if options.key?(:max_body_bytes)
       @__curb_safety_override[:network_policy] = options[:network_policy] if options.key?(:network_policy)
+      @__curb_safety_override[:timeout] = options[:timeout] if options.key?(:timeout)
+      @__curb_safety_override[:max_redirects] = options[:max_redirects] if options.key?(:max_redirects)
       @__curb_safety_override_generation = __curb_safety_override_generation + 1
       Curl.__send__(:apply_safety!, self) if Curl.respond_to?(:apply_safety!, true)
       self
