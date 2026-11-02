@@ -8,9 +8,9 @@ load File.join(File.dirname(__FILE__), 'extconf.rb')
 if File.exist?('Makefile')
   makefile = File.read('Makefile')
   
-  # Add coverage flags to CFLAGS
+  # Use atomic counters to keep coverage data valid during concurrent execution.
   makefile.gsub!(/^CFLAGS\s*=(.*)$/) do |match|
-    "CFLAGS = -fprofile-arcs -ftest-coverage -g -O0 #{$1}"
+    "CFLAGS = -fprofile-arcs -ftest-coverage -fprofile-update=atomic -g -O0 #{$1}"
   end
   
   # Add coverage flags to LDFLAGS

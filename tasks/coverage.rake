@@ -21,8 +21,8 @@ task :compile_coverage => :coverage_clean do
   existing_cflags = ENV['CFLAGS'] || ""
   existing_ldflags = ENV['LDFLAGS'] || ""
   
-  # Set coverage flags for compilation - prepend to existing flags
-  ENV['CFLAGS'] = "-fprofile-arcs -ftest-coverage -g -O0 #{existing_cflags}"
+  # Use atomic counters to keep coverage data valid during concurrent execution.
+  ENV['CFLAGS'] = "-fprofile-arcs -ftest-coverage -fprofile-update=atomic -g -O0 #{existing_cflags}"
   ENV['LDFLAGS'] = "-fprofile-arcs -ftest-coverage #{existing_ldflags}"
   
   # Regenerate Makefile with coverage flags using special extconf
