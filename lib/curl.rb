@@ -12,9 +12,14 @@ module Curl
   # Ractors, even when the value itself would otherwise be safe. Keep curb's
   # mutable Ruby-side configuration in storage owned by the current Ractor.
   # Older Rubies retain the historical process-wide state.
+  # Ractor capabilities can't change at runtime, so probe them once instead of
+  # on every call: this lookup sits on the per-request path.
+  RACTOR_LOCAL_STORAGE = !!(defined?(Ractor) && Ractor.respond_to?(:current) &&
+                            Ractor.current.respond_to?(:[]) && Ractor.current.respond_to?(:[]=))
+  private_constant :RACTOR_LOCAL_STORAGE
+
   def self.ractor_local_state
-    if defined?(Ractor) && Ractor.respond_to?(:current) &&
-       Ractor.current.respond_to?(:[]) && Ractor.current.respond_to?(:[]=)
+    if RACTOR_LOCAL_STORAGE
       Ractor.current[:__curb_ractor_local_state] ||= {}
     else
       @legacy_local_state ||= {}
@@ -250,9 +255,7 @@ module Curl
   end
 
   def self.safety_override_for(easy)
-    if easy.respond_to?(:__curb_safety_override, true)
-      easy.__send__(:__curb_safety_override)
-    end
+    easy.instance_variable_get(:@__curb_safety_override)
   end
 
   def self.safety_generation

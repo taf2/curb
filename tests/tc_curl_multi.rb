@@ -799,6 +799,7 @@ class TestCurbCurlMulti < Test::Unit::TestCase
   end
 
   def test_native_safety_signatures_are_pruned_after_perform
+    Curl.safe! { |config| config.network_policy = :none }
     m = Curl::Multi.new
     easy = Curl::Easy.new($TEST_URL)
 
@@ -811,6 +812,37 @@ class TestCurbCurlMulti < Test::Unit::TestCase
 
     assert_equal 0, m.requests.length
     assert_empty signatures
+  ensure
+    m.close if m
+    Curl.__send__(:clear_safe!)
+  end
+
+  def test_unconstrained_easy_skips_safety_signature_bookkeeping
+    m = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+
+    m.add(easy)
+    assert_empty m.__send__(:__curb_native_safety_signatures)
+
+    m.perform
+    assert_equal 200, easy.response_code
+  ensure
+    m.close if m
+  end
+
+  def test_native_policy_set_after_unconstrained_add_is_applied
+    m = Curl::Multi.new
+    easy = Curl::Easy.new(TestServlet.url)
+    m.add(easy)
+    begin
+      easy.network_policy = :public
+    rescue NotImplementedError
+      omit('network_policy=:public requires CURLOPT_OPENSOCKETFUNCTION support')
+    end
+
+    m.perform
+
+    assert_match(/127\.0\.0\.1/, easy.unsafe_destination_error)
   ensure
     m.close if m
   end

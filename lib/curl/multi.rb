@@ -353,6 +353,15 @@ module Curl
       ]
     end
 
+    # True when no per-easy safety state (override or native policy) is set.
+    # Callers must separately check that no global Curl.safe! config exists.
+    def __curb_safety_unconstrained?(easy)
+      easy.instance_variable_get(:@__curb_safety_override).nil? &&
+        easy.network_policy == :none &&
+        easy.allowed_hosts.nil? &&
+        easy.allowed_cidrs.nil?
+    end
+
     def __record_native_safety_signature(easy)
       __curb_native_safety_signatures[easy.object_id] = __curb_safety_signature_for(easy)
     end
@@ -419,24 +428,33 @@ module Curl
 
     private :__idle_easy_references, :__curb_native_safety_signatures,
             :__curb_safety_signature_for, :__record_native_safety_signature,
+            :__curb_safety_unconstrained?,
             :__register_idle_easy_reference,
             :__unregister_idle_easy_reference, :__clear_idle_easy_references,
             :__new_idle_easy_references
 
     alias_method :_curb_native_perform, :perform
 
-    def perform(*args, &block)
+    def perform(&block)
+      safety_config_active = !Curl.__send__(:ractor_local_state)[:safety_config].nil?
+      signatures = __curb_native_safety_signatures
+
       requests.each_value do |easy|
-        Curl.__send__(:apply_safety!, easy) if Curl.respond_to?(:apply_safety!, true)
+        # An easy added with no safety state recorded no signature. If it is
+        # still unconstrained its signature would be unchanged, so there is
+        # nothing to apply and no need to re-run native setup.
+        next if !safety_config_active && !signatures.key?(easy.object_id) &&
+                __curb_safety_unconstrained?(easy)
+
+        Curl.__send__(:apply_safety!, easy)
         signature = __curb_safety_signature_for(easy)
-        if __curb_native_safety_signatures[easy.object_id] != signature &&
-           easy.respond_to?(:__curb_native_setup!, true)
+        if signatures[easy.object_id] != signature
           easy.__send__(:__curb_native_setup!)
-          __curb_native_safety_signatures[easy.object_id] = signature
+          signatures[easy.object_id] = signature
         end
       end
 
-      _curb_native_perform(*args, &block)
+      _curb_native_perform(&block)
     end
 
     def add(easy)
@@ -444,11 +462,15 @@ module Curl
       # Once a deferred callback exception is pending, Multi#perform is
       # draining existing transfers only and must not start replacement work.
       return self if instance_variable_defined?(:@__curb_deferred_exception)
-      Curl.__send__(:apply_safety!, easy) if Curl.respond_to?(:apply_safety!, true)
+      unconstrained = Curl.__send__(:ractor_local_state)[:safety_config].nil? &&
+                      __curb_safety_unconstrained?(easy)
+      Curl.__send__(:apply_safety!, easy) unless unconstrained
       _add(easy)
       __unregister_idle_easy_reference(easy)
       requests[easy.object_id] = easy
-      __record_native_safety_signature(easy)
+      # Unconstrained easies record no signature; #perform treats a missing
+      # signature as "added with no safety state" (see #perform).
+      __record_native_safety_signature(easy) unless unconstrained
       self
     end
 

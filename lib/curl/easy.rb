@@ -53,6 +53,11 @@ module Curl
 
       def flush_deferred_multi_closes(all_threads: false)
         state = deferred_multi_close_state
+        # Fast path: nothing queued, so skip the mutex and list partitioning.
+        # A close queued concurrently by another thread is picked up next time.
+        queued = state[:deferred_multi_closes]
+        return if queued.nil? || queued.empty?
+
         pending = deferred_multi_close_mutex.synchronize do
           deferred_closes = (state[:deferred_multi_closes] ||= [])
 
@@ -270,7 +275,9 @@ module Curl
     # the configured HTTP Verb.
     #
     def perform
-      Curl.__send__(:apply_safety!, self) if Curl.respond_to?(:apply_safety!, true)
+      # Validate eagerly so an unsafe request raises in the caller (and not in
+      # a shared scheduler driver fiber). Multi#add re-applies it as well.
+      Curl.__send__(:apply_safety!, self) if Curl.__send__(:safety_active_for?, self)
       self.class.flush_deferred_multi_closes
 
       if Curl.scheduler_active? && self.multi.nil?
