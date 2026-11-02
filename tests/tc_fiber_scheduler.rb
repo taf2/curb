@@ -981,12 +981,10 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
   end
 
   def with_ephemeral_http_server
-    port_socket = TCPServer.new('127.0.0.1', 0)
-    port = port_socket.addr[1]
-    port_socket.close
-
     hits = Hash.new(0)
-    server = WEBrick::HTTPServer.new(:Port => port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    server = WEBrick::HTTPServer.new(:Port => 0, :BindAddress => '127.0.0.1',
+                                     :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    port = server.config[:Port]
     server.mount_proc('/fast') do |_req, res|
       hits[:fast] += 1
       res['Content-Type'] = 'text/plain'
