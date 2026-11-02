@@ -5,7 +5,7 @@ class BugTestPoisonResponse < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
   def setup
-    @port = unused_local_port
+    @port = :auto
     @response_proc = lambda do|res|
       sleep 0.5
       res.body = "hi"

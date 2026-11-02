@@ -4,7 +4,7 @@ class BugRaiseOnCallback < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
   def setup
-    @port = unused_local_port
+    @port = :auto
     super
   end
 

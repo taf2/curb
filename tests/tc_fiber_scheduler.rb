@@ -83,7 +83,7 @@ class TestCurbFiberScheduler < Test::Unit::TestCase
   SERIAL_TIME_WOULD_BE_ABOUT = MIN_S * ITERS
 
   def setup
-    @port = unused_local_port
+    @port = :auto
 
     @response_proc = lambda do |res|
       res['Content-Type'] = 'text/plain'

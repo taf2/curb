@@ -206,16 +206,17 @@ class TestServlet < WEBrick::HTTPServlet::AbstractServlet
 end
 
 module BugTestServerSetupTeardown
-  def unused_local_port
-    socket = TCPServer.new('127.0.0.1', 0)
-    socket.addr[1]
-  ensure
-    socket.close if socket
-  end
-
   def setup
     @port ||= 9992
-    @server = WEBrick::HTTPServer.new(:Port => @port, :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    # Bind 127.0.0.1 explicitly: with no bind address, WEBrick silently keeps
+    # just the IPv6 listener if the IPv4 bind fails, leaving 127.0.0.1:@port
+    # refusing connections. :auto lets the kernel pick a free port at bind
+    # time instead of reserving one and re-binding it later, which could race
+    # with client connections reusing that ephemeral port (seen on macOS).
+    @server = WEBrick::HTTPServer.new(:Port => (@port == :auto ? 0 : @port),
+                                      :BindAddress => '127.0.0.1',
+                                      :Logger => WEBRICK_TEST_LOG, :AccessLog => [])
+    @port = @server.config[:Port]
     @server.mount_proc("/test") do|req,res|
       if @response_proc
         @response_proc.call(res)

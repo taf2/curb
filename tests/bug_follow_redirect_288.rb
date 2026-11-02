@@ -4,7 +4,7 @@ class BugFollowRedirect288 < Test::Unit::TestCase
   include BugTestServerSetupTeardown
 
   def setup
-    @port = unused_local_port
+    @port = :auto
     super
     @server.mount_proc("/redirect_to_test") do|req,res|
       res.set_redirect(WEBrick::HTTPStatus::TemporaryRedirect, "/test")
