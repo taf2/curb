@@ -1,4 +1,7 @@
 # ChangeLog
+## 1.4.2 (unreleased)
+* Read `Curl::Multi.default_timeout` once per `Curl::Multi#perform` instead of on every wait-loop pass. The setting lives in Ractor-local storage, so each read cost two Ruby method calls, and the polling loop read it up to twice per pass (50 MB download: 132–166 `Ractor.current` calls per perform → 14, independent of transfer length). Applies to both the polling and Fiber-scheduler socket-action loops. Changing `default_timeout` from a callback or perform block now takes effect on the next `perform`.
+
 ## 1.4.1 (unreleased)
 * Fix CI fixtures for Windows file-URL normalization and libcurl/libpsl localhost cookie loading. Keep parallel multipart Ractor coverage on Windows without triggering Ruby VM bug #21537 through explicit worker GC; retain multipart compaction coverage in the PostField tests. Include this changelog and the transfer-guard regression tests in the gem package.
 * Make `Curl.safe!` default to `network_policy = :public`, including calls without a configuration block. Global safe mode, `safe_*` helpers, and `Easy#safe_http!` now default to a configurable 10 MiB response-body cap, enforced for buffered responses and body callbacks. Explicit helper limits cannot weaken a tighter global cap. Trusted private destinations require an explicit global policy opt-out; raw requests outside safe mode retain their existing defaults. Add regression coverage for default SSRF blocking, multi policy refresh, body limits, and explicit overrides.

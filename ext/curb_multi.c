@@ -1788,6 +1788,9 @@ static int collect_io_select_ready_i(st_data_t key, st_data_t val, st_data_t arg
 
 static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_socket_ctx *ctx, VALUE block) {
   CURLMcode mrc;
+  /* Looking up the Ractor-local default costs two method calls; read it once
+   * per drive rather than on every wait. */
+  const long default_timeout_ms = curb_multi_default_timeout();
 
   do {
     /* Prime the state: let libcurl act on timeouts to set up sockets. */
@@ -1799,7 +1802,7 @@ static void rb_curl_multi_socket_drive(VALUE self, ruby_curl_multi *rbcm, multi_
 
     while (rbcm->running) {
     struct timeval tv = {0, 0};
-    long wait_ms = curb_multi_default_timeout();
+    long wait_ms = default_timeout_ms;
 
     if (multi_socket_timer_due(ctx)) {
       ctx->timeout_deadline_ms = -1;
@@ -2289,6 +2292,7 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
   CURLMcode mcode;
   ruby_curl_multi *rbcm;
   long timeout_milliseconds;
+  long default_timeout_ms;
   VALUE block = Qnil;
 #ifndef CURB_USE_MULTI_POLL
   int maxfd, rc = -1;
@@ -2311,7 +2315,10 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
     clear_multi_deferred_exception_source_id_if_any(self);
   }
 
-  timeout_milliseconds = curb_multi_default_timeout();
+  /* Looking up the Ractor-local default costs two method calls; read it once
+   * per perform rather than up to twice per wait-loop iteration. */
+  default_timeout_ms = curb_multi_default_timeout();
+  timeout_milliseconds = default_timeout_ms;
 
   // Run curl_multi_perform for the first time to get the ball rolling
   rb_curl_multi_run( self, rbcm->handle, &(rbcm->running) );
@@ -2351,8 +2358,8 @@ static VALUE ruby_curl_multi_perform_impl(int argc, VALUE *argv, VALUE self) {
         continue;
       }
 
-      if (timeout_milliseconds < 0 || timeout_milliseconds > curb_multi_default_timeout()) {
-        timeout_milliseconds = curb_multi_default_timeout(); /* libcurl doesn't know how long to wait, use a default timeout */
+      if (timeout_milliseconds < 0 || timeout_milliseconds > default_timeout_ms) {
+        timeout_milliseconds = default_timeout_ms; /* libcurl doesn't know how long to wait, use a default timeout */
                                                         /* or buggy versions libcurl sometimes reports huge timeouts... let's cap it */
       }
 
