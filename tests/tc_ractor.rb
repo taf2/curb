@@ -102,7 +102,11 @@ class TestCurbRactor < Test::Unit::TestCase
             # single-Ractor compaction is covered by the PostField tests.
             if iteration % 10 == 0 && !WINDOWS
               GC.start
-              GC.compact if GC.respond_to?(:compact)
+              # Ruby 3.4 can crash in method/constant lookup when another
+              # Ractor compacts the heap, even with plain TCPSocket requests
+              # and no curb loaded. Keep ordinary GC and parallel mutation
+              # here; tc_curl_postfield covers compaction without Ractors.
+              GC.compact if GC.respond_to?(:compact) && !RUBY_VERSION.start_with?('3.4.')
             end
             'done'
           end
