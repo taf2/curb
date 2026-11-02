@@ -2119,4 +2119,80 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     server_setup
   end
 
+  # Replacing request state while libcurl is still sending the old state
+  # freed buffers libcurl was reading (use-after-free). Every entry point that
+  # hands libcurl new request state must refuse while the handle is active.
+  ACTIVE_HANDLE_MUTATORS = {
+    'post_body=' => ->(easy) { easy.post_body = 'replacement' },
+    'put_data=' => ->(easy) { easy.put_data = 'replacement' },
+    'autoreferer=' => ->(easy) { easy.autoreferer = true },
+    'http_post' => ->(easy) { easy.http_post('replacement') },
+    'http_put' => ->(easy) { easy.http_put('replacement') },
+    'http_patch' => ->(easy) { easy.http_patch('replacement') },
+    'http_delete' => ->(easy) { easy.http_delete },
+    'http(:OPTIONS)' => ->(easy) { easy.http(:OPTIONS) },
+    '__curb_native_setup!' => ->(easy) { easy.__send__(:__curb_native_setup!) },
+  }.freeze
+
+  def test_request_state_cannot_be_replaced_during_own_transfer
+    ACTIVE_HANDLE_MUTATORS.each do |name, mutate|
+      easy = Curl::Easy.new(TestServlet.url)
+      easy.post_body = 'original'
+      errors = []
+      easy.on_body do |data|
+        begin
+          mutate.call(easy)
+        rescue RuntimeError => e
+          errors << e
+        end
+        data.bytesize
+      end
+
+      easy.perform
+
+      assert_equal 1, errors.length, name
+      assert_match(/Cannot modify an active curl handle/, errors.first.message, name)
+      assert_equal 200, easy.response_code, name
+      assert_equal 'original', easy.post_body, name
+
+      # Once idle, the same mutation is allowed again.
+      easy.on_body
+      assert_nothing_raised(name) { mutate.call(easy) }
+    end
+  end
+
+  def test_request_state_cannot_be_replaced_on_active_sibling_transfer
+    ACTIVE_HANDLE_MUTATORS.each do |name, mutate|
+      # The sibling's response is delayed so it is still in flight when the
+      # first transfer's body callback runs.
+      server = CurbTinyHTTPServer.new
+      multi = Curl::Multi.new
+      first = Curl::Easy.new(TestServlet.url)
+      sibling = Curl::Easy.new(server.url('/delay/0.3'))
+      sibling.post_body = 'original'
+      errors = []
+      first.on_body do |data|
+        begin
+          mutate.call(sibling)
+        rescue RuntimeError => e
+          errors << e
+        end
+        data.bytesize
+      end
+
+      multi.add(first)
+      multi.add(sibling)
+      multi.perform
+
+      assert_operator errors.length, :>=, 1, name
+      errors.each { |e| assert_match(/Cannot modify an active curl handle/, e.message, name) }
+      assert_equal 200, sibling.response_code, name
+      assert_equal 'delayed', sibling.body_str, name
+      assert_equal 'original', sibling.post_body, name
+    ensure
+      multi.close if multi
+      server.close if server
+    end
+  end
+
 end

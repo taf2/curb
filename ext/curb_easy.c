@@ -1431,6 +1431,15 @@ ruby_curl_easy *ruby_curl_easy_get_handle(VALUE self) {
   return rbce;
 }
 
+/* Entry points that hand libcurl new request state (bodies, verbs, setup)
+ * must not run while libcurl is still using the old state: replacing it
+ * mid-transfer frees buffers libcurl is reading (use-after-free). */
+static ruby_curl_easy *ruby_curl_easy_get_idle_handle(VALUE self) {
+  ruby_curl_easy *rbce = ruby_curl_easy_get_handle(self);
+  ruby_curl_easy_check_idle(rbce);
+  return rbce;
+}
+
 /* Keep libcurl's typed getinfo arguments while checking every result. */
 #define CURB_GETINFO(handle, info, output) do { \
   CURLcode info_result = curl_easy_getinfo(handle, info, output); \
@@ -2151,7 +2160,7 @@ static VALUE ruby_curl_easy_post_body_set_with_mode_body(VALUE argp) {
   char *data;
   long len;
 
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
 
   curl = rbce->curl;
 
@@ -2247,7 +2256,7 @@ static VALUE ruby_curl_easy_put_data_set(VALUE self, VALUE data) {
   VALUE headers;
   VALUE infile_size = Qnil;
 
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
 
   /*
    * Validate and prepare Ruby-visible state before mutating the CURL handle.
@@ -3318,7 +3327,7 @@ static VALUE ruby_curl_easy_use_netrc_q(VALUE self) {
  */
 static VALUE ruby_curl_easy_autoreferer_set(VALUE self, VALUE autoreferer) {
   ruby_curl_easy *rbce;
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
 
   if (Qtrue == autoreferer) {
     curl_easy_setopt(rbce->curl, CURLOPT_AUTOREFERER, 1);
@@ -4440,7 +4449,7 @@ VALUE ruby_curl_easy_setup(ruby_curl_easy *rbce) {
 static VALUE ruby_curl_easy_setup_self(VALUE self) {
   ruby_curl_easy *rbce;
 
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
   ruby_curl_easy_setup(rbce);
 
   return self;
@@ -4546,7 +4555,7 @@ static VALUE ruby_curl_easy_perform_verb_str(VALUE self, const char *verb) {
   CURL *curl;
   VALUE retval;
 
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
   curl = rbce->curl;
 
   memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
@@ -4734,7 +4743,7 @@ static VALUE ruby_curl_easy_perform_post(int argc, VALUE *argv, VALUE self) {
 
   rb_scan_args(argc, argv, "*", &args_ary);
 
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
   curl = rbce->curl;
 
   memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
@@ -4793,7 +4802,7 @@ static VALUE ruby_curl_easy_perform_patch(int argc, VALUE *argv, VALUE self) {
   VALUE args_ary;
 
   rb_scan_args(argc, argv, "*", &args_ary);
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
   curl = rbce->curl;
 
   /* Clear the error buffer */
@@ -4842,7 +4851,7 @@ static VALUE ruby_curl_easy_perform_put(int argc, VALUE *argv, VALUE self) {
   VALUE args_ary;
 
   rb_scan_args(argc, argv, "*", &args_ary);
-  rbce = ruby_curl_easy_get_handle(self);
+  rbce = ruby_curl_easy_get_idle_handle(self);
   curl = rbce->curl;
 
   memset(rbce->err_buf, 0, CURL_ERROR_SIZE);
