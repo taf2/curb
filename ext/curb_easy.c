@@ -1316,6 +1316,36 @@ static void ruby_curl_easy_detach(VALUE self, ruby_curl_easy *rbce) {
   rbce->multi = Qnil;
 }
 
+/* Release the curb-owned CURLOPT_STDERR stream. Callers must first stop
+ * libcurl from using it (cleanup, reset, or setopt of a replacement). */
+static void ruby_curl_easy_close_stderr_file(ruby_curl_easy *rbce) {
+  FILE *fp = rbce->stderr_file;
+  if (fp) {
+    rbce->stderr_file = NULL;
+    fclose(fp);
+  }
+}
+
+/* Open a stream curb owns on a duplicate of fd, so its lifetime is
+ * independent of the Ruby IO it came from. */
+static FILE *ruby_curl_easy_dup_stderr_file(int fd) {
+  FILE *fp;
+  int dup_fd = rb_cloexec_dup(fd);
+  if (dup_fd < 0) {
+    rb_sys_fail("dup(CURLOPT_STDERR)");
+  }
+  rb_update_max_fd(dup_fd);
+  /* "w" on an existing descriptor neither truncates nor changes O_APPEND. */
+  fp = fdopen(dup_fd, "w");
+  if (!fp) {
+    int saved_errno = errno;
+    close(dup_fd);
+    errno = saved_errno;
+    rb_sys_fail("fdopen(CURLOPT_STDERR)");
+  }
+  return fp;
+}
+
 static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
   if (!rbce) {
     return;
@@ -1362,6 +1392,8 @@ static void ruby_curl_easy_free(ruby_curl_easy *rbce) {
     curl_easy_cleanup(rbce->curl);
     rbce->curl = NULL;
   }
+  /* After cleanup: libcurl may log while closing connections. */
+  ruby_curl_easy_close_stderr_file(rbce);
 
   rbce->self = Qnil;
 }
@@ -1466,6 +1498,8 @@ static void ruby_curl_easy_zero(ruby_curl_easy *rbce) {
   rbce->network_allowed_hosts = NULL;
   rbce->network_allowed_cidr_rule_count = 0;
   rbce->network_allowed_host_count = 0;
+  /* Callers that may hold a stream close it before zeroing. */
+  rbce->stderr_file = NULL;
 
   /* various-typed opts */
   rbce->local_port = 0;
@@ -1641,19 +1675,24 @@ static VALUE duplicate_upload(VALUE upload) {
 static VALUE ruby_curl_easy_clone(VALUE self) {
   ruby_curl_easy *rbce, *newrbce;
 
+  FILE *clone_stderr_file = NULL;
+
   rbce = ruby_curl_easy_get_handle(self);
 
-  newrbce = ALLOC(ruby_curl_easy);
-  if (!newrbce) {
-    rb_raise(rb_eNoMemError, "Failed to allocate memory for Curl::Easy clone");
+  /* Duplicate first: this can raise, and nothing needs unwinding yet. */
+  if (rbce->stderr_file) {
+    clone_stderr_file = ruby_curl_easy_dup_stderr_file(fileno(rbce->stderr_file));
   }
+
+  newrbce = ALLOC(ruby_curl_easy);
   /* shallow copy */
   memcpy(newrbce, rbce, sizeof(ruby_curl_easy));
 
   /* now deep copy */
   newrbce->curl = curl_easy_duphandle(rbce->curl);
   if (!newrbce->curl) {
-    free(newrbce);
+    xfree(newrbce);
+    if (clone_stderr_file) fclose(clone_stderr_file);
     rb_raise(rb_eNoMemError, "Failed to duplicate Curl::Easy handle");
   }
   /* duphandle borrows HTTPPOST, whose form is freed when the original
@@ -1663,7 +1702,8 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
     CURLcode ecode = curl_easy_setopt(newrbce->curl, CURLOPT_HTTPPOST, NULL);
     if (ecode != CURLE_OK) {
       curl_easy_cleanup(newrbce->curl);
-      free(newrbce);
+      xfree(newrbce);
+      if (clone_stderr_file) fclose(clone_stderr_file);
       raise_curl_easy_error_exception(ecode);
     }
     newrbce->multipart_form_active = 0;
@@ -1677,6 +1717,13 @@ static VALUE ruby_curl_easy_clone(VALUE self) {
   newrbce->network_allowed_cidr_rule_count = 0;
   newrbce->network_allowed_hosts = NULL;
   newrbce->network_allowed_host_count = 0;
+
+  /* duphandle copied the original's CURLOPT_STDERR pointer; give the clone
+   * its own stream so neither handle can outlive the other's. */
+  newrbce->stderr_file = clone_stderr_file;
+  if (clone_stderr_file) {
+    curl_easy_setopt(newrbce->curl, CURLOPT_STDERR, clone_stderr_file);
+  }
 
   /* A cloned easy should not retain ownership reference to the original multi. */
   newrbce->multi = Qnil;
@@ -1798,6 +1845,8 @@ static VALUE ruby_curl_easy_reset(VALUE self) {
 
   ruby_curl_easy_cleanup(self, rbce);
   curl_easy_reset(rbce->curl);
+  /* reset restored libcurl's default stderr, so ours is unused now. */
+  ruby_curl_easy_close_stderr_file(rbce);
   ruby_curl_easy_zero(rbce);
   rbce->self = self;
 
@@ -5987,16 +6036,27 @@ static VALUE ruby_curl_easy_set_opt(VALUE self, VALUE opt, VALUE val) {
     curl_easy_setopt(rbce->curl, CURLOPT_HAPROXYPROTOCOL, NUM2LONG(val));
     break;
 #endif
-  case CURLOPT_STDERR:
+  case CURLOPT_STDERR: {
     // libcurl requires raw FILE pointer and this should be IO object in Ruby.
     // Tempfile or StringIO won't work.
+    FILE *stderr_file;
     Check_Type(val, T_FILE);
     GetOpenFile(val, open_f_ptr);
-    curl_easy_setopt(rbce->curl, CURLOPT_STDERR, rb_io_stdio_file(open_f_ptr));
-    /* Retain a Ruby reference to the IO to prevent GC/finalization
-     * while libcurl still holds and writes to the underlying FILE*. */
+    rb_io_check_writable(open_f_ptr);
+    /* Hand libcurl a stream curb owns on a duplicate descriptor. Passing
+     * the IO's own FILE* left libcurl writing through freed memory once the
+     * caller closed the IO, including after Multi#add. */
+#ifdef HAVE_RB_IO_DESCRIPTOR
+    stderr_file = ruby_curl_easy_dup_stderr_file(rb_io_descriptor(val));
+#else
+    stderr_file = ruby_curl_easy_dup_stderr_file(open_f_ptr->fd);
+#endif
+    curl_easy_setopt(rbce->curl, CURLOPT_STDERR, stderr_file);
+    ruby_curl_easy_close_stderr_file(rbce);
+    rbce->stderr_file = stderr_file;
+    /* Kept so completion can flush the caller's own buffered output. */
     rb_easy_set("stderr_io", val);
-    break;
+    } break;
   case CURLOPT_PROTOCOLS:
   case CURLOPT_REDIR_PROTOCOLS:
     curl_easy_setopt(rbce->curl, option, NUM2LONG(val));

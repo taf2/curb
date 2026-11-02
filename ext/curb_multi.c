@@ -910,18 +910,12 @@ static VALUE call_status_handler2(VALUE ary) {
 
 static void flush_stderr_if_any(ruby_curl_easy *rbce) {
   VALUE stderr_io = rb_easy_get("stderr_io");
-  if (stderr_io != Qnil) {
-    /* Flush via Ruby IO API */
+  /* The caller may have closed their IO; curb's own stream stays valid. */
+  if (stderr_io != Qnil && !RTEST(rb_funcall(stderr_io, rb_intern("closed?"), 0))) {
     rb_funcall(stderr_io, rb_intern("flush"), 0);
-#ifdef HAVE_RUBY_IO_H
-    /* Additionally flush underlying FILE* to be extra safe. */
-    rb_io_t *open_f_ptr;
-    if (RB_TYPE_P(stderr_io, T_FILE)) {
-      GetOpenFile(stderr_io, open_f_ptr);
-      FILE *fp = rb_io_stdio_file(open_f_ptr);
-      if (fp) fflush(fp);
-    }
-#endif
+  }
+  if (rbce->stderr_file) {
+    fflush(rbce->stderr_file);
   }
 }
 

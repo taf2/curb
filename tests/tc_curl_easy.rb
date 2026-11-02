@@ -239,6 +239,92 @@ class TestCurbCurlEasy < Test::Unit::TestCase
     tmp.close! if defined?(tmp) && tmp
   end
 
+  # libcurl used to write through the IO's own FILE*, which Ruby frees on
+  # close. curb now owns a stream on a duplicate descriptor instead.
+  def test_curlopt_stderr_survives_block_form_file_close
+    tmp = Tempfile.new('curb_test_curlopt_stderr_closed')
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.verbose = true
+    File.open(tmp.path, 'w') { |file| easy.setopt(Curl::CURLOPT_STDERR, file) }
+
+    2.times { easy.perform }
+
+    output = File.read(tmp.path)
+    assert_equal 2, output.scan(/HTTP\/1\.1 200 OK/).length
+  ensure
+    tmp.close! if tmp
+  end
+
+  def test_curlopt_stderr_survives_close_after_multi_add
+    tmp = Tempfile.new('curb_test_curlopt_stderr_multi')
+    file = File.open(tmp.path, 'w')
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.verbose = true
+    easy.setopt(Curl::CURLOPT_STDERR, file)
+    multi = Curl::Multi.new
+    multi.add(easy)
+    file.close
+    GC.start
+
+    multi.perform
+
+    assert_equal 200, easy.response_code
+    assert_match(/HTTP\/1\.1 200 OK/, File.read(tmp.path))
+  ensure
+    multi.close if multi
+    tmp.close! if tmp
+  end
+
+  def test_curlopt_stderr_clone_owns_its_stream
+    tmp = Tempfile.new('curb_test_curlopt_stderr_clone')
+    easy = Curl::Easy.new(TestServlet.url)
+    easy.verbose = true
+    File.open(tmp.path, 'w') { |file| easy.setopt(Curl::CURLOPT_STDERR, file) }
+    copy = easy.clone
+
+    # Releasing the original's stream must not affect the clone's.
+    easy.close
+    GC.start
+    copy.perform
+
+    assert_equal 200, copy.response_code
+    assert_match(/HTTP\/1\.1 200 OK/, File.read(tmp.path))
+  ensure
+    tmp.close! if tmp
+  end
+
+  def test_curlopt_stderr_streams_are_released
+    fd_dir = '/proc/self/fd'
+    omit('needs /proc/self/fd to count open descriptors') unless File.directory?(fd_dir)
+    tmp = Tempfile.new('curb_test_curlopt_stderr_release')
+    file = File.open(tmp.path, 'w')
+    easy = Curl::Easy.new(TestServlet.url)
+    before = Dir.children(fd_dir).length
+
+    # Replacement, reset, and close each release curb's descriptor.
+    20.times { easy.setopt(Curl::CURLOPT_STDERR, file) }
+    easy.reset
+    easy.setopt(Curl::CURLOPT_STDERR, file)
+    easy.close
+    easy.setopt(Curl::CURLOPT_STDERR, file)
+    easy.clone.close
+    easy.close
+
+    assert_equal before, Dir.children(fd_dir).length
+  ensure
+    file.close if file && !file.closed?
+    tmp.close! if tmp
+  end
+
+  def test_curlopt_stderr_rejects_unwritable_io
+    tmp = Tempfile.new('curb_test_curlopt_stderr_readonly')
+    File.open(tmp.path, 'r') do |file|
+      assert_raise(IOError) { Curl::Easy.new.setopt(Curl::CURLOPT_STDERR, file) }
+    end
+  ensure
+    tmp.close! if tmp
+  end
+
   def test_head_request_no_body_and_no_timeout
     # Ensure a HEAD request completes and does not attempt to read a body
     # even when the server advertises a Content-Length.

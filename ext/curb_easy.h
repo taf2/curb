@@ -113,6 +113,9 @@ typedef struct {
   struct curl_slist *curl_connect_to;
   curb_cidr_rule *network_allowed_cidr_rules;
   char **network_allowed_hosts;
+  /* CURLOPT_STDERR target. curb owns this FILE* (on a duplicated descriptor)
+   * so closing or collecting the caller's IO cannot free it under libcurl. */
+  FILE *stderr_file;
 
   /* attachment_sequence of the multi at the time this easy was last added. */
   unsigned long multi_attachment_generation;
